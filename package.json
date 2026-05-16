@@ -20,7 +20,7 @@
     "tailwindcss": "latest",
     "vite": "latest"
   },
-  "engines": {
-    "node": ">=20"
-  }
+ "engines": {
+  "node": "20.19.0"
+}
 }
