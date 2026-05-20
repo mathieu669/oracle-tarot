@@ -1,269 +1,547 @@
-import React, { useMemo, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { deck, positions } from "./cards";
 
-const deck = [
-  { number: 1, roman: "I", name: "La Sieste", key: "Renaître de ses cendres", imageFace: "/images/cards/la-sieste.jpg" },
-  { number: 2, roman: "II", name: "L’Ex.", key: "Celle qui tourne et se retourne", imageFace: "/images/cards/l-ex.jpg" },
-  { number: 3, roman: "III", name: "La Bintang", key: "Tout travail mérite sa bière", imageFace: "/images/cards/la-bintang.jpg" },
-  { number: 4, roman: "IV", name: "La Tangente", key: "La prendre ou se laisser prendre", imageFace: "/images/cards/la-tangente.jpg" },
-  { number: 5, roman: "V", name: "Le Russe", key: "Bien le choisir ou le voir venir", imageFace: "/images/cards/le-russe.jpg" },
-  { number: 6, roman: "VI", name: "La Virée", key: "Sans ordonnance", imageFace: "/images/cards/la-viree.jpg" },
-  { number: 7, roman: "VII", name: "L’Huître", key: "L’ouvrir ou la fermer", imageFace: "/images/cards/l-huitre.jpg" },
-  { number: 8, roman: "VIII", name: "L’Écran", key: "Il montre ce que l’on regarde", imageFace: "/images/cards/l-ecran.jpg" },
-  { number: 9, roman: "IX", name: "L’Excel", key: "Tout le monde ne voit pas le tableau", imageFace: "/images/cards/l-excel.jpg" },
-  { number: 10, roman: "X", name: "L’App.", key: "Encore une", imageFace: "/images/cards/l-app.jpg" },
-  { number: 11, roman: "XI", name: "L’Excipient", key: "Défait notoire", imageFace: "/images/cards/l-excipient.jpg" },
-  { number: 12, roman: "XII", name: "La Loge", key: "Se perdre à l’abri", imageFace: "/images/cards/la-loge.jpg" },
-  { number: 13, roman: "XIII", name: "L’Esclave", key: "L’enfer des choses", imageFace: "/images/cards/l-esclave.jpg" },
-  { number: 14, roman: "XIV", name: "Le Noah", key: "Saga Africa", imageFace: "/images/cards/le-noah.jpg" },
-  { number: 15, roman: "XV", name: "L’Amatrice", key: "Elle te parle d’aventure", imageFace: "/images/cards/l-amatrice.jpg" },
-  { number: 16, roman: "XVI", name: "Le Kayak", key: "Fluctuat nec mergitur", imageFace: "/images/cards/le-kayak.jpg" },
-  { number: 17, roman: "XVII", name: "Le Connard", key: "Mâle accompagné", imageFace: "/images/cards/le-connard.jpg" },
-  { number: 18, roman: "XVIII", name: "De La Sarthe", key: "Habitudes sans modération", imageFace: "/images/cards/de-la-sarthe.jpg" },
-  { number: 19, roman: "XIX", name: "La Bambou", key: "Trouver ses cabanes", imageFace: "/images/cards/la-bambou.jpg" },
-  { number: 20, roman: "XX", name: "Anophelinae", key: "Il suce ton sang", imageFace: "/images/cards/anophelinae.jpg" },
-  { number: 21, roman: "XXI", name: "La Flasque", key: "Le diable l’emporte toujours", imageFace: "/images/cards/la-flasque.jpg" },
-  { number: 22, roman: "XXII", name: "La Petite Merde", key: "Majeur en la mineur", imageFace: "/images/cards/la-petite-merde.jpg" },
-  { number: 23, roman: "XXIII", name: "La Carte 23", key: "Clé à définir", imageFace: "/images/cards/carte-23.jpg", optional: true }
-];
+const DRAW_TARGET = 3;
+const REVEAL_DURATION = 1900;
+const OBSERVATION_DURATION = 10500;
+const ZOOM_DURATION = 3200;
+const KEYS_DURATION = 6200;
 
-const carouselCards = [...deck, ...deck];
-
-const positions = [
-  { label: "Ce qui insiste", detail: "le motif qui revient" },
-  { label: "Ce qui dévie", detail: "l’obstacle ou la torsion" },
-  { label: "Ce qui tranche", detail: "le geste ou la révélation" }
-];
-
-function randomDraw() {
-  const playableDeck = deck.filter((card) => !card.optional);
-  const copy = [...playableDeck];
-  const result = [];
-  while (result.length < 3) {
-    const index = Math.floor(Math.random() * copy.length);
-    result.push(copy.splice(index, 1)[0]);
-  }
-  return result;
+function pickRandomCard(excluded = []) {
+  const available = deck.filter((card) => !excluded.includes(card.slug));
+  return available[Math.floor(Math.random() * available.length)];
 }
 
-function CardBack() {
+function orientationSnapshot() {
+  const fallbackLandscape = typeof window !== "undefined" ? window.innerWidth > window.innerHeight : false;
+  const type = window?.screen?.orientation?.type || (fallbackLandscape ? "landscape" : "portrait");
+  const angle = typeof window?.screen?.orientation?.angle === "number"
+    ? window.screen.orientation.angle
+    : typeof window?.orientation === "number"
+      ? window.orientation
+      : 0;
+  return { type, angle, fallbackLandscape };
+}
+
+function isPortrait(o) {
+  return o.type.includes("portrait") || !o.fallbackLandscape;
+}
+
+function isLandscape(o) {
+  return o.type.includes("landscape") || o.fallbackLandscape;
+}
+
+function useRotationDraw(active, onSequenceDone) {
+  const armedRef = useRef(false);
+  const landscapeSeenRef = useRef(false);
+  const cooldownRef = useRef(false);
+
+  useEffect(() => {
+    if (!active) return undefined;
+
+    armedRef.current = false;
+    landscapeSeenRef.current = false;
+    cooldownRef.current = false;
+
+    const handle = () => {
+      if (cooldownRef.current) return;
+      const now = orientationSnapshot();
+
+      if (!armedRef.current && isPortrait(now)) {
+        armedRef.current = true;
+        return;
+      }
+
+      if (armedRef.current && !landscapeSeenRef.current && isLandscape(now)) {
+        landscapeSeenRef.current = true;
+        return;
+      }
+
+      if (armedRef.current && landscapeSeenRef.current && isPortrait(now)) {
+        cooldownRef.current = true;
+        armedRef.current = false;
+        landscapeSeenRef.current = false;
+        onSequenceDone();
+        window.setTimeout(() => {
+          cooldownRef.current = false;
+        }, 900);
+      }
+    };
+
+    handle();
+    window.addEventListener("orientationchange", handle);
+    window.addEventListener("resize", handle);
+    window.screen?.orientation?.addEventListener?.("change", handle);
+
+    return () => {
+      window.removeEventListener("orientationchange", handle);
+      window.removeEventListener("resize", handle);
+      window.screen?.orientation?.removeEventListener?.("change", handle);
+    };
+  }, [active, onSequenceDone]);
+}
+
+function createFallbackReading(cards) {
+  return {
+    title: "Le tirage n’a pas cligné des yeux",
+    cards: cards.map((card, index) => ({
+      position: positions[index].label,
+      cardName: card.name,
+      key: card.key,
+      interpretation:
+        index === 0
+          ? `${card.name} insiste : ${card.promptHint}`
+          : index === 1
+            ? `${card.name} tord la situation : ${card.promptHint}`
+            : `${card.name} tranche : ${card.promptHint}`
+    })),
+    crossReading: `${cards[0].name}, ${cards[1].name} et ${cards[2].name} décrivent une situation qui ne se contente pas d’exister : elle se répète, se déforme, puis exige une réponse plus nette que d’habitude.`,
+    synthesis: "Ce tirage ne demande pas d’y croire. Il demande surtout de reconnaître le point où l’on tourne autour de quelque chose qui sait déjà comment revenir.",
+    oracleSentence: "Le signe n’insiste jamais pour rien ; c’est l’habitude qui lui fait de la place."
+  };
+}
+
+function CardMedia({ card, autoplay = false, className = "" }) {
+  const [failed, setFailed] = useState(false);
+  const useVideo = autoplay && card?.videoFace && !failed;
+
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-[1.35rem] border-[6px] border-stone-50 bg-black shadow-2xl">
-      <img
-        src="/images/cards/fond-graphique.jpg"
-        alt="Dos de carte"
-        className="h-full w-full object-cover"
-      />
+    <div className={`overflow-hidden rounded-[28px] bg-black shadow-[0_28px_80px_rgba(0,0,0,0.58)] ${className}`}>
+      {useVideo ? (
+        <video
+          src={card.videoFace}
+          poster={card.imageFace}
+          className="h-full w-full object-cover"
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <img src={card.imageFace} alt={card.name} className="h-full w-full object-cover" />
+      )}
     </div>
   );
 }
 
-function CardFace({ card }) {
+function CardBack({ animate = false, className = "" }) {
+  const [failed, setFailed] = useState(false);
+
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-[1.35rem] border-[6px] border-stone-50 bg-black shadow-2xl">
-      <img
-        src={card.imageFace}
-        alt={card.name}
-        className="h-full w-full object-cover"
-        onError={(event) => {
-          event.currentTarget.src = "/images/cards/fond-graphique.jpg";
-        }}
-      />
+    <div className={`overflow-hidden rounded-[28px] bg-black shadow-[0_28px_80px_rgba(0,0,0,0.58)] ${className}`}>
+      {animate && !failed ? (
+        <video
+          src="/videos/cards/fond-graphique.mp4"
+          poster="/images/cards/fond-graphique.jpg"
+          className="h-full w-full object-cover"
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <img src="/images/cards/fond-graphique.jpg" alt="Dos de carte" className="h-full w-full object-cover" />
+      )}
     </div>
   );
 }
 
-function DiagonalCarousel() {
+function Shell({ children }) {
   return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[2.5rem] opacity-70">
-      <div className="absolute left-[-18%] top-[-18%] h-[140%] w-[145%] rotate-[-12deg]">
+    <main className="fixed inset-0 overflow-hidden bg-[#060504] text-stone-100">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_14%,rgba(255,255,255,0.08),transparent_26%),linear-gradient(180deg,#120f0d_0%,#060504_54%,#040302_100%)]" />
+      <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/30 to-transparent" />
+      <div className="absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-black/45 to-transparent" />
+      <div className="relative z-10 h-full w-full">{children}</div>
+    </main>
+  );
+}
+
+function IntroScreen({ onStart }) {
+  return (
+    <Shell>
+      <section className="flex h-full flex-col items-center justify-center px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-center">
         <motion.div
-          className="flex w-max gap-5"
-          animate={{ x: [0, -1750] }}
-          transition={{ duration: 48, repeat: Infinity, ease: "linear" }}
+          initial={{ opacity: 0, scale: 0.97 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.9 }}
+          className="aspect-[2/3.2] h-[72vh] max-h-[710px] w-auto max-w-[92vw]"
         >
-          {carouselCards.map((card, index) => (
-            <motion.div
-              key={`${card.name}-${index}`}
-              className="aspect-[2/3.25] w-[118px] shrink-0 rotate-[6deg] md:w-[150px]"
-              initial={{ y: index % 2 === 0 ? 0 : 36 }}
-              animate={{ y: index % 2 === 0 ? [0, 18, 0] : [36, 18, 36] }}
-              transition={{ duration: 9, repeat: Infinity, ease: "easeInOut", delay: (index % 7) * 0.2 }}
+          <CardBack animate className="h-full w-full" />
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25, duration: 0.7 }}
+          className="mt-5"
+        >
+          <p className="text-[10px] uppercase tracking-[0.42em] text-stone-500">oracle original</p>
+          <h1 className="mt-3 text-2xl font-semibold tracking-[0.03em] text-stone-50">Le tirage peut commencer.</h1>
+        </motion.div>
+
+        <motion.button
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.45, duration: 0.7 }}
+          onClick={onStart}
+          className="mt-6 rounded-full border border-stone-700 bg-black/30 px-6 py-3 text-[11px] uppercase tracking-[0.34em] text-stone-200 backdrop-blur-md active:scale-95"
+        >
+          Commencer
+        </motion.button>
+      </section>
+    </Shell>
+  );
+}
+
+function AwaitingDrawScreen({ drawnCount }) {
+  return (
+    <Shell>
+      <section className="flex h-full flex-col items-center justify-center px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-center">
+        <motion.div
+          key={drawnCount}
+          initial={{ opacity: 0, rotate: -1.5, scale: 0.98 }}
+          animate={{ opacity: 1, rotate: 0, scale: 1 }}
+          transition={{ duration: 0.65 }}
+          className="aspect-[2/3.2] h-[74vh] max-h-[720px] w-auto max-w-[92vw]"
+        >
+          <CardBack animate className="h-full w-full" />
+        </motion.div>
+
+        <div className="mt-5 text-center">
+          <p className="text-[10px] uppercase tracking-[0.42em] text-stone-500">{drawnCount + 1} / III</p>
+          <p className="mt-3 text-sm text-stone-400">...</p>
+        </div>
+      </section>
+    </Shell>
+  );
+}
+
+function RevealScreen({ card, index }) {
+  return (
+    <Shell>
+      <section className="flex h-full flex-col items-center justify-center px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-center">
+        <motion.div
+          initial={{ opacity: 0, rotateY: 92, scale: 0.93 }}
+          animate={{ opacity: 1, rotateY: 0, scale: 1 }}
+          transition={{ duration: 0.82, ease: "easeOut" }}
+          className="aspect-[2/3.2] h-[72vh] max-h-[700px] w-auto max-w-[92vw] [perspective:1200px]"
+        >
+          <CardMedia card={card} autoplay className="h-full w-full" />
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+          className="mt-5"
+        >
+          <p className="text-[10px] uppercase tracking-[0.42em] text-stone-500">Carte {index + 1}</p>
+          <h2 className="mt-2 text-3xl font-semibold text-stone-50">{card.name}</h2>
+        </motion.div>
+      </section>
+    </Shell>
+  );
+}
+
+function SpreadScreen({ cards, onContinue }) {
+  const [zoomedCard, setZoomedCard] = useState(null);
+
+  useEffect(() => {
+    const timer = window.setTimeout(onContinue, OBSERVATION_DURATION);
+    return () => window.clearTimeout(timer);
+  }, [onContinue]);
+
+  useEffect(() => {
+    if (!zoomedCard) return undefined;
+    const timer = window.setTimeout(() => setZoomedCard(null), ZOOM_DURATION);
+    return () => window.clearTimeout(timer);
+  }, [zoomedCard]);
+
+  return (
+    <Shell>
+      <section className="flex h-full flex-col justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))]">
+        <div className="mb-4 text-center">
+          <p className="text-[10px] uppercase tracking-[0.42em] text-stone-500">Le tirage</p>
+        </div>
+
+        <div className="mx-auto flex h-[82vh] w-full max-w-[430px] flex-col items-center justify-center">
+          {cards.map((card, index) => (
+            <motion.button
+              key={card.slug}
+              initial={{ opacity: 0, y: 24, rotate: index === 0 ? -4 : index === 1 ? 2.5 : -1.5 }}
+              animate={{ opacity: 1, y: 0, rotate: index === 0 ? -4 : index === 1 ? 2.5 : -1.5 }}
+              transition={{ delay: index * 0.16, duration: 0.55 }}
+              className="relative -my-3 aspect-[2/3.2] h-[29vh] min-h-[188px] max-h-[246px] active:scale-[0.985]"
+              onClick={() => setZoomedCard(card)}
             >
-              <CardFace card={card} />
-            </motion.div>
+              <CardMedia card={card} autoplay className="h-full w-full rounded-[24px]" />
+              <span className="absolute -right-2 top-4 rounded-full border border-stone-700 bg-black/70 px-2.5 py-1 text-[9px] uppercase tracking-[0.24em] text-stone-300 backdrop-blur-md">
+                {positions[index].label}
+              </span>
+            </motion.button>
           ))}
-        </motion.div>
-      </div>
-      <div className="absolute inset-0 bg-gradient-to-r from-[#090806] via-[#090806]/55 to-[#090806]" />
-      <div className="absolute inset-0 bg-gradient-to-b from-[#090806] via-transparent to-[#090806]" />
-    </div>
+        </div>
+
+        <AnimatePresence>
+          {zoomedCard && (
+            <motion.div
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/84 px-4 py-6 backdrop-blur-sm"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setZoomedCard(null)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                transition={{ duration: 0.25 }}
+                className="aspect-[2/3.2] h-[86vh] max-h-[780px] w-auto max-w-[95vw]"
+              >
+                <CardMedia card={zoomedCard} autoplay className="h-full w-full" />
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </section>
+    </Shell>
   );
 }
 
-function CardSlot({ card, index, revealed }) {
+function KeysScreen({ cards, onContinue }) {
+  useEffect(() => {
+    const timer = window.setTimeout(onContinue, KEYS_DURATION);
+    return () => window.clearTimeout(timer);
+  }, [onContinue]);
+
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 22 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.08 }}
-      className="min-w-0"
-    >
-      <div className="mb-3 text-center">
-        <p className="text-sm font-semibold text-stone-100">{positions[index].label}</p>
-        <p className="text-xs text-stone-400">{positions[index].detail}</p>
-      </div>
-      <div className="mx-auto aspect-[2/3.25] w-full max-w-[230px] [perspective:1000px]">
+    <Shell>
+      <section className="flex h-full flex-col justify-center overflow-y-auto px-6 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(2rem,env(safe-area-inset-top))]">
+        <p className="mb-6 text-center text-[10px] uppercase tracking-[0.42em] text-stone-500">Les clés</p>
+        <div className="space-y-6">
+          {cards.map((card, index) => (
+            <motion.article
+              key={card.slug}
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.35, duration: 0.55 }}
+              className="border-b border-stone-800 pb-6"
+            >
+              <p className="text-[10px] uppercase tracking-[0.32em] text-stone-600">{positions[index].label}</p>
+              <h2 className="mt-2 text-3xl font-semibold text-stone-50">{card.name}</h2>
+              <p className="mt-2 text-lg italic leading-7 text-stone-400">{card.key}</p>
+            </motion.article>
+          ))}
+        </div>
+      </section>
+    </Shell>
+  );
+}
+
+function GeneratingScreen() {
+  return (
+    <Shell>
+      <section className="flex h-full flex-col items-center justify-center px-6 text-center">
         <motion.div
-          className="relative h-full w-full [transform-style:preserve-3d]"
-          animate={{ rotateY: revealed ? 180 : 0 }}
-          transition={{ duration: 0.7, ease: "easeInOut" }}
+          animate={{ opacity: [0.38, 1, 0.38], scale: [0.985, 1, 0.985] }}
+          transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
+          className="aspect-[2/3.2] h-[58vh] max-h-[590px] w-auto max-w-[82vw]"
         >
-          <div className="absolute inset-0 [backface-visibility:hidden]"><CardBack /></div>
-          <div className="absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)]"><CardFace card={card} /></div>
+          <CardBack animate className="h-full w-full" />
         </motion.div>
-      </div>
-    </motion.div>
+        <p className="mt-7 text-[10px] uppercase tracking-[0.42em] text-stone-500">L’oracle se formule</p>
+      </section>
+    </Shell>
   );
 }
 
-function Reading({ cards, question }) {
-  if (!cards.length) return null;
-  const [a, b, c] = cards;
+function ResultScreen({ cards, reading, onRestart }) {
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="mt-10 rounded-[2rem] border border-stone-700/80 bg-stone-950/75 p-6 shadow-2xl backdrop-blur"
-    >
-      <div className="mb-6 flex flex-col gap-2 border-b border-stone-800 pb-5 md:flex-row md:items-end md:justify-between">
-        <div>
-          <p className="text-xs uppercase tracking-[0.35em] text-stone-500">lecture générée</p>
-          <h2 className="mt-2 font-serif text-3xl font-black text-stone-50">La fuite a laissé des traces</h2>
-        </div>
-        <p className="max-w-md text-sm italic text-stone-400">{question || "Question silencieuse"}</p>
-      </div>
-
-      <div className="grid gap-5 md:grid-cols-3">
-        {cards.map((card, index) => (
-          <div key={card.name} className="rounded-2xl border border-stone-800 bg-black/40 p-4">
-            <p className="text-xs uppercase tracking-[0.25em] text-stone-500">{positions[index].label}</p>
-            <h3 className="mt-2 font-serif text-xl font-bold text-stone-100">{card.name}</h3>
-            <p className="mt-1 text-sm text-stone-400">{card.key}</p>
-            <p className="mt-4 text-sm leading-6 text-stone-300">
-              {index === 0 && "La première carte ne prédit pas : elle insiste. Elle pose le doigt sur ce qui revient, parfois avec l’élégance douteuse d’une habitude que l’on déguise en destin."}
-              {index === 1 && "La deuxième carte dévie la trajectoire. Elle signale l’endroit où vous faites semblant d’avancer alors que vous négociez encore avec votre propre détour."}
-              {index === 2 && "La troisième carte tranche sans forcément consoler. Elle montre le geste à faire, ou du moins l’excuse qu’il faudra cesser d’entretenir."}
-            </p>
+    <Shell>
+      <section className="h-full overflow-y-auto px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))]">
+        <div className="mx-auto w-full max-w-[460px]">
+          <div className="mb-5 flex items-center justify-between gap-4">
+            <p className="text-[10px] uppercase tracking-[0.42em] text-stone-500">Oracle</p>
+            <button
+              onClick={onRestart}
+              className="rounded-full border border-stone-700 bg-black/30 px-4 py-2 text-[10px] uppercase tracking-[0.32em] text-stone-200 backdrop-blur-md active:scale-95"
+            >
+              Recommencer
+            </button>
           </div>
-        ))}
-      </div>
 
-      <div className="mt-6 grid gap-5 md:grid-cols-[1.25fr_0.75fr]">
-        <div className="rounded-2xl border border-stone-800 bg-black/35 p-5">
-          <p className="text-xs uppercase tracking-[0.25em] text-stone-500">lecture croisée</p>
-          <p className="mt-3 leading-7 text-stone-300">
-            {a.name}, {b.name} et {c.name} composent une scène où le problème n’est pas seulement ce qui arrive, mais la manière dont vous l’arrangez pour qu’il continue. L’oracle ne vous demande pas de croire : il vous demande de regarder la petite mécanique qui tourne déjà.
-          </p>
+          <div className="mb-6 flex items-start justify-center gap-3">
+            {cards.map((card) => (
+              <div key={card.slug} className="aspect-[2/3.2] h-[112px] w-auto shrink-0">
+                <CardMedia card={card} className="h-full w-full rounded-[18px]" />
+              </div>
+            ))}
+          </div>
+
+          <div className="rounded-[2rem] border border-stone-800 bg-black/38 p-5 shadow-2xl backdrop-blur-md">
+            <p className="text-[10px] uppercase tracking-[0.32em] text-stone-500">Titre</p>
+            <h1 className="mt-2 text-3xl font-semibold leading-tight text-stone-50">{reading.title}</h1>
+
+            <div className="mt-6 space-y-5">
+              {reading.cards.map((item, index) => (
+                <article key={`${item.cardName}-${index}`} className="border-b border-stone-800 pb-5 last:border-b-0 last:pb-0">
+                  <p className="text-[10px] uppercase tracking-[0.32em] text-stone-600">{item.position}</p>
+                  <h2 className="mt-2 text-2xl font-semibold text-stone-100">{item.cardName}</h2>
+                  <p className="mt-1 text-sm italic text-stone-400">{item.key}</p>
+                  <p className="mt-3 text-[15px] leading-7 text-stone-300">{item.interpretation}</p>
+                </article>
+              ))}
+            </div>
+
+            <div className="mt-6 border-t border-stone-800 pt-5">
+              <p className="text-[10px] uppercase tracking-[0.32em] text-stone-500">Lecture croisée</p>
+              <p className="mt-3 text-[15px] leading-7 text-stone-300">{reading.crossReading}</p>
+            </div>
+
+            <div className="mt-6 border-t border-stone-800 pt-5">
+              <p className="text-[10px] uppercase tracking-[0.32em] text-stone-500">Synthèse</p>
+              <p className="mt-3 text-[15px] leading-7 text-stone-300">{reading.synthesis}</p>
+            </div>
+
+            <div className="mt-6 rounded-[1.5rem] border border-stone-700 bg-stone-100 p-4 text-black">
+              <p className="text-[10px] uppercase tracking-[0.32em] text-stone-500">Phrase-oracle</p>
+              <p className="mt-3 text-xl font-semibold leading-8">{reading.oracleSentence}</p>
+            </div>
+          </div>
         </div>
-        <div className="rounded-2xl border border-stone-800 bg-stone-100 p-5 text-black">
-          <p className="text-xs uppercase tracking-[0.25em] text-stone-500">phrase-oracle</p>
-          <p className="mt-3 font-serif text-xl font-black leading-7">Ce n’est pas le signe qui vous poursuit ; c’est l’habitude de lui ouvrir la porte.</p>
-        </div>
-      </div>
-    </motion.section>
+      </section>
+    </Shell>
   );
 }
 
-export default function OraclePreview() {
-  const initial = useMemo(() => [deck[0], deck[14], deck[12]], []);
-  const [cards, setCards] = useState(initial);
-  const [revealed, setRevealed] = useState(true);
-  const [question, setQuestion] = useState("Que dois-je comprendre de ce qui revient en ce moment ?");
-  const [loading, setLoading] = useState(false);
+export default function App() {
+  const [stage, setStage] = useState("intro");
+  const [drawnCards, setDrawnCards] = useState([]);
+  const [currentCard, setCurrentCard] = useState(null);
+  const [reading, setReading] = useState(null);
+  const [error, setError] = useState(null);
 
-  const draw = () => {
-    setRevealed(false);
-    setLoading(true);
-    setTimeout(() => {
-      setCards(randomDraw());
-      setLoading(false);
-      setRevealed(true);
-    }, 650);
+  const activeDrawStage = stage === "awaiting";
+
+  const handleDrawSequence = useCallback(() => {
+    setDrawnCards((prev) => {
+      if (prev.length >= DRAW_TARGET) return prev;
+      const nextCard = pickRandomCard(prev.map((card) => card.slug));
+      setCurrentCard(nextCard);
+      setStage("reveal");
+      return [...prev, nextCard];
+    });
+  }, []);
+
+  useRotationDraw(activeDrawStage, handleDrawSequence);
+
+  useEffect(() => {
+    if (stage !== "reveal") return undefined;
+    const timer = window.setTimeout(() => {
+      setCurrentCard(null);
+      setStage((prevStage) => {
+        const count = drawnCards.length;
+        if (count >= DRAW_TARGET) return "spread";
+        return "awaiting";
+      });
+    }, REVEAL_DURATION);
+    return () => window.clearTimeout(timer);
+  }, [stage, drawnCards.length]);
+
+  useEffect(() => {
+    if (stage !== "generating") return undefined;
+    let cancelled = false;
+
+    async function generateReading() {
+      setError(null);
+      try {
+        const response = await fetch("/api/reading", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            question: "Question silencieuse",
+            cards: drawnCards.map((card, index) => ({
+              ...card,
+              position: positions[index].label,
+              positionMeaning: positions[index].meaning
+            }))
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data?.error || "Erreur pendant la génération de la lecture.");
+        }
+
+        if (!cancelled) {
+          setReading(data.reading);
+          setStage("result");
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err.message);
+          setReading(createFallbackReading(drawnCards));
+          setStage("result");
+        }
+      }
+    }
+
+    generateReading();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [stage, drawnCards]);
+
+  const revealIndex = useMemo(() => Math.max(drawnCards.length - 1, 0), [drawnCards.length]);
+
+  const restart = () => {
+    setStage("intro");
+    setDrawnCards([]);
+    setCurrentCard(null);
+    setReading(null);
+    setError(null);
   };
 
+  if (stage === "intro") {
+    return <IntroScreen onStart={() => setStage("awaiting")} />;
+  }
+
+  if (stage === "awaiting") {
+    return <AwaitingDrawScreen drawnCount={drawnCards.length} />;
+  }
+
+  if (stage === "reveal" && currentCard) {
+    return <RevealScreen card={currentCard} index={revealIndex} />;
+  }
+
+  if (stage === "spread") {
+    return <SpreadScreen cards={drawnCards} onContinue={() => setStage("keys")} />;
+  }
+
+  if (stage === "keys") {
+    return <KeysScreen cards={drawnCards} onContinue={() => setStage("generating")} />;
+  }
+
+  if (stage === "generating") {
+    return <GeneratingScreen />;
+  }
+
   return (
-    <main className="min-h-screen overflow-hidden bg-[#090806] px-5 py-6 text-stone-100 md:px-10 md:py-10">
-      <div className="pointer-events-none fixed inset-0 opacity-40">
-        <div className="absolute -left-32 top-16 h-72 w-[45rem] rotate-[-18deg] rounded-full bg-stone-200/10 blur-3xl" />
-        <div className="absolute right-[-10rem] top-60 h-80 w-[50rem] rotate-[22deg] rounded-full bg-red-900/20 blur-3xl" />
-        <div className="absolute bottom-[-8rem] left-1/4 h-72 w-[45rem] rounded-full bg-stone-100/10 blur-3xl" />
-      </div>
-
-      <section className="relative mx-auto max-w-7xl">
-        <header className="relative grid min-h-[620px] gap-6 overflow-hidden rounded-[2.5rem] border border-stone-800 bg-black/45 p-6 shadow-2xl backdrop-blur md:grid-cols-[1.05fr_0.95fr] md:p-8">
-          <DiagonalCarousel />
-          <div className="relative z-10 flex flex-col justify-between gap-8">
-            <div>
-              <p className="mb-4 text-xs uppercase tracking-[0.45em] text-stone-500">Oracle original</p>
-              <h1 className="max-w-2xl font-serif text-5xl font-black leading-[0.95] text-stone-50 md:text-7xl">
-                Tirez trois cartes. Laissez-les mal répondre.
-              </h1>
-              <p className="mt-6 max-w-xl text-base leading-7 text-stone-300">
-                Une interface de tirage pour un oracle contemporain, ironique et sibyllin. Le set complet traverse l’écran en carrousel diagonal ; les cartes se révèlent ensuite dans le tirage.
-              </p>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
-              <input
-                value={question}
-                onChange={(e) => setQuestion(e.target.value)}
-                placeholder="Votre question"
-                className="h-12 rounded-full border border-stone-700 bg-stone-950/90 px-5 text-sm text-stone-100 outline-none placeholder:text-stone-600 focus:border-stone-300"
-              />
-              <button
-                onClick={draw}
-                className="h-12 rounded-full bg-stone-100 px-7 text-sm font-bold uppercase tracking-[0.18em] text-black transition hover:bg-white active:scale-[0.99]"
-              >
-                {loading ? "Tirage…" : "Tirer"}
-              </button>
-            </div>
-          </div>
-
-          <div className="relative z-10 hidden items-end justify-end md:flex">
-            <div className="max-w-sm rounded-[2rem] border border-stone-700 bg-black/65 p-5 backdrop-blur">
-              <p className="text-xs uppercase tracking-[0.35em] text-stone-500">deck complet</p>
-              <p className="mt-3 font-serif text-4xl font-black text-stone-50">23 visuels</p>
-              <p className="mt-3 text-sm leading-6 text-stone-400">
-                Le carrousel affiche tous les rectos disponibles. Si le fichier <span className="font-mono">carte-23.jpg</span> manque encore, le dos commun est utilisé en secours.
-              </p>
-            </div>
-          </div>
-        </header>
-
-        <section className="relative mt-10 rounded-[2.5rem] border border-stone-800 bg-black/35 p-5 shadow-2xl backdrop-blur md:p-8">
-          <div className="mb-8 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-[0.35em] text-stone-500">tirage en 3 cartes</p>
-              <h2 className="mt-2 font-serif text-3xl font-black text-stone-50">Ce qui insiste / Ce qui dévie / Ce qui tranche</h2>
-            </div>
-            <p className="max-w-md text-sm leading-6 text-stone-400">
-              Aperçu fonctionnel : le texte ci-dessous simule la réponse API. En production, il sera généré par ChatGPT à partir des cartes, de leurs clés et de votre question.
-            </p>
-          </div>
-
-          <div className="grid gap-8 md:grid-cols-3">
-            <AnimatePresence mode="popLayout">
-              {cards.map((card, index) => (
-                <CardSlot key={`${card.name}-${index}`} card={card} index={index} revealed={revealed} />
-              ))}
-            </AnimatePresence>
-          </div>
-        </section>
-
-        <Reading cards={cards} question={question} />
-      </section>
-    </main>
+    <>
+      {error ? (
+        <div className="fixed left-1/2 top-[calc(env(safe-area-inset-top)+12px)] z-50 w-[calc(100%-32px)] max-w-[430px] -translate-x-1/2 rounded-2xl border border-amber-600/60 bg-amber-100/92 px-4 py-3 text-sm text-amber-950 shadow-xl backdrop-blur">
+          Lecture locale affichée : {error}
+        </div>
+      ) : null}
+      <ResultScreen cards={drawnCards} reading={reading || createFallbackReading(drawnCards)} onRestart={restart} />
+    </>
   );
 }

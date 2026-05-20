@@ -1,0 +1,11 @@
+{
+  "name": "Oracle original",
+  "short_name": "Oracle",
+  "description": "Tirage divinatoire contemporain.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#060504",
+  "theme_color": "#060504",
+  "orientation": "portrait",
+  "lang": "fr"
+}
