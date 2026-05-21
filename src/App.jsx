@@ -66,6 +66,33 @@ function unlockAudioElement(audioElement) {
   }
 }
 
+function primeVoiceAudio(audioElement) {
+  if (!audioElement) return Promise.resolve();
+
+  audioElement.muted = false;
+  audioElement.volume = 0.01;
+  audioElement.src = SILENT_WAV;
+  audioElement.load();
+
+  const promise = audioElement.play();
+
+  if (promise?.then) {
+    return promise
+      .then(() => {
+        audioElement.pause();
+        audioElement.currentTime = 0;
+        audioElement.volume = 1;
+      })
+      .catch(() => {
+        audioElement.volume = 1;
+      });
+  }
+
+  audioElement.volume = 1;
+  return Promise.resolve();
+}
+
+
 function base64ToObjectUrl(base64, mimeType = "audio/mpeg") {
   const binaryString = window.atob(base64);
   const length = binaryString.length;
@@ -625,7 +652,18 @@ function ResultScreen({ reading, question, musicPlayer }) {
       musicPlayer.volume = 0.12;
     }
 
+    let audio = voiceAudioRef.current;
+
+    if (!audio) {
+      audio = new Audio();
+      audio.preload = "auto";
+      audio.volume = 1;
+      voiceAudioRef.current = audio;
+    }
+
     try {
+      await primeVoiceAudio(audio);
+
       const response = await fetch("/api/oracle-audio", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -645,11 +683,11 @@ function ResultScreen({ reading, question, musicPlayer }) {
       const audioUrl = URL.createObjectURL(audioBlob);
       voiceUrlRef.current = audioUrl;
 
-      const audio = new Audio(audioUrl);
-      audio.preload = "auto";
+      audio.pause();
+      audio.src = audioUrl;
       audio.volume = 1;
-
-      voiceAudioRef.current = audio;
+      audio.currentTime = 0;
+      audio.load();
 
       audio.onended = () => {
         setVoiceStatus("done");
