@@ -9,13 +9,34 @@ const CARD_FADE_MS = 6000;
 const FALLBACK_CARD_DURATION_MS = 5000;
 const ORACLE_WAIT_MS = 3600;
 const ORACLE_PANEL_MS = 8000;
-const VOICE_WAIT_TIMEOUT_MS = 15000;
-const LONG_PRESS_MS = 2500;
+const SWIPE_UP_THRESHOLD = 105;
 const FADE_DURATION = 0.85;
 
 function pickRandomCard(excluded = []) {
   const available = deck.filter((card) => !excluded.includes(card.slug));
   return available[Math.floor(Math.random() * available.length)];
+}
+
+function preloadEssentialMedia() {
+  if (typeof window === "undefined") return;
+
+  const videoSources = [
+    "/videos/cards/fond-graphique.mp4",
+    "/videos/revelation.mp4?v=10",
+    "/videos/oracle.mp4?v=5"
+  ];
+
+  videoSources.forEach((source) => {
+    const video = document.createElement("video");
+    video.preload = "auto";
+    video.muted = true;
+    video.playsInline = true;
+    video.src = source;
+    video.load();
+  });
+
+  const audio = new Audio("/audio/background.mp3?v=2");
+  audio.preload = "auto";
 }
 
 const SILENT_WAV =
@@ -426,17 +447,16 @@ function AudioToggleButton({ enabled, onToggle }) {
 }
 
 
-function LongPressDrawScreen({ onDraw }) {
-  const [isPressing, setIsPressing] = useState(false);
-  const [isReady, setIsReady] = useState(false);
-  const timerRef = useRef(null);
+function SwipeUpDrawScreen({ onDraw }) {
+  const startYRef = useRef(null);
+  const hasDrawnRef = useRef(false);
 
-  const clearPress = () => {
-    window.clearTimeout(timerRef.current);
-    timerRef.current = null;
+  const resetSwipe = () => {
+    startYRef.current = null;
+    hasDrawnRef.current = false;
   };
 
-  const startPress = (event) => {
+  const startSwipe = (event) => {
     event.preventDefault();
     event.stopPropagation();
 
@@ -448,94 +468,60 @@ function LongPressDrawScreen({ onDraw }) {
       }
     }
 
-    clearPress();
-    setIsPressing(true);
-    setIsReady(false);
-
-    timerRef.current = window.setTimeout(() => {
-      setIsReady(true);
-    }, LONG_PRESS_MS);
+    startYRef.current = event.clientY;
+    hasDrawnRef.current = false;
   };
 
-  const endPress = (event) => {
+  const moveSwipe = (event) => {
+    if (startYRef.current === null || hasDrawnRef.current) return;
+
     event.preventDefault();
     event.stopPropagation();
 
-    const ready = isReady;
-    clearPress();
-    setIsPressing(false);
-    setIsReady(false);
+    const deltaY = startYRef.current - event.clientY;
 
-    if (ready) {
+    if (deltaY >= SWIPE_UP_THRESHOLD) {
+      hasDrawnRef.current = true;
       onDraw();
     }
   };
 
-  const cancelPress = (event) => {
+  const endSwipe = (event) => {
     event.preventDefault();
     event.stopPropagation();
-
-    clearPress();
-    setIsPressing(false);
-    setIsReady(false);
+    resetSwipe();
   };
 
-  useEffect(() => {
-    return () => clearPress();
-  }, []);
+  const cancelSwipe = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    resetSwipe();
+  };
 
   return (
     <Background>
-      <motion.div
-        className="pointer-events-none fixed inset-0 z-20"
-        initial={false}
-        animate={{
-          opacity: isPressing ? 1 : 0,
-          scale: isPressing ? 1.02 : 1
-        }}
-        transition={{ duration: isPressing ? LONG_PRESS_MS / 1000 : 0.55, ease: "easeInOut" }}
-        style={{
-          backdropFilter: isReady
-            ? "invert(1) contrast(1.25) saturate(1.35)"
-            : "invert(0.55) contrast(1.1) saturate(1.15)",
-          WebkitBackdropFilter: isReady
-            ? "invert(1) contrast(1.25) saturate(1.35)"
-            : "invert(0.55) contrast(1.1) saturate(1.15)"
-        }}
-      />
-
-      <motion.div
-        className="pointer-events-none fixed inset-0 z-20 bg-white/0"
-        animate={
-          isPressing
-            ? { opacity: [0.05, 0.18, 0.05] }
-            : { opacity: 0 }
-        }
-        transition={{
-          duration: 1.6,
-          repeat: isPressing ? Infinity : 0,
-          ease: "easeInOut"
-        }}
-        style={{ mixBlendMode: "overlay" }}
-      />
-
       <button
         type="button"
         aria-label="Tirer"
-        className="fixed inset-0 z-30 cursor-default touch-none"
-        onPointerDown={startPress}
-        onPointerUp={endPress}
-        onPointerCancel={cancelPress}
-        onPointerLeave={cancelPress}
+        className="fixed inset-0 z-30 cursor-default touch-none select-none"
+        style={{
+          WebkitUserSelect: "none",
+          userSelect: "none",
+          WebkitTouchCallout: "none",
+          touchAction: "none"
+        }}
+        onPointerDown={startSwipe}
+        onPointerMove={moveSwipe}
+        onPointerUp={endSwipe}
+        onPointerCancel={cancelSwipe}
+        onPointerLeave={cancelSwipe}
       />
     </Background>
   );
 }
 
-
 function MouthButton({ status, onClick }) {
   const isLoading = status === "loading";
-  const isPlaying = status === "playing";
 
   return (
     <motion.button
@@ -546,24 +532,25 @@ function MouthButton({ status, onClick }) {
         event.stopPropagation();
         onClick();
       }}
-      className="fixed left-1/2 z-40 flex h-14 w-14 -translate-x-1/2 items-center justify-center rounded-full border border-white/60 shadow-[0_0_32px_rgba(255,255,255,0.22)] backdrop-blur-md active:scale-95"
+      className="fixed z-40 flex h-16 w-16 items-center justify-center rounded-full border border-white/60 shadow-[0_0_38px_rgba(255,255,255,0.24)] backdrop-blur-md active:scale-95"
       style={{
-        bottom: "calc(50vh + 1.25rem)",
-        backgroundColor: isPlaying ? "rgba(255,255,255,0.92)" : "rgba(0,0,0,0.54)",
-        color: isPlaying ? "black" : "white"
+        left: "50%",
+        top: "calc(27vh - 6rem)",
+        backgroundColor: isLoading ? "rgba(255,255,255,0.92)" : "rgba(0,0,0,0.54)",
+        color: isLoading ? "black" : "white"
       }}
       animate={
         isLoading
-          ? { opacity: [0.42, 1, 0.42], scale: [0.98, 1.04, 0.98], x: "-50%" }
+          ? { opacity: [0.52, 1, 0.52], scale: [0.98, 1.06, 0.98], x: "-50%" }
           : { opacity: 1, scale: 1, x: "-50%" }
       }
       transition={
         isLoading
-          ? { duration: 2.4, repeat: Infinity, ease: "easeInOut" }
+          ? { duration: 2.2, repeat: Infinity, ease: "easeInOut" }
           : { duration: 0.25, ease: "easeOut" }
       }
     >
-      <svg width="31" height="20" viewBox="0 0 64 38" fill="none" aria-hidden="true">
+      <svg width="36" height="23" viewBox="0 0 64 38" fill="none" aria-hidden="true">
         <path
           d="M6 19C14 7.5 22.5 5 32 12C41.5 5 50 7.5 58 19C50 30.5 41.5 33 32 26C22.5 33 14 30.5 6 19Z"
           stroke="currentColor"
@@ -576,14 +563,6 @@ function MouthButton({ status, onClick }) {
           strokeWidth="3"
           strokeLinecap="round"
         />
-        {isPlaying ? (
-          <path
-            d="M23 24C28.5 29 35.5 29 41 24"
-            stroke="currentColor"
-            strokeWidth="2.6"
-            strokeLinecap="round"
-          />
-        ) : null}
       </svg>
     </motion.button>
   );
@@ -592,10 +571,8 @@ function MouthButton({ status, onClick }) {
 function ResultScreen({ reading, question, musicPlayer }) {
   const [voiceStatus, setVoiceStatus] = useState("idle");
   const [voiceStarted, setVoiceStarted] = useState(false);
-  const [voiceFailed, setVoiceFailed] = useState(false);
   const voiceAudioRef = useRef(null);
   const voiceUrlRef = useRef(null);
-  const fallbackTimerRef = useRef(null);
 
   const panels = [
     [question || "Question silencieuse"],
@@ -610,12 +587,7 @@ function ResultScreen({ reading, question, musicPlayer }) {
 
   const [panelIndex, setPanelIndex] = useState(-1);
   const isLastPanel = panelIndex === panels.length - 1;
-  const shouldShowVoiceWaiting = voiceStatus === "loading" && panelIndex < 0;
-
-  const startPanels = () => {
-    setVoiceStarted(true);
-    setPanelIndex((index) => (index < 0 ? 0 : index));
-  };
+  const shouldShowVoiceWaiting = voiceStatus === "loading" || (voiceStarted && panelIndex < 0);
 
   useEffect(() => {
     if (panelIndex < 0 || isLastPanel) return undefined;
@@ -629,8 +601,6 @@ function ResultScreen({ reading, question, musicPlayer }) {
 
   useEffect(() => {
     return () => {
-      window.clearTimeout(fallbackTimerRef.current);
-
       if (voiceAudioRef.current) {
         voiceAudioRef.current.pause();
       }
@@ -650,30 +620,16 @@ function ResultScreen({ reading, question, musicPlayer }) {
     if (voiceStatus === "loading" || voiceStarted) return;
 
     setVoiceStatus("loading");
-    setVoiceFailed(false);
 
     if (musicPlayer) {
       musicPlayer.volume = 0.12;
     }
 
-    fallbackTimerRef.current = window.setTimeout(() => {
-      setVoiceFailed(true);
-      setVoiceStatus("timeout");
-      startPanels();
-
-      if (musicPlayer) {
-        musicPlayer.volume = 0.34;
-      }
-    }, VOICE_WAIT_TIMEOUT_MS);
-
-    const controller = new AbortController();
-
     try {
       const response = await fetch("/api/oracle-audio", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question, reading }),
-        signal: controller.signal
+        body: JSON.stringify({ question, reading })
       });
 
       if (!response.ok) {
@@ -704,9 +660,9 @@ function ResultScreen({ reading, question, musicPlayer }) {
       };
 
       audio.onerror = () => {
-        setVoiceFailed(true);
-        setVoiceStatus("error");
-        startPanels();
+        setVoiceStatus("idle");
+        setVoiceStarted(false);
+        setPanelIndex(-1);
 
         if (musicPlayer) {
           musicPlayer.volume = 0.34;
@@ -719,23 +675,21 @@ function ResultScreen({ reading, question, musicPlayer }) {
         await playPromise;
       }
 
-      window.clearTimeout(fallbackTimerRef.current);
       setVoiceStatus("playing");
-      startPanels();
-    } catch (error) {
-      window.clearTimeout(fallbackTimerRef.current);
-      setVoiceFailed(true);
-      setVoiceStatus("error");
-      startPanels();
+      setVoiceStarted(true);
+
+      window.requestAnimationFrame(() => {
+        setPanelIndex(0);
+      });
+    } catch {
+      setVoiceStatus("idle");
+      setVoiceStarted(false);
+      setPanelIndex(-1);
 
       if (musicPlayer) {
         musicPlayer.volume = 0.34;
       }
     }
-
-    return () => {
-      controller.abort();
-    };
   };
 
   return (
@@ -751,26 +705,12 @@ function ResultScreen({ reading, question, musicPlayer }) {
       {shouldShowVoiceWaiting ? (
         <motion.div
           className="fixed left-1/2 z-30 -translate-x-1/2 text-center"
-          style={{ bottom: "calc(50vh + 5.1rem)" }}
+          style={{ top: "calc(27vh - 1rem)" }}
           animate={{ opacity: [0.35, 1, 0.35] }}
           transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
         >
           <p className="text-2xl font-semibold text-white drop-shadow-[0_5px_18px_rgba(0,0,0,0.95)]">
             attends.
-          </p>
-        </motion.div>
-      ) : null}
-
-      {voiceFailed && panelIndex >= 0 ? (
-        <motion.div
-          className="fixed left-1/2 z-30 -translate-x-1/2 text-center"
-          style={{ bottom: "calc(50vh + 1.25rem)" }}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 0.72 }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-        >
-          <p className="text-sm uppercase tracking-[0.26em] text-white/70 drop-shadow-[0_4px_14px_rgba(0,0,0,0.9)]">
-            silence.
           </p>
         </motion.div>
       ) : null}
@@ -832,6 +772,10 @@ export default function App() {
   const transcriptRef = useRef("");
   const hasStartedRef = useRef(false);
   const finalizedRef = useRef(false);
+
+  useEffect(() => {
+    preloadEssentialMedia();
+  }, []);
 
   const SpeechRecognition =
     typeof window !== "undefined"
@@ -1098,7 +1042,7 @@ export default function App() {
   }
 
   if (stage === "awaitingDraw") {
-    return <LongPressDrawScreen onDraw={drawNextCard} />;
+    return <SwipeUpDrawScreen onDraw={drawNextCard} />;
   }
 
   if (stage === "signal") {
