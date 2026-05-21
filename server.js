@@ -84,27 +84,15 @@ function buildOracleSpeechText(reading, question) {
     parts.push(`Ta question : ${question.trim()}`);
   }
 
-  if (reading?.title) {
-    parts.push(reading.title);
-  }
-
   if (Array.isArray(reading?.cards)) {
     for (const card of reading.cards) {
       parts.push(`${card.cardName}. ${card.interpretation}`);
     }
   }
 
-  if (reading?.crossReading) {
-    parts.push(reading.crossReading);
-  }
-
-  if (reading?.synthesis) {
-    parts.push(reading.synthesis);
-  }
-
-  if (reading?.oracleSentence) {
-    parts.push(reading.oracleSentence);
-  }
+  if (reading?.crossReading) parts.push(reading.crossReading);
+  if (reading?.synthesis) parts.push(reading.synthesis);
+  if (reading?.oracleSentence) parts.push(reading.oracleSentence);
 
   return stripMarkdown(parts.filter(Boolean).join("\n\n"));
 }
@@ -114,6 +102,7 @@ async function generateElevenLabsAudio(text) {
   const voiceId = process.env.ELEVENLABS_VOICE_ID;
 
   if (!apiKey || !voiceId || !text?.trim()) {
+    console.warn("ElevenLabs skipped: missing API key, voice ID, or text.");
     return null;
   }
 
@@ -145,10 +134,13 @@ async function generateElevenLabsAudio(text) {
   }
 
   const arrayBuffer = await response.arrayBuffer();
+  const base64 = Buffer.from(arrayBuffer).toString("base64");
+
+  console.log(`ElevenLabs audio generated: ${base64.length} base64 chars.`);
 
   return {
     mimeType: "audio/mpeg",
-    base64: Buffer.from(arrayBuffer).toString("base64")
+    base64
   };
 }
 

@@ -16,6 +16,25 @@ function pickRandomCard(excluded = []) {
   return available[Math.floor(Math.random() * available.length)];
 }
 
+let audioUnlocked = false;
+
+function unlockOracleAudio() {
+  if (audioUnlocked || typeof window === "undefined") return;
+  audioUnlocked = true;
+
+  const audio = new Audio();
+  audio.src =
+    "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=";
+  audio.volume = 0.01;
+
+  const promise = audio.play();
+  if (promise?.catch) {
+    promise.catch(() => {
+      audioUnlocked = false;
+    });
+  }
+}
+
 
 function createFallbackReading(cards, question) {
   return {
@@ -247,15 +266,15 @@ function OracleVideoBackground() {
 
   return (
     <>
-      <div
-        className="fixed inset-0 bg-black bg-cover bg-center"
-        style={{ backgroundImage: "url('/images/revelation-final.png')" }}
-        aria-hidden="true"
+      <img
+        src="/images/revelation-final.png"
+        alt=""
+        className="fixed inset-0 h-full w-full object-cover"
       />
 
       <motion.video
         ref={videoRef}
-        src="/videos/oracle.mp4?v=6"
+        src="/videos/oracle.mp4?v=5"
         className="fixed inset-0 h-full w-full object-cover"
         autoPlay
         muted
@@ -326,21 +345,38 @@ function QuestionOverlay({ question }) {
 function ResultScreen({ reading, question, audio }) {
   const audioRef = useRef(null);
 
+  const playOracleAudio = () => {
+    if (!audioRef.current || !audio?.base64 || !audio?.mimeType) return;
+
+    const source = `data:${audio.mimeType};base64,${audio.base64}`;
+
+    if (audioRef.current.src !== source) {
+      audioRef.current.src = source;
+    }
+
+    audioRef.current.currentTime = 0;
+
+    const promise = audioRef.current.play();
+    if (promise?.catch) {
+      promise.catch(() => {
+        // Silent fallback if mobile autoplay still blocks audio.
+      });
+    }
+  };
+
   useEffect(() => {
     if (!audio?.base64 || !audio?.mimeType || !audioRef.current) return undefined;
 
     const source = `data:${audio.mimeType};base64,${audio.base64}`;
     audioRef.current.src = source;
-    audioRef.current.currentTime = 0;
+    audioRef.current.load();
 
-    const playPromise = audioRef.current.play();
-    if (playPromise?.catch) {
-      playPromise.catch(() => {
-        // Silent fallback if mobile autoplay blocks audio.
-      });
-    }
+    const timer = window.setTimeout(() => {
+      playOracleAudio();
+    }, ORACLE_WAIT_MS);
 
     return () => {
+      window.clearTimeout(timer);
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.removeAttribute("src");
@@ -381,7 +417,7 @@ function ResultScreen({ reading, question, audio }) {
   }, [panelIndex, isLastPanel, panels.length]);
 
   return (
-    <main className="fixed inset-0 overflow-hidden bg-black text-stone-100">
+    <main className="fixed inset-0 overflow-hidden bg-black text-stone-100" onPointerDown={playOracleAudio}>
       <audio ref={audioRef} playsInline preload="auto" />
       <OracleVideoBackground />
 
@@ -475,6 +511,7 @@ export default function App() {
   };
 
   const startRecording = (event) => {
+    unlockOracleAudio();
     event.preventDefault();
     event.stopPropagation();
 
@@ -572,6 +609,7 @@ export default function App() {
   }, [stage]);
 
   const drawNextCard = () => {
+    unlockOracleAudio();
     if (stage !== "awaitingDraw" || drawnCards.length >= DRAW_TARGET) return;
 
     const nextCard = pickRandomCard(drawnCards.map((card) => card.slug));
@@ -729,5 +767,5 @@ export default function App() {
     );
   }
 
-  return <Background onClick={() => setStage("microphone")} />;
+  return <Background onClick={() => { unlockOracleAudio(); setStage("microphone"); }} />;
 }
