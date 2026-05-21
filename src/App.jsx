@@ -9,6 +9,7 @@ const CARD_FADE_MS = 6000;
 const FALLBACK_CARD_DURATION_MS = 5000;
 const ORACLE_WAIT_MS = 3600;
 const ORACLE_PANEL_MS = 8000;
+const LONG_PRESS_MS = 2500;
 const FADE_DURATION = 0.85;
 
 function pickRandomCard(excluded = []) {
@@ -63,7 +64,7 @@ function startBackgroundMusic(audioElement) {
   audioElement.volume = 0.34;
 
   if (!audioElement.src || !audioElement.src.includes("/audio/background.mp3")) {
-    audioElement.src = "/audio/background.mp3?v=1";
+    audioElement.src = "/audio/background.mp3?v=2";
   }
 
   const promise = audioElement.play();
@@ -423,6 +424,113 @@ function AudioToggleButton({ enabled, onToggle }) {
   );
 }
 
+
+function LongPressDrawScreen({ onDraw }) {
+  const [isPressing, setIsPressing] = useState(false);
+  const [isReady, setIsReady] = useState(false);
+  const timerRef = useRef(null);
+
+  const clearPress = () => {
+    window.clearTimeout(timerRef.current);
+    timerRef.current = null;
+  };
+
+  const startPress = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (event.currentTarget.setPointerCapture && event.pointerId !== undefined) {
+      try {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      } catch {
+        // Ignore pointer capture errors.
+      }
+    }
+
+    clearPress();
+    setIsPressing(true);
+    setIsReady(false);
+
+    timerRef.current = window.setTimeout(() => {
+      setIsReady(true);
+    }, LONG_PRESS_MS);
+  };
+
+  const endPress = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const ready = isReady;
+    clearPress();
+    setIsPressing(false);
+    setIsReady(false);
+
+    if (ready) {
+      onDraw();
+    }
+  };
+
+  const cancelPress = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    clearPress();
+    setIsPressing(false);
+    setIsReady(false);
+  };
+
+  useEffect(() => {
+    return () => clearPress();
+  }, []);
+
+  return (
+    <Background>
+      <motion.div
+        className="pointer-events-none fixed inset-0 z-20"
+        initial={false}
+        animate={{
+          opacity: isPressing ? 1 : 0,
+          scale: isPressing ? 1.02 : 1
+        }}
+        transition={{ duration: isPressing ? LONG_PRESS_MS / 1000 : 0.55, ease: "easeInOut" }}
+        style={{
+          backdropFilter: isReady
+            ? "invert(1) contrast(1.25) saturate(1.35)"
+            : "invert(0.55) contrast(1.1) saturate(1.15)",
+          WebkitBackdropFilter: isReady
+            ? "invert(1) contrast(1.25) saturate(1.35)"
+            : "invert(0.55) contrast(1.1) saturate(1.15)"
+        }}
+      />
+
+      <motion.div
+        className="pointer-events-none fixed inset-0 z-20 bg-white/0"
+        animate={
+          isPressing
+            ? { opacity: [0.05, 0.18, 0.05] }
+            : { opacity: 0 }
+        }
+        transition={{
+          duration: 1.6,
+          repeat: isPressing ? Infinity : 0,
+          ease: "easeInOut"
+        }}
+        style={{ mixBlendMode: "overlay" }}
+      />
+
+      <button
+        type="button"
+        aria-label="Tirer"
+        className="fixed inset-0 z-30 cursor-default touch-none"
+        onPointerDown={startPress}
+        onPointerUp={endPress}
+        onPointerCancel={cancelPress}
+        onPointerLeave={cancelPress}
+      />
+    </Background>
+  );
+}
+
 function ResultScreen({ reading, question }) {
 
   const panels = [
@@ -509,7 +617,7 @@ export default function App() {
   const backgroundMusicRef = useRef(null);
 
   if (!backgroundMusicRef.current && typeof Audio !== "undefined") {
-    backgroundMusicRef.current = new Audio("/audio/background.mp3?v=1");
+    backgroundMusicRef.current = new Audio("/audio/background.mp3?v=2");
     backgroundMusicRef.current.loop = true;
     backgroundMusicRef.current.preload = "auto";
     backgroundMusicRef.current.volume = 0.34;
@@ -796,7 +904,7 @@ export default function App() {
   }
 
   if (stage === "awaitingDraw") {
-    return <Background onClick={drawNextCard} />;
+    return <LongPressDrawScreen onDraw={drawNextCard} />;
   }
 
   if (stage === "signal") {
