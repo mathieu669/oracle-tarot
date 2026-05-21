@@ -141,55 +141,68 @@ function TimedCardVideo({ card, onDone }) {
 
 function RevelationVideo() {
   const videoRef = useRef(null);
-  const [ready, setReady] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const sources = ["/videos/revelation.mp4?v=5", "/videos/cards/revelation.mp4?v=5"];
+  const [sourceIndex, setSourceIndex] = useState(0);
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
+    setVisible(false);
     const video = videoRef.current;
     if (!video) return undefined;
+
+    video.load();
 
     const playPromise = video.play();
     if (playPromise?.catch) {
       playPromise.catch(() => {
-        setFailed(true);
+        // On ne revient plus au fond graphique : la vidéo doit rester l’écran de révélation.
       });
     }
 
     return undefined;
-  }, []);
+  }, [sourceIndex]);
 
-  if (failed) {
-    return <Background />;
-  }
+  const handleReady = () => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    try {
+      video.currentTime = 0;
+      video.play();
+    } catch {
+      // Ignore playback errors.
+    }
+
+    setVisible(true);
+  };
+
+  const handleError = () => {
+    if (sourceIndex < sources.length - 1) {
+      setSourceIndex((index) => index + 1);
+      return;
+    }
+
+    setVisible(true);
+  };
 
   return (
     <main className="fixed inset-0 overflow-hidden bg-black">
-      <video
-        src="/videos/cards/fond-graphique.mp4"
-        poster="/images/cards/fond-graphique.jpg"
-        className="fixed inset-0 h-full w-full object-cover"
-        autoPlay
-        muted
-        loop
-        playsInline
-        preload="metadata"
-      />
-
       <motion.video
         ref={videoRef}
-        src="/videos/revelation.mp4"
-        poster="/images/cards/fond-graphique.jpg"
+        key={sources[sourceIndex]}
+        src={sources[sourceIndex]}
         className="fixed inset-0 h-full w-full object-cover"
         autoPlay
         muted
         loop
         playsInline
         preload="auto"
-        onCanPlay={() => setReady(true)}
-        onLoadedData={() => setReady(true)}
-        onError={() => setFailed(true)}
+        onLoadedData={handleReady}
+        onCanPlay={handleReady}
+        onPlaying={handleReady}
+        onError={handleError}
         initial={{ opacity: 0 }}
-        animate={{ opacity: ready ? 1 : 0 }}
+        animate={{ opacity: visible ? 1 : 0 }}
         transition={{ duration: 0.65, ease: "easeInOut" }}
       />
     </main>
