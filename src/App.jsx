@@ -135,16 +135,57 @@ function TimedCardVideo({ card, onDone }) {
 }
 
 function RevelationVideo() {
+  const videoRef = useRef(null);
+  const [ready, setReady] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return undefined;
+
+    const playPromise = video.play();
+    if (playPromise?.catch) {
+      playPromise.catch(() => {
+        setFailed(true);
+      });
+    }
+
+    return undefined;
+  }, []);
+
+  if (failed) {
+    return <Background />;
+  }
+
   return (
     <main className="fixed inset-0 overflow-hidden bg-black">
       <video
+        src="/videos/cards/fond-graphique.mp4"
+        poster="/images/cards/fond-graphique.jpg"
+        className="fixed inset-0 h-full w-full object-cover"
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="metadata"
+      />
+
+      <motion.video
+        ref={videoRef}
         src="/videos/revelation.mp4"
+        poster="/images/cards/fond-graphique.jpg"
         className="fixed inset-0 h-full w-full object-cover"
         autoPlay
         muted
         loop
         playsInline
         preload="auto"
+        onCanPlay={() => setReady(true)}
+        onLoadedData={() => setReady(true)}
+        onError={() => setFailed(true)}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: ready ? 1 : 0 }}
+        transition={{ duration: 0.65, ease: "easeInOut" }}
       />
     </main>
   );
