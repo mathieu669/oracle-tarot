@@ -158,14 +158,25 @@ app.get("/api/voice-health", (req, res) => {
 });
 
 app.post("/api/oracle-audio", async (req, res) => {
+  const startedAt = Date.now();
+
   try {
     const { question, reading } = req.body || {};
     const speechText = buildOracleSpeechText(reading, question);
+
+    console.log("Oracle audio requested.", {
+      chars: speechText.length,
+      hasQuestion: Boolean(question?.trim()),
+      cardCount: Array.isArray(reading?.cards) ? reading.cards.length : 0
+    });
+
     const buffer = await generateElevenLabsBuffer(speechText);
+    const durationMs = Date.now() - startedAt;
 
     console.log("Oracle audio generated.", {
       chars: speechText.length,
-      bytes: buffer.length
+      bytes: buffer.length,
+      durationMs
     });
 
     res.setHeader("Content-Type", "audio/mpeg");
@@ -173,28 +184,17 @@ app.post("/api/oracle-audio", async (req, res) => {
     res.setHeader("Cache-Control", "no-store");
     res.send(buffer);
   } catch (error) {
-    console.error("Oracle audio error:", error);
-    res.status(500).json({
-      error: "Erreur pendant la génération audio de l’oracle."
+    const durationMs = Date.now() - startedAt;
+
+    console.error("Oracle audio error:", {
+      durationMs,
+      message: error.message
     });
-  }
-});
 
-app.get("/api/voice-test", async (req, res) => {
-  try {
-    const buffer = await generateElevenLabsBuffer(
-      "Attends. Si tu entends cette phrase, la voix ElevenLabs fonctionne depuis Render."
-    );
-
-    res.setHeader("Content-Type", "audio/mpeg");
-    res.setHeader("Content-Length", buffer.length);
-    res.setHeader("Cache-Control", "no-store");
-    res.send(buffer);
-  } catch (error) {
-    console.error("Voice test error:", error);
     res.status(500).json({
-      error: "Erreur pendant le test audio ElevenLabs.",
-      details: error.message
+      error: "Erreur pendant la génération audio de l’oracle.",
+      details: error.message,
+      durationMs
     });
   }
 });
