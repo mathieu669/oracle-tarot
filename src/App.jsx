@@ -9,7 +9,7 @@ const CARD_FADE_MS = 6000;
 const FALLBACK_CARD_DURATION_MS = 5000;
 const ORACLE_WAIT_MS = 3600;
 const ORACLE_PANEL_MS = 8000;
-const LONG_PRESS_MS = 2500;
+const SWIPE_UP_THRESHOLD = 105;
 const FADE_DURATION = 0.85;
 
 function pickRandomCard(excluded = []) {
@@ -425,17 +425,20 @@ function AudioToggleButton({ enabled, onToggle }) {
 }
 
 
-function LongPressDrawScreen({ onDraw }) {
-  const [isPressing, setIsPressing] = useState(false);
-  const [isReady, setIsReady] = useState(false);
-  const timerRef = useRef(null);
+function SwipeUpDrawScreen({ onDraw }) {
+  const [swipeProgress, setSwipeProgress] = useState(0);
+  const [isSwiping, setIsSwiping] = useState(false);
+  const startYRef = useRef(null);
+  const hasDrawnRef = useRef(false);
 
-  const clearPress = () => {
-    window.clearTimeout(timerRef.current);
-    timerRef.current = null;
+  const resetSwipe = () => {
+    startYRef.current = null;
+    hasDrawnRef.current = false;
+    setIsSwiping(false);
+    setSwipeProgress(0);
   };
 
-  const startPress = (event) => {
+  const startSwipe = (event) => {
     event.preventDefault();
     event.stopPropagation();
 
@@ -447,41 +450,47 @@ function LongPressDrawScreen({ onDraw }) {
       }
     }
 
-    clearPress();
-    setIsPressing(true);
-    setIsReady(false);
-
-    timerRef.current = window.setTimeout(() => {
-      setIsReady(true);
-    }, LONG_PRESS_MS);
+    startYRef.current = event.clientY;
+    hasDrawnRef.current = false;
+    setIsSwiping(true);
+    setSwipeProgress(0);
   };
 
-  const endPress = (event) => {
+  const moveSwipe = (event) => {
+    if (startYRef.current === null || hasDrawnRef.current) return;
+
     event.preventDefault();
     event.stopPropagation();
 
-    const ready = isReady;
-    clearPress();
-    setIsPressing(false);
-    setIsReady(false);
+    const deltaY = startYRef.current - event.clientY;
+    const progress = Math.max(0, Math.min(1, deltaY / SWIPE_UP_THRESHOLD));
 
-    if (ready) {
-      onDraw();
+    setSwipeProgress(progress);
+  };
+
+  const endSwipe = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const shouldDraw = swipeProgress >= 1 && !hasDrawnRef.current;
+
+    if (shouldDraw) {
+      hasDrawnRef.current = true;
+      setSwipeProgress(1);
+      window.setTimeout(() => {
+        onDraw();
+      }, 180);
+      return;
     }
+
+    resetSwipe();
   };
 
-  const cancelPress = (event) => {
+  const cancelSwipe = (event) => {
     event.preventDefault();
     event.stopPropagation();
-
-    clearPress();
-    setIsPressing(false);
-    setIsReady(false);
+    resetSwipe();
   };
-
-  useEffect(() => {
-    return () => clearPress();
-  }, []);
 
   return (
     <Background>
@@ -489,102 +498,42 @@ function LongPressDrawScreen({ onDraw }) {
         className="pointer-events-none fixed inset-0 z-20"
         initial={false}
         animate={{
-          opacity: isPressing ? 1 : 0,
-          scale: isPressing ? 1.02 : 1
+          opacity: isSwiping ? Math.max(0.08, swipeProgress) : 0
         }}
-        transition={{ duration: isPressing ? LONG_PRESS_MS / 1000 : 0.55, ease: "easeInOut" }}
+        transition={{ duration: isSwiping ? 0.08 : 0.5, ease: "easeOut" }}
         style={{
-          backdropFilter: isReady
-            ? "invert(1) contrast(1.25) saturate(1.35)"
-            : "invert(0.55) contrast(1.1) saturate(1.15)",
-          WebkitBackdropFilter: isReady
-            ? "invert(1) contrast(1.25) saturate(1.35)"
-            : "invert(0.55) contrast(1.1) saturate(1.15)"
+          backdropFilter: `invert(${0.22 + swipeProgress * 0.78}) contrast(${1 + swipeProgress * 0.28}) saturate(${1 + swipeProgress * 0.35})`,
+          WebkitBackdropFilter: `invert(${0.22 + swipeProgress * 0.78}) contrast(${1 + swipeProgress * 0.28}) saturate(${1 + swipeProgress * 0.35})`
         }}
       />
 
       <motion.div
-        className="pointer-events-none fixed inset-0 z-20 bg-white/0"
-        animate={
-          isPressing
-            ? { opacity: [0.05, 0.18, 0.05] }
-            : { opacity: 0 }
-        }
-        transition={{
-          duration: 1.6,
-          repeat: isPressing ? Infinity : 0,
-          ease: "easeInOut"
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-20 h-[44vh] bg-gradient-to-t from-white/22 via-white/8 to-transparent"
+        initial={false}
+        animate={{
+          opacity: isSwiping ? swipeProgress : 0,
+          y: isSwiping ? `${(1 - swipeProgress) * 55}%` : "55%"
         }}
+        transition={{ duration: 0.12, ease: "easeOut" }}
         style={{ mixBlendMode: "overlay" }}
       />
 
       <button
         type="button"
         aria-label="Tirer"
-        className="fixed inset-0 z-30 cursor-default touch-none"
-        onPointerDown={startPress}
-        onPointerUp={endPress}
-        onPointerCancel={cancelPress}
-        onPointerLeave={cancelPress}
+        className="fixed inset-0 z-30 cursor-default touch-none select-none"
+        style={{
+          WebkitUserSelect: "none",
+          userSelect: "none",
+          WebkitTouchCallout: "none"
+        }}
+        onPointerDown={startSwipe}
+        onPointerMove={moveSwipe}
+        onPointerUp={endSwipe}
+        onPointerCancel={cancelSwipe}
+        onPointerLeave={cancelSwipe}
       />
     </Background>
-  );
-}
-
-
-function MouthButton({ status, onClick }) {
-  const isLoading = status === "loading";
-  const isPlaying = status === "playing";
-
-  return (
-    <motion.button
-      type="button"
-      aria-label="Lire l’oracle"
-      onClick={(event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        onClick();
-      }}
-      className="fixed left-1/2 z-40 flex h-14 w-14 -translate-x-1/2 items-center justify-center rounded-full border border-white/60 shadow-[0_0_32px_rgba(255,255,255,0.22)] backdrop-blur-md active:scale-95"
-      style={{
-        bottom: "calc(50vh + 1.25rem)",
-        backgroundColor: isPlaying ? "rgba(255,255,255,0.92)" : "rgba(0,0,0,0.54)",
-        color: isPlaying ? "black" : "white"
-      }}
-      animate={
-        isLoading
-          ? { opacity: [0.42, 1, 0.42], scale: [0.98, 1.04, 0.98], x: "-50%" }
-          : { opacity: 1, scale: 1, x: "-50%" }
-      }
-      transition={
-        isLoading
-          ? { duration: 2.4, repeat: Infinity, ease: "easeInOut" }
-          : { duration: 0.25, ease: "easeOut" }
-      }
-    >
-      <svg width="31" height="20" viewBox="0 0 64 38" fill="none" aria-hidden="true">
-        <path
-          d="M6 19C14 7.5 22.5 5 32 12C41.5 5 50 7.5 58 19C50 30.5 41.5 33 32 26C22.5 33 14 30.5 6 19Z"
-          stroke="currentColor"
-          strokeWidth="3.2"
-          strokeLinejoin="round"
-        />
-        <path
-          d="M9 19H55"
-          stroke="currentColor"
-          strokeWidth="3"
-          strokeLinecap="round"
-        />
-        {isPlaying ? (
-          <path
-            d="M23 24C28.5 29 35.5 29 41 24"
-            stroke="currentColor"
-            strokeWidth="2.6"
-            strokeLinecap="round"
-          />
-        ) : null}
-      </svg>
-    </motion.button>
   );
 }
 
@@ -1083,7 +1032,7 @@ export default function App() {
   }
 
   if (stage === "awaitingDraw") {
-    return <LongPressDrawScreen onDraw={drawNextCard} />;
+    return <SwipeUpDrawScreen onDraw={drawNextCard} />;
   }
 
   if (stage === "signal") {
