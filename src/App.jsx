@@ -247,15 +247,15 @@ function OracleVideoBackground() {
 
   return (
     <>
-      <img
-        src="/images/revelation-final.png"
-        alt=""
-        className="fixed inset-0 h-full w-full object-cover"
+      <div
+        className="fixed inset-0 bg-black bg-cover bg-center"
+        style={{ backgroundImage: "url('/images/revelation-final.png')" }}
+        aria-hidden="true"
       />
 
       <motion.video
         ref={videoRef}
-        src="/videos/oracle.mp4?v=5"
+        src="/videos/oracle.mp4?v=6"
         className="fixed inset-0 h-full w-full object-cover"
         autoPlay
         muted
