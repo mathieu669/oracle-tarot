@@ -9,6 +9,7 @@ const CARD_FADE_MS = 6000;
 const FALLBACK_CARD_DURATION_MS = 5000;
 const ORACLE_WAIT_MS = 3600;
 const ORACLE_PANEL_MS = 8000;
+const VOICE_WAIT_TIMEOUT_MS = 18000;
 const SWIPE_UP_THRESHOLD = 105;
 const FADE_DURATION = 0.85;
 
@@ -601,6 +602,8 @@ function ResultScreen({ reading, question, musicPlayer }) {
 
   useEffect(() => {
     return () => {
+      window.clearTimeout(fallbackTimerRef.current);
+
       if (voiceAudioRef.current) {
         voiceAudioRef.current.pause();
       }
@@ -616,7 +619,7 @@ function ResultScreen({ reading, question, musicPlayer }) {
     };
   }, [musicPlayer]);
 
-  const playOracleVoice = async () => {
+  const playOracleVoice = () => {
     if (voiceStatus === "loading" || voiceStarted) return;
 
     setVoiceStatus("loading");
@@ -625,63 +628,45 @@ function ResultScreen({ reading, question, musicPlayer }) {
       musicPlayer.volume = 0.12;
     }
 
-    try {
-      const response = await fetch("/api/oracle-audio", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question, reading })
-      });
+    window.clearTimeout(fallbackTimerRef.current);
 
-      if (!response.ok) {
-        throw new Error("Audio unavailable");
-      }
+    const payload = encodeURIComponent(JSON.stringify({ question, reading }));
+    const audioUrl = `/api/oracle-audio-stream?payload=${payload}&t=${Date.now()}`;
 
-      const audioBlob = await response.blob();
+    let audio = voiceAudioRef.current;
 
-      if (voiceUrlRef.current) {
-        URL.revokeObjectURL(voiceUrlRef.current);
-      }
-
-      const audioUrl = URL.createObjectURL(audioBlob);
-      voiceUrlRef.current = audioUrl;
-
-      const audio = new Audio(audioUrl);
+    if (!audio) {
+      audio = new Audio();
       audio.preload = "auto";
-      audio.volume = 1;
-
       voiceAudioRef.current = audio;
+    } else {
+      audio.pause();
+      audio.currentTime = 0;
+    }
 
-      audio.onended = () => {
-        setVoiceStatus("done");
+    audio.volume = 1;
+    audio.src = audioUrl;
 
-        if (musicPlayer) {
-          musicPlayer.volume = 0.34;
-        }
-      };
-
-      audio.onerror = () => {
-        setVoiceStatus("idle");
-        setVoiceStarted(false);
-        setPanelIndex(-1);
-
-        if (musicPlayer) {
-          musicPlayer.volume = 0.34;
-        }
-      };
-
-      const playPromise = audio.play();
-
-      if (playPromise?.catch) {
-        await playPromise;
-      }
-
+    audio.onplaying = () => {
+      window.clearTimeout(fallbackTimerRef.current);
       setVoiceStatus("playing");
       setVoiceStarted(true);
 
       window.requestAnimationFrame(() => {
         setPanelIndex(0);
       });
-    } catch {
+    };
+
+    audio.onended = () => {
+      setVoiceStatus("done");
+
+      if (musicPlayer) {
+        musicPlayer.volume = 0.34;
+      }
+    };
+
+    audio.onerror = () => {
+      window.clearTimeout(fallbackTimerRef.current);
       setVoiceStatus("idle");
       setVoiceStarted(false);
       setPanelIndex(-1);
@@ -689,6 +674,31 @@ function ResultScreen({ reading, question, musicPlayer }) {
       if (musicPlayer) {
         musicPlayer.volume = 0.34;
       }
+    };
+
+    fallbackTimerRef.current = window.setTimeout(() => {
+      setVoiceStatus("timeout");
+      setVoiceStarted(true);
+      setPanelIndex((index) => (index < 0 ? 0 : index));
+
+      if (musicPlayer) {
+        musicPlayer.volume = 0.34;
+      }
+    }, VOICE_WAIT_TIMEOUT_MS);
+
+    const playPromise = audio.play();
+
+    if (playPromise?.catch) {
+      playPromise.catch(() => {
+        window.clearTimeout(fallbackTimerRef.current);
+        setVoiceStatus("idle");
+        setVoiceStarted(false);
+        setPanelIndex(-1);
+
+        if (musicPlayer) {
+          musicPlayer.volume = 0.34;
+        }
+      });
     }
   };
 
