@@ -28,14 +28,14 @@ function createFallbackReading(cards, question) {
       key: card.key,
       interpretation:
         index === 0
-          ? `${card.name} insiste : ${card.promptHint}`
+          ? `${card.name} insiste : ${card.key}. Ce qui revient n’a pas encore tout dit.`
           : index === 1
-            ? `${card.name} tord la situation : ${card.promptHint}`
-            : `${card.name} tranche : ${card.promptHint}`
+            ? `${card.name} dévie : ${card.key}. Le détour est peut-être plus parlant que l’obstacle.`
+            : `${card.name} tranche : ${card.key}. Il faut entendre ce qui cesse de négocier.`
     })),
-    crossReading: `${cards[0].name}, ${cards[1].name} et ${cards[2].name} répondent à cette question : « ${question || "Question silencieuse"} ». La situation ne se contente pas d’exister : elle se répète, se déforme, puis exige une réponse plus nette que d’habitude.`,
-    synthesis: "Ce tirage ne demande pas d’y croire. Il demande surtout de reconnaître le point où l’on tourne autour de quelque chose qui sait déjà comment revenir.",
-    oracleSentence: "Le signe n’insiste jamais pour rien ; c’est l’habitude qui lui fait de la place."
+    crossReading: `${cards[0].name}, ${cards[1].name} et ${cards[2].name} disent ceci : le même motif revient, mais il a changé de costume.`,
+    synthesis: "La question ne demande pas une solution héroïque : elle demande de cesser d’appeler destin une vieille habitude bien entretenue.",
+    oracleSentence: "Le signe frappe moins fort quand on arrête de lui servir à boire."
   };
 }
 
@@ -139,14 +139,26 @@ function TimedCardVideo({ card, onDone }) {
   );
 }
 
-function RevelationVideo() {
+function RevelationVideo({ onEnded }) {
   const videoRef = useRef(null);
-  const sources = ["/videos/revelation.mp4?v=5", "/videos/cards/revelation.mp4?v=5"];
+  const sources = ["/videos/revelation.mp4?v=6", "/videos/cards/revelation.mp4?v=6"];
   const [sourceIndex, setSourceIndex] = useState(0);
   const [visible, setVisible] = useState(false);
+  const endedRef = useRef(false);
+  const fallbackTimerRef = useRef(null);
 
   useEffect(() => {
+    endedRef.current = false;
     setVisible(false);
+
+    window.clearTimeout(fallbackTimerRef.current);
+    fallbackTimerRef.current = window.setTimeout(() => {
+      if (!endedRef.current) {
+        endedRef.current = true;
+        onEnded();
+      }
+    }, 9000);
+
     const video = videoRef.current;
     if (!video) return undefined;
 
@@ -155,12 +167,14 @@ function RevelationVideo() {
     const playPromise = video.play();
     if (playPromise?.catch) {
       playPromise.catch(() => {
-        // On ne revient plus au fond graphique : la vidéo doit rester l’écran de révélation.
+        // Keep the revelation stage active. A fallback timer will release the flow.
       });
     }
 
-    return undefined;
-  }, [sourceIndex]);
+    return () => {
+      window.clearTimeout(fallbackTimerRef.current);
+    };
+  }, [sourceIndex, onEnded]);
 
   const handleReady = () => {
     const video = videoRef.current;
@@ -182,7 +196,17 @@ function RevelationVideo() {
       return;
     }
 
-    setVisible(true);
+    if (!endedRef.current) {
+      endedRef.current = true;
+      onEnded();
+    }
+  };
+
+  const handleEnded = () => {
+    if (endedRef.current) return;
+    endedRef.current = true;
+    window.clearTimeout(fallbackTimerRef.current);
+    onEnded();
   };
 
   return (
@@ -194,12 +218,12 @@ function RevelationVideo() {
         className="fixed inset-0 h-full w-full object-cover"
         autoPlay
         muted
-        loop
         playsInline
         preload="auto"
         onLoadedData={handleReady}
         onCanPlay={handleReady}
         onPlaying={handleReady}
+        onEnded={handleEnded}
         onError={handleError}
         initial={{ opacity: 0 }}
         animate={{ opacity: visible ? 1 : 0 }}
@@ -260,7 +284,7 @@ function QuestionOverlay({ question }) {
   );
 }
 
-function ResultScreen({ cards, reading, onRestart }) {
+function ResultScreen({ cards, reading, question, onRestart }) {
   return (
     <main className="fixed inset-0 overflow-y-auto bg-[#060504] px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))] text-stone-100">
       <div className="mx-auto w-full max-w-[460px]">
@@ -283,6 +307,11 @@ function ResultScreen({ cards, reading, onRestart }) {
               className="aspect-[2/3.2] h-[112px] w-auto shrink-0 rounded-[18px] object-cover"
             />
           ))}
+        </div>
+
+        <div className="mb-5 rounded-[1.4rem] border border-stone-800 bg-black/30 p-4 shadow-xl backdrop-blur-md">
+          <p className="text-[10px] uppercase tracking-[0.32em] text-stone-500">Question</p>
+          <p className="mt-2 text-xl font-semibold leading-7 text-stone-100">{question || "Question silencieuse"}</p>
         </div>
 
         <div className="rounded-[2rem] border border-stone-800 bg-black/38 p-5 shadow-2xl backdrop-blur-md">
@@ -328,6 +357,7 @@ export default function App() {
   const [currentCard, setCurrentCard] = useState(null);
   const [reading, setReading] = useState(null);
   const [error, setError] = useState(null);
+  const [revelationEnded, setRevelationEnded] = useState(false);
 
   const recognitionRef = useRef(null);
   const transcriptRef = useRef("");
@@ -471,11 +501,18 @@ export default function App() {
 
   const completeCardReveal = () => {
     setCurrentCard(null);
-    setStage(drawnCards.length >= DRAW_TARGET ? "generating" : "awaitingDraw");
+
+    if (drawnCards.length >= DRAW_TARGET) {
+      setRevelationEnded(false);
+      setStage("revelation");
+      return;
+    }
+
+    setStage("awaitingDraw");
   };
 
   useEffect(() => {
-    if (stage !== "generating") return undefined;
+    if (stage !== "revelation") return undefined;
     let cancelled = false;
 
     async function fetchReading() {
@@ -512,7 +549,6 @@ export default function App() {
 
         if (!cancelled) {
           setReading(apiReading);
-          setStage("result");
         }
       } catch (err) {
         await wait(REVELATION_DISPLAY_MS);
@@ -520,7 +556,6 @@ export default function App() {
         if (!cancelled) {
           setError(err.message);
           setReading(createFallbackReading(drawnCards, question));
-          setStage("result");
         }
       }
     }
@@ -531,6 +566,12 @@ export default function App() {
       cancelled = true;
     };
   }, [stage, drawnCards, question]);
+
+  useEffect(() => {
+    if (stage === "revelation" && revelationEnded && reading) {
+      setStage("result");
+    }
+  }, [stage, revelationEnded, reading]);
 
   const restart = () => {
     if (recognitionRef.current) {
@@ -549,6 +590,7 @@ export default function App() {
     setCurrentCard(null);
     setReading(null);
     setError(null);
+    setRevelationEnded(false);
   };
 
   if (stage === "result") {
@@ -559,13 +601,13 @@ export default function App() {
             Lecture locale affichée : {error}
           </div>
         ) : null}
-        <ResultScreen cards={drawnCards} reading={reading || createFallbackReading(drawnCards, question)} onRestart={restart} />
+        <ResultScreen cards={drawnCards} reading={reading || createFallbackReading(drawnCards, question)} question={question} onRestart={restart} />
       </>
     );
   }
 
-  if (stage === "generating") {
-    return <RevelationVideo />;
+  if (stage === "revelation") {
+    return <RevelationVideo onEnded={() => setRevelationEnded(true)} />;
   }
 
   if (stage === "cardReveal" && currentCard) {
