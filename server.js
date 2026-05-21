@@ -94,7 +94,7 @@ function buildOracleSpeechText(reading, question) {
   if (reading?.synthesis) parts.push(reading.synthesis);
   if (reading?.oracleSentence) parts.push(reading.oracleSentence);
 
-  return stripMarkdown(parts.filter(Boolean).join("\n\n"));
+  return stripMarkdown(parts.filter(Boolean).join("\\n\\n"));
 }
 
 async function generateElevenLabsAudio(text) {
@@ -162,14 +162,11 @@ app.get("/api/voice-health", (req, res) => {
 
 app.get("/api/voice-test", async (req, res) => {
   try {
-    console.log("Voice test requested.");
-
     const audio = await generateElevenLabsAudio(
-      "Attends. L’oracle parle enfin. Si tu entends cette phrase, ElevenLabs fonctionne."
+      "Attends. Si tu entends cette phrase, la voix ElevenLabs fonctionne."
     );
 
     if (!audio?.base64) {
-      console.error("Voice test failed: no audio generated.");
       return res.status(500).json({
         error: "No ElevenLabs audio generated.",
         hasApiKey: Boolean(process.env.ELEVENLABS_API_KEY),
@@ -178,7 +175,6 @@ app.get("/api/voice-test", async (req, res) => {
     }
 
     const buffer = Buffer.from(audio.base64, "base64");
-
     res.setHeader("Content-Type", audio.mimeType || "audio/mpeg");
     res.setHeader("Content-Length", buffer.length);
     res.setHeader("Cache-Control", "no-store");
@@ -191,11 +187,6 @@ app.get("/api/voice-test", async (req, res) => {
 
 app.post("/api/reading", async (req, res) => {
   try {
-    console.log("Oracle reading requested.", {
-      hasElevenLabsKey: Boolean(process.env.ELEVENLABS_API_KEY),
-      hasElevenLabsVoice: Boolean(process.env.ELEVENLABS_VOICE_ID),
-      elevenLabsModel: ELEVENLABS_MODEL_ID
-    });
     const openai = getOpenAIClient();
 
     if (!openai) {

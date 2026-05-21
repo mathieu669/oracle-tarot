@@ -16,46 +16,34 @@ function pickRandomCard(excluded = []) {
   return available[Math.floor(Math.random() * available.length)];
 }
 
-let oracleAudioContext = null;
-let oracleKeepAlive = null;
-let oracleCurrentSource = null;
+const SILENT_WAV =
+  "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=";
 
-function getOracleAudioContext() {
-  if (typeof window === "undefined") return null;
+function unlockAudioElement(audioElement) {
+  if (!audioElement) return;
 
-  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-  if (!AudioContextClass) return null;
+  audioElement.muted = false;
+  audioElement.volume = 0.01;
+  audioElement.src = SILENT_WAV;
+  audioElement.load();
 
-  if (!oracleAudioContext) {
-    oracleAudioContext = new AudioContextClass();
-  }
+  const promise = audioElement.play();
 
-  return oracleAudioContext;
-}
-
-function unlockOracleAudio() {
-  const context = getOracleAudioContext();
-  if (!context) return;
-
-  context.resume().catch(() => {
-    // Silent fallback. The user can retry by tapping the audio icon again.
-  });
-
-  if (!oracleKeepAlive) {
-    const gain = context.createGain();
-    gain.gain.value = 0.00001;
-    gain.connect(context.destination);
-
-    const oscillator = context.createOscillator();
-    oscillator.frequency.value = 40;
-    oscillator.connect(gain);
-    oscillator.start();
-
-    oracleKeepAlive = { oscillator, gain };
+  if (promise?.then) {
+    promise
+      .then(() => {
+        audioElement.pause();
+        audioElement.currentTime = 0;
+        audioElement.volume = 1;
+        audioElement.dataset.unlocked = "true";
+      })
+      .catch(() => {
+        audioElement.dataset.unlocked = "false";
+      });
   }
 }
 
-function base64ToArrayBuffer(base64) {
+function base64ToObjectUrl(base64, mimeType = "audio/mpeg") {
   const binaryString = window.atob(base64);
   const length = binaryString.length;
   const bytes = new Uint8Array(length);
@@ -64,44 +52,263 @@ function base64ToArrayBuffer(base64) {
     bytes[i] = binaryString.charCodeAt(i);
   }
 
-  return bytes.buffer;
+  return URL.createObjectURL(new Blob([bytes], { type: mimeType }));
 }
 
-async function playOracleAudioBuffer(base64) {
-  const context = getOracleAudioContext();
-  if (!context || !base64) return;
 
-  await context.resume();
-
-  if (oracleCurrentSource) {
-    try {
-      oracleCurrentSource.stop();
-    } catch {
-      // Ignore stop errors.
-    }
-    oracleCurrentSource = null;
-  }
-
-  const arrayBuffer = base64ToArrayBuffer(base64);
-  const decoded = await context.decodeAudioData(arrayBuffer.slice(0));
-
-  const source = context.createBufferSource();
-  source.buffer = decoded;
-  source.connect(context.destination);
-  source.start(0);
-
-  oracleCurrentSource = source;
+function createFallbackReading(cards, question) {
+  return {
+    title: "Le tirage n’a pas cligné des yeux",
+    cards: cards.map((card, index) => ({
+      position: positions[index].label,
+      cardName: card.name,
+      key: card.key,
+      interpretation:
+        index === 0
+          ? `${card.name} insiste : ${card.key}. Ce qui revient n’a pas encore tout dit.`
+          : index === 1
+            ? `${card.name} dévie : ${card.key}. Le détour est peut-être plus parlant que l’obstacle.`
+            : `${card.name} tranche : ${card.key}. Il faut entendre ce qui cesse de négocier.`
+    })),
+    crossReading: `${cards[0].name}, ${cards[1].name} et ${cards[2].name} disent ceci : le même motif revient, mais il a changé de costume.`,
+    synthesis: "La question ne demande pas une solution héroïque : elle demande de cesser d’appeler destin une vieille habitude bien entretenue.",
+    oracleSentence: "Le signe frappe moins fort quand on arrête de lui servir à boire."
+  };
 }
 
-function stopOracleAudioBuffer() {
-  if (oracleCurrentSource) {
-    try {
-      oracleCurrentSource.stop();
-    } catch {
-      // Ignore stop errors.
+function Background({ onClick, children, negativeSignal = false }) {
+  return (
+    <main className="fixed inset-0 overflow-hidden bg-black text-stone-100" onClick={onClick}>
+      <motion.video
+        src="/videos/cards/fond-graphique.mp4"
+        poster="/images/cards/fond-graphique.jpg"
+        className="absolute inset-0 h-full w-full object-cover"
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="metadata"
+        initial={false}
+        animate={
+          negativeSignal
+            ? { filter: ["invert(1)", "invert(1)", "invert(0)"] }
+            : { filter: "invert(0)" }
+        }
+        transition={
+          negativeSignal
+            ? { duration: 5, times: [0, 0.4, 1], ease: "linear" }
+            : { duration: 0 }
+        }
+      />
+      <div className="absolute inset-0 bg-black/5" />
+      <div className="relative z-10 h-full w-full">{children}</div>
+    </main>
+  );
+}
+
+function TimedCardVideo({ card, onDone }) {
+  const [isLeaving, setIsLeaving] = useState(false);
+  const fallbackTimerRef = useRef(null);
+  const leaveTimerRef = useRef(null);
+  const doneTimerRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      window.clearTimeout(fallbackTimerRef.current);
+      window.clearTimeout(leaveTimerRef.current);
+      window.clearTimeout(doneTimerRef.current);
+    };
+  }, []);
+
+  const scheduleFromDuration = (durationSeconds) => {
+    window.clearTimeout(fallbackTimerRef.current);
+    window.clearTimeout(leaveTimerRef.current);
+    window.clearTimeout(doneTimerRef.current);
+
+    const durationMs =
+      Number.isFinite(durationSeconds) && durationSeconds > 0
+        ? durationSeconds * 1000
+        : FALLBACK_CARD_DURATION_MS;
+
+    leaveTimerRef.current = window.setTimeout(() => {
+      setIsLeaving(true);
+    }, CARD_FADE_MS + durationMs);
+
+    doneTimerRef.current = window.setTimeout(() => {
+      onDone();
+    }, CARD_FADE_MS + durationMs + CARD_FADE_MS);
+  };
+
+  useEffect(() => {
+    fallbackTimerRef.current = window.setTimeout(() => {
+      scheduleFromDuration(FALLBACK_CARD_DURATION_MS / 1000);
+    }, 900);
+
+    return () => {
+      window.clearTimeout(fallbackTimerRef.current);
+    };
+  }, [card.slug]);
+
+  return (
+    <main className="fixed inset-0 overflow-hidden bg-black">
+      <video
+        src="/videos/cards/fond-graphique.mp4"
+        poster="/images/cards/fond-graphique.jpg"
+        className="fixed inset-0 h-full w-full object-cover"
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="metadata"
+      />
+
+      <motion.video
+        key={card.slug}
+        src={card.videoFace}
+        poster={card.imageFace}
+        className="fixed inset-0 h-full w-full object-cover"
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="metadata"
+        onLoadedMetadata={(event) => {
+          scheduleFromDuration(event.currentTarget.duration);
+        }}
+        initial={{ opacity: 0, filter: "blur(0px)" }}
+        animate={
+          isLeaving
+            ? { opacity: 0, filter: "blur(28px)" }
+            : { opacity: 1, filter: "blur(0px)" }
+        }
+        transition={{ duration: CARD_FADE_MS / 1000, ease: "easeInOut" }}
+      />
+    </main>
+  );
+}
+
+function RevelationVideo({ onEnded }) {
+  const [visible, setVisible] = useState(false);
+  const endedRef = useRef(false);
+  const fallbackTimerRef = useRef(null);
+
+  useEffect(() => {
+    endedRef.current = false;
+    setVisible(false);
+
+    window.clearTimeout(fallbackTimerRef.current);
+    fallbackTimerRef.current = window.setTimeout(() => {
+      if (!endedRef.current) {
+        endedRef.current = true;
+        onEnded();
+      }
+    }, 6500);
+
+    return () => {
+      window.clearTimeout(fallbackTimerRef.current);
+    };
+  }, [onEnded]);
+
+  const handleReady = () => {
+    setVisible(true);
+  };
+
+  const handleEnded = () => {
+    if (endedRef.current) return;
+    endedRef.current = true;
+    window.clearTimeout(fallbackTimerRef.current);
+    onEnded();
+  };
+
+  return (
+    <main className="fixed inset-0 overflow-hidden bg-black">
+      <video
+        src="/videos/cards/fond-graphique.mp4"
+        poster="/images/cards/fond-graphique.jpg"
+        className="fixed inset-0 h-full w-full object-cover"
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="metadata"
+      />
+
+      <motion.video
+        src="/videos/revelation.mp4?v=10"
+        className="fixed inset-0 h-full w-full object-cover"
+        autoPlay
+        muted
+        playsInline
+        preload="auto"
+        onLoadedData={handleReady}
+        onCanPlay={handleReady}
+        onEnded={handleEnded}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: visible ? 1 : 0 }}
+        transition={{ duration: 1.2, ease: "easeInOut" }}
+      />
+    </main>
+  );
+}
+
+function OracleVideoBackground() {
+  const videoRef = useRef(null);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return undefined;
+
+    video.load();
+
+    const playPromise = video.play();
+    if (playPromise?.catch) {
+      playPromise.catch(() => {
+        // The black background remains if autoplay is blocked.
+      });
     }
-    oracleCurrentSource = null;
-  }
+
+    return undefined;
+  }, []);
+
+  const handleReady = () => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    try {
+      video.play();
+    } catch {
+      // Ignore playback errors.
+    }
+
+    setReady(true);
+  };
+
+  return (
+    <>
+      <img
+        src="/images/revelation-final.png"
+        alt=""
+        className="fixed inset-0 h-full w-full object-cover"
+      />
+
+      <motion.video
+        ref={videoRef}
+        src="/videos/oracle.mp4?v=5"
+        className="fixed inset-0 h-full w-full object-cover"
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="auto"
+        onLoadedData={handleReady}
+        onCanPlay={handleReady}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: ready ? 1 : 0 }}
+        transition={{ duration: 1.2, ease: "easeInOut" }}
+      />
+    </>
+  );
 }
 
 function MicrophoneIcon({ active = false }) {
@@ -192,17 +399,36 @@ function AudioToggleButton({ enabled, onToggle }) {
   );
 }
 
-function ResultScreen({ reading, question, audio }) {
-  const playOracleAudio = () => {
-    if (!audio?.base64) return;
+function ResultScreen({ reading, question, audio, audioPlayer }) {
+  const audioUrlRef = useRef(null);
 
-    playOracleAudioBuffer(audio.base64).catch(() => {
-      // Silent fallback if the browser still blocks or cannot decode audio.
-    });
+  const playOracleAudio = () => {
+    if (!audioPlayer || !audio?.base64 || !audio?.mimeType) return;
+
+    audioPlayer.muted = false;
+    audioPlayer.volume = 1;
+    audioPlayer.currentTime = 0;
+
+    const promise = audioPlayer.play();
+    if (promise?.catch) {
+      promise.catch(() => {
+        // Silent fallback if the browser blocks autoplay.
+      });
+    }
   };
 
   useEffect(() => {
-    if (!audio?.base64) return undefined;
+    if (!audio?.base64 || !audio?.mimeType || !audioPlayer) return undefined;
+
+    if (audioUrlRef.current) {
+      URL.revokeObjectURL(audioUrlRef.current);
+      audioUrlRef.current = null;
+    }
+
+    const audioUrl = base64ToObjectUrl(audio.base64, audio.mimeType);
+    audioUrlRef.current = audioUrl;
+    audioPlayer.src = audioUrl;
+    audioPlayer.load();
 
     const timer = window.setTimeout(() => {
       playOracleAudio();
@@ -210,9 +436,15 @@ function ResultScreen({ reading, question, audio }) {
 
     return () => {
       window.clearTimeout(timer);
-      stopOracleAudioBuffer();
+      audioPlayer.pause();
+      audioPlayer.removeAttribute("src");
+
+      if (audioUrlRef.current) {
+        URL.revokeObjectURL(audioUrlRef.current);
+        audioUrlRef.current = null;
+      }
     };
-  }, [audio]);
+  }, [audio, audioPlayer]);
 
   const panels = [
     [question || "Question silencieuse"],
@@ -295,6 +527,14 @@ function ResultScreen({ reading, question, audio }) {
 }
 
 export default function App() {
+  const audioElementRef = useRef(null);
+
+  if (!audioElementRef.current && typeof Audio !== "undefined") {
+    audioElementRef.current = new Audio();
+    audioElementRef.current.preload = "auto";
+    audioElementRef.current.playsInline = true;
+  }
+
   const [stage, setStage] = useState("home");
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [micActive, setMicActive] = useState(false);
@@ -341,7 +581,6 @@ export default function App() {
   };
 
   const startRecording = (event) => {
-    if (audioEnabled) unlockOracleAudio();
     event.preventDefault();
     event.stopPropagation();
 
@@ -439,7 +678,6 @@ export default function App() {
   }, [stage]);
 
   const drawNextCard = () => {
-    if (audioEnabled) unlockOracleAudio();
     if (stage !== "awaitingDraw" || drawnCards.length >= DRAW_TARGET) return;
 
     const nextCard = pickRandomCard(drawnCards.map((card) => card.slug));
@@ -522,17 +760,16 @@ export default function App() {
     }
   }, [stage, revelationEnded, reading]);
 
-
   const toggleAudio = () => {
     setAudioEnabled((enabled) => {
       const next = !enabled;
 
       if (next) {
-        unlockOracleAudio();
-      } else if (globalAudioRef.current) {
-        globalAudioRef.current.pause();
-        globalAudioRef.current.removeAttribute("src");
-        globalAudioRef.current.dataset.unlocked = "false";
+        unlockAudioElement(audioElementRef.current);
+      } else if (audioElementRef.current) {
+        audioElementRef.current.pause();
+        audioElementRef.current.removeAttribute("src");
+        audioElementRef.current.dataset.unlocked = "false";
       }
 
       return next;
@@ -540,8 +777,6 @@ export default function App() {
   };
 
   const restart = () => {
-    stopOracleAudioBuffer();
-
     if (recognitionRef.current) {
       try {
         recognitionRef.current.abort();
@@ -570,7 +805,7 @@ export default function App() {
             Lecture locale affichée : {error}
           </div>
         ) : null}
-        <ResultScreen reading={reading || createFallbackReading(drawnCards, question)} question={question} audio={audio} />
+        <ResultScreen reading={reading || createFallbackReading(drawnCards, question)} question={question} audio={audio} audioPlayer={audioElementRef.current} />
       </>
     );
   }
