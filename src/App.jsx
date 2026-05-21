@@ -531,7 +531,67 @@ function LongPressDrawScreen({ onDraw }) {
   );
 }
 
-function ResultScreen({ reading, question }) {
+
+function MouthButton({ status, onClick }) {
+  const isLoading = status === "loading";
+  const isPlaying = status === "playing";
+
+  return (
+    <motion.button
+      type="button"
+      aria-label="Lire l’oracle"
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onClick();
+      }}
+      className="fixed left-1/2 z-40 flex h-14 w-14 -translate-x-1/2 items-center justify-center rounded-full border border-white/60 shadow-[0_0_32px_rgba(255,255,255,0.22)] backdrop-blur-md active:scale-95"
+      style={{
+        bottom: "calc(50vh + 1.25rem)",
+        backgroundColor: isPlaying ? "rgba(255,255,255,0.92)" : "rgba(0,0,0,0.54)",
+        color: isPlaying ? "black" : "white"
+      }}
+      animate={
+        isLoading
+          ? { opacity: [0.42, 1, 0.42], scale: [0.98, 1.04, 0.98], x: "-50%" }
+          : { opacity: 1, scale: 1, x: "-50%" }
+      }
+      transition={
+        isLoading
+          ? { duration: 2.4, repeat: Infinity, ease: "easeInOut" }
+          : { duration: 0.25, ease: "easeOut" }
+      }
+    >
+      <svg width="31" height="20" viewBox="0 0 64 38" fill="none" aria-hidden="true">
+        <path
+          d="M6 19C14 7.5 22.5 5 32 12C41.5 5 50 7.5 58 19C50 30.5 41.5 33 32 26C22.5 33 14 30.5 6 19Z"
+          stroke="currentColor"
+          strokeWidth="3.2"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M9 19H55"
+          stroke="currentColor"
+          strokeWidth="3"
+          strokeLinecap="round"
+        />
+        {isPlaying ? (
+          <path
+            d="M23 24C28.5 29 35.5 29 41 24"
+            stroke="currentColor"
+            strokeWidth="2.6"
+            strokeLinecap="round"
+          />
+        ) : null}
+      </svg>
+    </motion.button>
+  );
+}
+
+function ResultScreen({ reading, question, musicPlayer }) {
+  const [voiceStatus, setVoiceStatus] = useState("idle");
+  const voiceAudioRef = useRef(null);
+  const voiceUrlRef = useRef(null);
 
   const panels = [
     [question || "Question silencieuse"],
@@ -565,11 +625,130 @@ function ResultScreen({ reading, question }) {
     return () => window.clearTimeout(timer);
   }, [panelIndex, isLastPanel, panels.length]);
 
+  useEffect(() => {
+    return () => {
+      if (voiceAudioRef.current) {
+        voiceAudioRef.current.pause();
+      }
+
+      if (voiceUrlRef.current) {
+        URL.revokeObjectURL(voiceUrlRef.current);
+        voiceUrlRef.current = null;
+      }
+
+      if (musicPlayer) {
+        musicPlayer.volume = 0.34;
+      }
+    };
+  }, [musicPlayer]);
+
+  const playOracleVoice = async () => {
+    if (voiceStatus === "loading") return;
+
+    if (voiceStatus === "playing" && voiceAudioRef.current) {
+      voiceAudioRef.current.pause();
+      voiceAudioRef.current.currentTime = 0;
+      setVoiceStatus("idle");
+
+      if (musicPlayer) {
+        musicPlayer.volume = 0.34;
+      }
+
+      return;
+    }
+
+    setVoiceStatus("loading");
+
+    if (musicPlayer) {
+      musicPlayer.volume = 0.12;
+    }
+
+    try {
+      const response = await fetch("/api/oracle-audio", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question, reading })
+      });
+
+      if (!response.ok) {
+        throw new Error("Audio unavailable");
+      }
+
+      const audioBlob = await response.blob();
+
+      if (voiceUrlRef.current) {
+        URL.revokeObjectURL(voiceUrlRef.current);
+      }
+
+      const audioUrl = URL.createObjectURL(audioBlob);
+      voiceUrlRef.current = audioUrl;
+
+      const audio = new Audio(audioUrl);
+      audio.preload = "auto";
+      audio.volume = 1;
+
+      voiceAudioRef.current = audio;
+
+      audio.onended = () => {
+        setVoiceStatus("idle");
+
+        if (musicPlayer) {
+          musicPlayer.volume = 0.34;
+        }
+      };
+
+      audio.onerror = () => {
+        setVoiceStatus("idle");
+
+        if (musicPlayer) {
+          musicPlayer.volume = 0.34;
+        }
+      };
+
+      const playPromise = audio.play();
+
+      if (playPromise?.catch) {
+        await playPromise.catch(() => {
+          setVoiceStatus("idle");
+
+          if (musicPlayer) {
+            musicPlayer.volume = 0.34;
+          }
+        });
+      }
+
+      if (!audio.paused) {
+        setVoiceStatus("playing");
+      }
+    } catch {
+      setVoiceStatus("idle");
+
+      if (musicPlayer) {
+        musicPlayer.volume = 0.34;
+      }
+    }
+  };
+
   return (
     <main className="fixed inset-0 overflow-hidden bg-black text-stone-100">
       <OracleVideoBackground />
 
       <div className="pointer-events-none fixed inset-0 bg-gradient-to-b from-black/0 via-black/10 to-black/70" />
+
+      <MouthButton status={voiceStatus} onClick={playOracleVoice} />
+
+      {voiceStatus === "loading" ? (
+        <motion.div
+          className="fixed left-1/2 z-30 -translate-x-1/2 text-center"
+          style={{ bottom: "calc(50vh + 5.1rem)" }}
+          animate={{ opacity: [0.35, 1, 0.35] }}
+          transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
+        >
+          <p className="text-2xl font-semibold text-white drop-shadow-[0_5px_18px_rgba(0,0,0,0.95)]">
+            attends.
+          </p>
+        </motion.div>
+      ) : null}
 
       {panelIndex < 0 ? (
         <motion.div
@@ -890,7 +1069,7 @@ export default function App() {
             Lecture locale affichée : {error}
           </div>
         ) : null}
-        <ResultScreen reading={reading || createFallbackReading(drawnCards, question)} question={question} />
+        <ResultScreen reading={reading || createFallbackReading(drawnCards, question)} question={question} musicPlayer={backgroundMusicRef.current} />
       </>
     );
   }

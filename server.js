@@ -86,7 +86,9 @@ function buildOracleSpeechText(reading, question) {
 
   if (Array.isArray(reading?.cards)) {
     for (const card of reading.cards) {
-      parts.push(`${card.cardName}. ${card.interpretation}`);
+      if (card?.cardName || card?.interpretation) {
+        parts.push(`${card.cardName || ""}. ${card.interpretation || ""}`.trim());
+      }
     }
   }
 
@@ -94,16 +96,19 @@ function buildOracleSpeechText(reading, question) {
   if (reading?.synthesis) parts.push(reading.synthesis);
   if (reading?.oracleSentence) parts.push(reading.oracleSentence);
 
-  return stripMarkdown(parts.filter(Boolean).join("\\n\\n"));
+  return stripMarkdown(parts.filter(Boolean).join("\n\n"));
 }
 
-async function generateElevenLabsAudio(text) {
+async function generateElevenLabsBuffer(text) {
   const apiKey = process.env.ELEVENLABS_API_KEY;
   const voiceId = process.env.ELEVENLABS_VOICE_ID;
 
-  if (!apiKey || !voiceId || !text?.trim()) {
-    console.warn("ElevenLabs skipped: missing API key, voice ID, or text.");
-    return null;
+  if (!apiKey || !voiceId) {
+    throw new Error("ELEVENLABS_API_KEY ou ELEVENLABS_VOICE_ID manquant.");
+  }
+
+  if (!text?.trim()) {
+    throw new Error("Texte audio vide.");
   }
 
   const url = `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=${ELEVENLABS_OUTPUT_FORMAT}`;
@@ -129,19 +134,11 @@ async function generateElevenLabsAudio(text) {
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error("ElevenLabs error:", response.status, errorText);
-    return null;
+    throw new Error(`ElevenLabs ${response.status}: ${errorText}`);
   }
 
   const arrayBuffer = await response.arrayBuffer();
-  const base64 = Buffer.from(arrayBuffer).toString("base64");
-
-  console.log(`ElevenLabs audio generated: ${base64.length} base64 chars.`);
-
-  return {
-    mimeType: "audio/mpeg",
-    base64
-  };
+  return Buffer.from(arrayBuffer);
 }
 
 app.get("/api/health", (req, res) => {
@@ -160,28 +157,26 @@ app.get("/api/voice-health", (req, res) => {
   });
 });
 
-app.get("/api/voice-test", async (req, res) => {
+app.post("/api/oracle-audio", async (req, res) => {
   try {
-    const audio = await generateElevenLabsAudio(
-      "Attends. Si tu entends cette phrase, la voix ElevenLabs fonctionne."
-    );
+    const { question, reading } = req.body || {};
+    const speechText = buildOracleSpeechText(reading, question);
+    const buffer = await generateElevenLabsBuffer(speechText);
 
-    if (!audio?.base64) {
-      return res.status(500).json({
-        error: "No ElevenLabs audio generated.",
-        hasApiKey: Boolean(process.env.ELEVENLABS_API_KEY),
-        hasVoiceId: Boolean(process.env.ELEVENLABS_VOICE_ID)
-      });
-    }
+    console.log("Oracle audio generated.", {
+      chars: speechText.length,
+      bytes: buffer.length
+    });
 
-    const buffer = Buffer.from(audio.base64, "base64");
-    res.setHeader("Content-Type", audio.mimeType || "audio/mpeg");
+    res.setHeader("Content-Type", "audio/mpeg");
     res.setHeader("Content-Length", buffer.length);
     res.setHeader("Cache-Control", "no-store");
     res.send(buffer);
   } catch (error) {
-    console.error("Voice test error:", error);
-    res.status(500).json({ error: "Voice test failed." });
+    console.error("Oracle audio error:", error);
+    res.status(500).json({
+      error: "Erreur pendant la génération audio de l’oracle."
+    });
   }
 });
 
@@ -264,18 +259,7 @@ La phrase-oracle doit être très mémorable et courte.
     const outputText = response.output_text || "{}";
     const reading = JSON.parse(outputText);
 
-    const wantsAudio = payload.audioEnabled === true;
-    const speechText = wantsAudio ? buildOracleSpeechText(reading, payload.question) : "";
-    const audio = wantsAudio ? await generateElevenLabsAudio(speechText) : null;
-
-    console.log("Oracle reading ready.", {
-      wantsAudio,
-      speechChars: speechText.length,
-      hasAudio: Boolean(audio?.base64),
-      audioBase64Chars: audio?.base64?.length || 0
-    });
-
-    res.json({ reading, audio });
+    res.json({ reading });
   } catch (error) {
     console.error(error);
     res.status(500).json({
