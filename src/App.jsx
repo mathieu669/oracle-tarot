@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { deck, positions } from "./cards";
 
@@ -115,7 +115,7 @@ function QuestionOverlay({ question }) {
             "0 2px 0 #000, 2px 0 0 #000, -2px 0 0 #000, 0 -2px 0 #000, 0 0 18px rgba(0,0,0,0.9)"
         }}
       >
-        {question || "Question silencieuse"}
+        {question}
       </p>
     </motion.div>
   );
@@ -184,6 +184,7 @@ function ResultScreen({ cards, reading, onRestart }) {
 export default function App() {
   const [stage, setStage] = useState("home");
   const [isRecording, setIsRecording] = useState(false);
+  const [micHint, setMicHint] = useState("Maintenez le micro pour parler.");
   const [question, setQuestion] = useState("");
   const [liveTranscript, setLiveTranscript] = useState("");
   const [drawnCards, setDrawnCards] = useState([]);
@@ -193,64 +194,159 @@ export default function App() {
 
   const recognitionRef = useRef(null);
   const transcriptRef = useRef("");
+  const pointerIsDownRef = useRef(false);
+  const recognitionHasStartedRef = useRef(false);
+  const finalizedRef = useRef(false);
 
   const SpeechRecognition =
     typeof window !== "undefined"
       ? window.SpeechRecognition || window.webkitSpeechRecognition
       : null;
 
+  const resetRecognition = () => {
+    recognitionRef.current = null;
+    recognitionHasStartedRef.current = false;
+    finalizedRef.current = false;
+  };
+
+  const finalizeQuestion = () => {
+    if (finalizedRef.current) return;
+    finalizedRef.current = true;
+
+    const capturedQuestion = transcriptRef.current.trim();
+
+    if (!capturedQuestion) {
+      setIsRecording(false);
+      setLiveTranscript("");
+      setQuestion("");
+      setMicHint("Aucune question captée. Maintenez le micro et parlez.");
+      resetRecognition();
+      return;
+    }
+
+    setIsRecording(false);
+    setLiveTranscript("");
+    setQuestion(capturedQuestion);
+    setMicHint("Maintenez le micro pour parler.");
+    resetRecognition();
+    setStage("question");
+  };
+
   const startRecording = (event) => {
     event.preventDefault();
     event.stopPropagation();
 
+    pointerIsDownRef.current = true;
     transcriptRef.current = "";
+    finalizedRef.current = false;
     setLiveTranscript("");
     setQuestion("");
     setIsRecording(true);
+    setMicHint("Autorisation micro…");
 
-    if (!SpeechRecognition) return;
+    if (!SpeechRecognition) {
+      setIsRecording(false);
+      setMicHint("La dictée vocale n’est pas disponible sur ce navigateur.");
+      return;
+    }
+
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort();
+      } catch {
+        // Ignore abort errors.
+      }
+    }
 
     const recognition = new SpeechRecognition();
     recognition.lang = "fr-FR";
     recognition.continuous = true;
     recognition.interimResults = true;
 
-    recognition.onresult = (speechEvent) => {
-      let text = "";
-      for (let i = 0; i < speechEvent.results.length; i += 1) {
-        text += speechEvent.results[i][0].transcript;
+    recognition.onstart = () => {
+      recognitionHasStartedRef.current = true;
+
+      if (!pointerIsDownRef.current) {
+        setIsRecording(false);
+        setMicHint("Micro autorisé. Maintenez à nouveau pour dicter.");
+        try {
+          recognition.stop();
+        } catch {
+          // Ignore stop errors.
+        }
+        return;
       }
-      transcriptRef.current = text.trim();
-      setLiveTranscript(text.trim());
+
+      setIsRecording(true);
+      setMicHint("Je vous écoute. Relâchez pour valider.");
+    };
+
+    recognition.onresult = (speechEvent) => {
+      let finalText = "";
+      let interimText = "";
+
+      for (let i = 0; i < speechEvent.results.length; i += 1) {
+        const transcript = speechEvent.results[i][0].transcript;
+        if (speechEvent.results[i].isFinal) {
+          finalText += transcript;
+        } else {
+          interimText += transcript;
+        }
+      }
+
+      const text = `${finalText} ${interimText}`.trim();
+      transcriptRef.current = text;
+      setLiveTranscript(text);
     };
 
     recognition.onerror = () => {
-      recognitionRef.current = null;
+      setIsRecording(false);
+      setMicHint("Erreur micro. Réessayez en maintenant l’icône.");
+      resetRecognition();
     };
 
     recognition.onend = () => {
-      recognitionRef.current = null;
+      if (recognitionHasStartedRef.current && !pointerIsDownRef.current && !finalizedRef.current) {
+        finalizeQuestion();
+      } else if (!pointerIsDownRef.current) {
+        resetRecognition();
+      }
     };
 
     recognitionRef.current = recognition;
-    recognition.start();
+
+    try {
+      recognition.start();
+    } catch {
+      setIsRecording(false);
+      setMicHint("Impossible de démarrer le micro. Réessayez.");
+      resetRecognition();
+    }
   };
 
   const stopRecording = (event) => {
     event.preventDefault();
     event.stopPropagation();
 
-    setIsRecording(false);
+    pointerIsDownRef.current = false;
 
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
+    if (!recognitionHasStartedRef.current) {
+      setIsRecording(false);
+      setMicHint("Micro autorisé. Maintenez à nouveau pour dicter.");
+      return;
     }
 
-    window.setTimeout(() => {
-      const capturedQuestion = transcriptRef.current.trim() || liveTranscript.trim() || "Question silencieuse";
-      setQuestion(capturedQuestion);
-      setStage("question");
-    }, 280);
+    setMicHint("Question reçue…");
+
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {
+        finalizeQuestion();
+      }
+    } else {
+      finalizeQuestion();
+    }
   };
 
   useEffect(() => {
@@ -329,8 +425,19 @@ export default function App() {
   }, [stage, drawnCards, question]);
 
   const restart = () => {
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort();
+      } catch {
+        // Ignore abort errors.
+      }
+    }
+
+    resetRecognition();
+    pointerIsDownRef.current = false;
     setStage("home");
     setIsRecording(false);
+    setMicHint("Maintenez le micro pour parler.");
     setQuestion("");
     setLiveTranscript("");
     setDrawnCards([]);
@@ -392,18 +499,24 @@ export default function App() {
   if (stage === "microphone") {
     return (
       <Background>
-        <div className="flex h-full flex-col items-center justify-center">
+        <div className="flex h-full flex-col items-center justify-center px-6 text-center">
           <button
             type="button"
             aria-label="Dicter la question"
             onPointerDown={startRecording}
             onPointerUp={stopRecording}
             onPointerCancel={stopRecording}
-            onPointerLeave={isRecording ? stopRecording : undefined}
             className="touch-none"
           >
             <MicrophoneIcon pressed={isRecording} />
           </button>
+
+          <p
+            className="mt-6 max-w-[82vw] text-center text-sm uppercase tracking-[0.22em] text-white"
+            style={{ textShadow: "0 2px 0 #000, 0 0 16px rgba(0,0,0,0.9)" }}
+          >
+            {micHint}
+          </p>
 
           {isRecording && liveTranscript ? (
             <p
