@@ -323,7 +323,31 @@ function QuestionOverlay({ question }) {
   );
 }
 
-function ResultScreen({ reading, question }) {
+function ResultScreen({ reading, question, audio }) {
+  const audioRef = useRef(null);
+
+  useEffect(() => {
+    if (!audio?.base64 || !audio?.mimeType || !audioRef.current) return undefined;
+
+    const source = `data:${audio.mimeType};base64,${audio.base64}`;
+    audioRef.current.src = source;
+    audioRef.current.currentTime = 0;
+
+    const playPromise = audioRef.current.play();
+    if (playPromise?.catch) {
+      playPromise.catch(() => {
+        // Silent fallback if mobile autoplay blocks audio.
+      });
+    }
+
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.removeAttribute("src");
+      }
+    };
+  }, [audio]);
+
   const panels = [
     [question || "Question silencieuse"],
     ...reading.cards.map((item) => [
@@ -358,6 +382,7 @@ function ResultScreen({ reading, question }) {
 
   return (
     <main className="fixed inset-0 overflow-hidden bg-black text-stone-100">
+      <audio ref={audioRef} playsInline preload="auto" />
       <OracleVideoBackground />
 
       <div className="pointer-events-none fixed inset-0 bg-gradient-to-b from-black/0 via-black/10 to-black/70" />
@@ -411,6 +436,7 @@ export default function App() {
   const [drawnCards, setDrawnCards] = useState([]);
   const [currentCard, setCurrentCard] = useState(null);
   const [reading, setReading] = useState(null);
+  const [audio, setAudio] = useState(null);
   const [error, setError] = useState(null);
   const [revelationEnded, setRevelationEnded] = useState(false);
 
@@ -608,6 +634,7 @@ export default function App() {
         if (!cancelled) {
           setError(err.message);
           setReading(createFallbackReading(drawnCards, question));
+          setAudio(null);
         }
       }
     }
@@ -641,6 +668,7 @@ export default function App() {
     setDrawnCards([]);
     setCurrentCard(null);
     setReading(null);
+    setAudio(null);
     setError(null);
     setRevelationEnded(false);
   };
@@ -653,7 +681,7 @@ export default function App() {
             Lecture locale affichée : {error}
           </div>
         ) : null}
-        <ResultScreen reading={reading || createFallbackReading(drawnCards, question)} question={question} />
+        <ResultScreen reading={reading || createFallbackReading(drawnCards, question)} question={question} audio={audio} />
       </>
     );
   }

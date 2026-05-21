@@ -6,6 +6,8 @@ import OpenAI from "openai";
 const app = express();
 const PORT = process.env.PORT || 3000;
 const MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
+const ELEVENLABS_MODEL_ID = process.env.ELEVENLABS_MODEL_ID || "eleven_multilingual_v2";
+const ELEVENLABS_OUTPUT_FORMAT = process.env.ELEVENLABS_OUTPUT_FORMAT || "mp3_44100_128";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -63,6 +65,91 @@ function getOpenAIClient() {
   return new OpenAI({
     apiKey: process.env.OPENAI_API_KEY
   });
+}
+
+
+function stripMarkdown(text = "") {
+  return String(text)
+    .replace(/\*\*/g, "")
+    .replace(/\*/g, "")
+    .replace(/_/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function buildOracleSpeechText(reading, question) {
+  const parts = [];
+
+  if (question?.trim()) {
+    parts.push(`Ta question : ${question.trim()}`);
+  }
+
+  if (reading?.title) {
+    parts.push(reading.title);
+  }
+
+  if (Array.isArray(reading?.cards)) {
+    for (const card of reading.cards) {
+      parts.push(`${card.cardName}. ${card.interpretation}`);
+    }
+  }
+
+  if (reading?.crossReading) {
+    parts.push(reading.crossReading);
+  }
+
+  if (reading?.synthesis) {
+    parts.push(reading.synthesis);
+  }
+
+  if (reading?.oracleSentence) {
+    parts.push(reading.oracleSentence);
+  }
+
+  return stripMarkdown(parts.filter(Boolean).join("\n\n"));
+}
+
+async function generateElevenLabsAudio(text) {
+  const apiKey = process.env.ELEVENLABS_API_KEY;
+  const voiceId = process.env.ELEVENLABS_VOICE_ID;
+
+  if (!apiKey || !voiceId || !text?.trim()) {
+    return null;
+  }
+
+  const url = `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=${ELEVENLABS_OUTPUT_FORMAT}`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "xi-api-key": apiKey,
+      "Content-Type": "application/json",
+      Accept: "audio/mpeg"
+    },
+    body: JSON.stringify({
+      text,
+      model_id: ELEVENLABS_MODEL_ID,
+      voice_settings: {
+        stability: 0.48,
+        similarity_boost: 0.78,
+        style: 0.18,
+        use_speaker_boost: true
+      }
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("ElevenLabs error:", response.status, errorText);
+    return null;
+  }
+
+  const arrayBuffer = await response.arrayBuffer();
+
+  return {
+    mimeType: "audio/mpeg",
+    base64: Buffer.from(arrayBuffer).toString("base64")
+  };
 }
 
 app.get("/api/health", (req, res) => {
@@ -148,7 +235,10 @@ La phrase-oracle doit être très mémorable et courte.
     const outputText = response.output_text || "{}";
     const reading = JSON.parse(outputText);
 
-    res.json({ reading });
+    const speechText = buildOracleSpeechText(reading, payload.question);
+    const audio = await generateElevenLabsAudio(speechText);
+
+    res.json({ reading, audio });
   } catch (error) {
     console.error(error);
     res.status(500).json({
