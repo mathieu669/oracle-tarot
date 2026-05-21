@@ -157,56 +157,6 @@ app.get("/api/voice-health", (req, res) => {
   });
 });
 
-
-app.get("/api/oracle-audio-stream", async (req, res) => {
-  const startedAt = Date.now();
-
-  try {
-    const rawPayload = req.query.payload;
-
-    if (!rawPayload || typeof rawPayload !== "string") {
-      return res.status(400).json({ error: "Payload audio manquant." });
-    }
-
-    const { question, reading } = JSON.parse(rawPayload);
-    const speechText = buildOracleSpeechText(reading, question);
-
-    console.log("Oracle audio stream requested.", {
-      chars: speechText.length,
-      hasQuestion: Boolean(question?.trim()),
-      cardCount: Array.isArray(reading?.cards) ? reading.cards.length : 0
-    });
-
-    const buffer = await generateElevenLabsBuffer(speechText);
-    const durationMs = Date.now() - startedAt;
-
-    console.log("Oracle audio stream generated.", {
-      chars: speechText.length,
-      bytes: buffer.length,
-      durationMs
-    });
-
-    res.setHeader("Content-Type", "audio/mpeg");
-    res.setHeader("Content-Length", buffer.length);
-    res.setHeader("Accept-Ranges", "bytes");
-    res.setHeader("Cache-Control", "no-store");
-    res.send(buffer);
-  } catch (error) {
-    const durationMs = Date.now() - startedAt;
-
-    console.error("Oracle audio stream error:", {
-      durationMs,
-      message: error.message
-    });
-
-    res.status(500).json({
-      error: "Erreur pendant la génération audio stream de l’oracle.",
-      details: error.message,
-      durationMs
-    });
-  }
-});
-
 app.post("/api/oracle-audio", async (req, res) => {
   try {
     const { question, reading } = req.body || {};
