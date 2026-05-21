@@ -7,11 +7,16 @@ const QUESTION_DISPLAY_MS = 5000;
 const NEGATIVE_SIGNAL_MS = 5000;
 const CARD_FADE_MS = 2000;
 const FALLBACK_CARD_DURATION_MS = 5000;
+const REVELATION_DISPLAY_MS = 6200;
 const FADE_DURATION = 0.85;
 
 function pickRandomCard(excluded = []) {
   const available = deck.filter((card) => !excluded.includes(card.slug));
   return available[Math.floor(Math.random() * available.length)];
+}
+
+function wait(ms) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 function createFallbackReading(cards, question) {
@@ -460,34 +465,45 @@ export default function App() {
     if (stage !== "generating") return undefined;
     let cancelled = false;
 
+    async function fetchReading() {
+      const response = await fetch("/api/reading", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: question || "Question silencieuse",
+          cards: drawnCards.map((card, index) => ({
+            ...card,
+            position: positions[index].label,
+            positionMeaning: positions[index].meaning
+          }))
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.error || "Erreur pendant la génération de la lecture.");
+      }
+
+      return data.reading;
+    }
+
     async function generateReading() {
       setError(null);
 
       try {
-        const response = await fetch("/api/reading", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            question: question || "Question silencieuse",
-            cards: drawnCards.map((card, index) => ({
-              ...card,
-              position: positions[index].label,
-              positionMeaning: positions[index].meaning
-            }))
-          })
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data?.error || "Erreur pendant la génération de la lecture.");
-        }
+        const [apiReading] = await Promise.all([
+          fetchReading(),
+          wait(REVELATION_DISPLAY_MS)
+        ]);
 
         if (!cancelled) {
-          setReading(data.reading);
+          setReading(apiReading);
           setStage("result");
         }
       } catch (err) {
+        await wait(REVELATION_DISPLAY_MS);
+
         if (!cancelled) {
           setError(err.message);
           setReading(createFallbackReading(drawnCards, question));
