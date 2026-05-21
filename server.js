@@ -273,10 +273,12 @@ La phrase-oracle doit être très mémorable et courte.
     const outputText = response.output_text || "{}";
     const reading = JSON.parse(outputText);
 
-    const speechText = buildOracleSpeechText(reading, payload.question);
-    const audio = await generateElevenLabsAudio(speechText);
+    const wantsAudio = payload.audioEnabled === true;
+    const speechText = wantsAudio ? buildOracleSpeechText(reading, payload.question) : "";
+    const audio = wantsAudio ? await generateElevenLabsAudio(speechText) : null;
 
     console.log("Oracle reading ready.", {
+      wantsAudio,
       speechChars: speechText.length,
       hasAudio: Boolean(audio?.base64),
       audioBase64Chars: audio?.base64?.length || 0
