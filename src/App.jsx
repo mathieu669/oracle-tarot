@@ -148,15 +148,17 @@ function TimedCardVideo({ card, onDone }) {
 
 function RevelationVideo({ onEnded }) {
   const videoRef = useRef(null);
-  const sources = ["/videos/revelation.mp4?v=7", "/videos/cards/revelation.mp4?v=7"];
+  const sources = ["/videos/revelation.mp4?v=8", "/videos/cards/revelation.mp4?v=8"];
   const [sourceIndex, setSourceIndex] = useState(0);
   const [visible, setVisible] = useState(false);
   const [finished, setFinished] = useState(false);
   const endedRef = useRef(false);
+  const readyRef = useRef(false);
   const fallbackTimerRef = useRef(null);
 
   useEffect(() => {
     endedRef.current = false;
+    readyRef.current = false;
     setVisible(false);
     setFinished(false);
 
@@ -177,7 +179,7 @@ function RevelationVideo({ onEnded }) {
     const playPromise = video.play();
     if (playPromise?.catch) {
       playPromise.catch(() => {
-        // Keep this stage active. The fallback timer will release the flow if playback is blocked.
+        // The fixed final image / fallback timer keeps the flow alive if playback is blocked.
       });
     }
 
@@ -187,6 +189,9 @@ function RevelationVideo({ onEnded }) {
   }, [sourceIndex, onEnded]);
 
   const handleReady = () => {
+    if (readyRef.current) return;
+    readyRef.current = true;
+
     const video = videoRef.current;
     if (!video) return;
 
@@ -223,6 +228,17 @@ function RevelationVideo({ onEnded }) {
 
   return (
     <main className="fixed inset-0 overflow-hidden bg-black">
+      <video
+        src="/videos/cards/fond-graphique.mp4"
+        poster="/images/cards/fond-graphique.jpg"
+        className="fixed inset-0 h-full w-full object-cover"
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="metadata"
+      />
+
       <motion.video
         ref={videoRef}
         key={sources[sourceIndex]}
@@ -234,12 +250,11 @@ function RevelationVideo({ onEnded }) {
         preload="auto"
         onLoadedData={handleReady}
         onCanPlay={handleReady}
-        onPlaying={handleReady}
         onEnded={handleEnded}
         onError={handleError}
         initial={{ opacity: 0 }}
         animate={{ opacity: visible && !finished ? 1 : 0 }}
-        transition={{ duration: 0.65, ease: "easeInOut" }}
+        transition={{ duration: 1.2, ease: "easeInOut" }}
       />
 
       <motion.img
@@ -248,9 +263,80 @@ function RevelationVideo({ onEnded }) {
         className="fixed inset-0 h-full w-full object-cover"
         initial={{ opacity: 0 }}
         animate={{ opacity: finished ? 1 : 0 }}
-        transition={{ duration: 0.45, ease: "easeInOut" }}
+        transition={{ duration: 0.65, ease: "easeInOut" }}
       />
     </main>
+  );
+}
+
+function OracleVideoBackground() {
+  const videoRef = useRef(null);
+  const sources = ["/videos/oracle.mp4?v=3", "/videos/cards/oracle.mp4?v=3"];
+  const [sourceIndex, setSourceIndex] = useState(0);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    setReady(false);
+    const video = videoRef.current;
+    if (!video) return undefined;
+
+    video.load();
+
+    const playPromise = video.play();
+    if (playPromise?.catch) {
+      playPromise.catch(() => {
+        // Keep the poster/final image visible if autoplay is blocked.
+      });
+    }
+
+    return undefined;
+  }, [sourceIndex]);
+
+  const handleReady = () => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    try {
+      video.play();
+    } catch {
+      // Ignore playback errors.
+    }
+
+    setReady(true);
+  };
+
+  const handleError = () => {
+    if (sourceIndex < sources.length - 1) {
+      setSourceIndex((index) => index + 1);
+    }
+  };
+
+  return (
+    <>
+      <img
+        src="/images/revelation-final.png"
+        alt=""
+        className="fixed inset-0 h-full w-full object-cover"
+      />
+
+      <motion.video
+        ref={videoRef}
+        key={sources[sourceIndex]}
+        src={sources[sourceIndex]}
+        className="fixed inset-0 h-full w-full object-cover"
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="auto"
+        onLoadedData={handleReady}
+        onCanPlay={handleReady}
+        onError={handleError}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: ready ? 1 : 0 }}
+        transition={{ duration: 1.2, ease: "easeInOut" }}
+      />
+    </>
   );
 }
 
@@ -305,27 +391,12 @@ function QuestionOverlay({ question }) {
   );
 }
 
-function ResultScreen({ reading, question, onRestart }) {
+function ResultScreen({ reading, question }) {
   return (
     <main className="fixed inset-0 overflow-hidden bg-black text-stone-100">
-      <video
-        src="/videos/oracle.mp4"
-        className="fixed inset-0 h-full w-full object-cover"
-        autoPlay
-        muted
-        loop
-        playsInline
-        preload="auto"
-      />
+      <OracleVideoBackground />
 
       <div className="pointer-events-none fixed inset-0 bg-gradient-to-b from-black/5 via-black/12 to-black/72" />
-
-      <button
-        onClick={onRestart}
-        className="fixed right-4 top-[max(1rem,env(safe-area-inset-top))] z-30 rounded-full border border-white/30 bg-black/25 px-4 py-2 text-[10px] uppercase tracking-[0.32em] text-white/80 backdrop-blur-md active:scale-95"
-      >
-        Recommencer
-      </button>
 
       <section className="fixed bottom-0 left-0 right-0 z-20 h-[52vh] overflow-hidden px-6 pb-[max(2rem,env(safe-area-inset-bottom))] pt-8">
         <motion.div
@@ -635,7 +706,7 @@ export default function App() {
             Lecture locale affichée : {error}
           </div>
         ) : null}
-        <ResultScreen reading={reading || createFallbackReading(drawnCards, question)} question={question} onRestart={restart} />
+        <ResultScreen reading={reading || createFallbackReading(drawnCards, question)} question={question} />
       </>
     );
   }
