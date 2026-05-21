@@ -36,6 +36,20 @@ function unlockOracleAudio() {
 }
 
 
+function base64ToObjectUrl(base64, mimeType = "audio/mpeg") {
+  const binaryString = window.atob(base64);
+  const length = binaryString.length;
+  const bytes = new Uint8Array(length);
+
+  for (let i = 0; i < length; i += 1) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+
+  const blob = new Blob([bytes], { type: mimeType });
+  return URL.createObjectURL(blob);
+}
+
+
 function createFallbackReading(cards, question) {
   return {
     title: "Le tirage n’a pas cligné des yeux",
@@ -345,15 +359,13 @@ function QuestionOverlay({ question }) {
 function ResultScreen({ reading, question, audio }) {
   const audioRef = useRef(null);
 
+  const audioUrlRef = useRef(null);
+
   const playOracleAudio = () => {
-    if (!audioRef.current || !audio?.base64 || !audio?.mimeType) return;
+    if (!audioRef.current) return;
 
-    const source = `data:${audio.mimeType};base64,${audio.base64}`;
-
-    if (audioRef.current.src !== source) {
-      audioRef.current.src = source;
-    }
-
+    audioRef.current.muted = false;
+    audioRef.current.volume = 1;
     audioRef.current.currentTime = 0;
 
     const promise = audioRef.current.play();
@@ -367,8 +379,15 @@ function ResultScreen({ reading, question, audio }) {
   useEffect(() => {
     if (!audio?.base64 || !audio?.mimeType || !audioRef.current) return undefined;
 
-    const source = `data:${audio.mimeType};base64,${audio.base64}`;
-    audioRef.current.src = source;
+    if (audioUrlRef.current) {
+      URL.revokeObjectURL(audioUrlRef.current);
+      audioUrlRef.current = null;
+    }
+
+    const audioUrl = base64ToObjectUrl(audio.base64, audio.mimeType);
+    audioUrlRef.current = audioUrl;
+
+    audioRef.current.src = audioUrl;
     audioRef.current.load();
 
     const timer = window.setTimeout(() => {
@@ -377,9 +396,15 @@ function ResultScreen({ reading, question, audio }) {
 
     return () => {
       window.clearTimeout(timer);
+
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.removeAttribute("src");
+      }
+
+      if (audioUrlRef.current) {
+        URL.revokeObjectURL(audioUrlRef.current);
+        audioUrlRef.current = null;
       }
     };
   }, [audio]);

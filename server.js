@@ -148,8 +148,54 @@ app.get("/api/health", (req, res) => {
   res.json({ ok: true });
 });
 
+
+app.get("/api/voice-health", (req, res) => {
+  res.json({
+    elevenlabs: {
+      hasApiKey: Boolean(process.env.ELEVENLABS_API_KEY),
+      hasVoiceId: Boolean(process.env.ELEVENLABS_VOICE_ID),
+      modelId: ELEVENLABS_MODEL_ID,
+      outputFormat: ELEVENLABS_OUTPUT_FORMAT
+    }
+  });
+});
+
+app.get("/api/voice-test", async (req, res) => {
+  try {
+    console.log("Voice test requested.");
+
+    const audio = await generateElevenLabsAudio(
+      "Attends. L’oracle parle enfin. Si tu entends cette phrase, ElevenLabs fonctionne."
+    );
+
+    if (!audio?.base64) {
+      console.error("Voice test failed: no audio generated.");
+      return res.status(500).json({
+        error: "No ElevenLabs audio generated.",
+        hasApiKey: Boolean(process.env.ELEVENLABS_API_KEY),
+        hasVoiceId: Boolean(process.env.ELEVENLABS_VOICE_ID)
+      });
+    }
+
+    const buffer = Buffer.from(audio.base64, "base64");
+
+    res.setHeader("Content-Type", audio.mimeType || "audio/mpeg");
+    res.setHeader("Content-Length", buffer.length);
+    res.setHeader("Cache-Control", "no-store");
+    res.send(buffer);
+  } catch (error) {
+    console.error("Voice test error:", error);
+    res.status(500).json({ error: "Voice test failed." });
+  }
+});
+
 app.post("/api/reading", async (req, res) => {
   try {
+    console.log("Oracle reading requested.", {
+      hasElevenLabsKey: Boolean(process.env.ELEVENLABS_API_KEY),
+      hasElevenLabsVoice: Boolean(process.env.ELEVENLABS_VOICE_ID),
+      elevenLabsModel: ELEVENLABS_MODEL_ID
+    });
     const openai = getOpenAIClient();
 
     if (!openai) {
@@ -229,6 +275,12 @@ La phrase-oracle doit être très mémorable et courte.
 
     const speechText = buildOracleSpeechText(reading, payload.question);
     const audio = await generateElevenLabsAudio(speechText);
+
+    console.log("Oracle reading ready.", {
+      speechChars: speechText.length,
+      hasAudio: Boolean(audio?.base64),
+      audioBase64Chars: audio?.base64?.length || 0
+    });
 
     res.json({ reading, audio });
   } catch (error) {
