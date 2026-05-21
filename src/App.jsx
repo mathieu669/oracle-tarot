@@ -179,7 +179,7 @@ function TimedCardVideo({ card, onDone }) {
       <video
         src="/videos/cards/fond-graphique.mp4"
         poster="/images/cards/fond-graphique.jpg"
-        className="fixed inset-0 h-full w-full object-cover"
+        className="fixed inset-0 z-0 h-full w-full object-cover"
         autoPlay
         muted
         loop
@@ -187,11 +187,22 @@ function TimedCardVideo({ card, onDone }) {
         preload="metadata"
       />
 
+      <motion.div
+        className="pointer-events-none fixed inset-0 z-10"
+        initial={{ opacity: 0.52 }}
+        animate={{ opacity: 0 }}
+        transition={{ duration: CARD_FADE_MS / 1000, ease: "easeInOut" }}
+        style={{
+          backdropFilter: "invert(0.55) contrast(1.12) saturate(1.18)",
+          WebkitBackdropFilter: "invert(0.55) contrast(1.12) saturate(1.18)"
+        }}
+      />
+
       <motion.video
         key={card.slug}
         src={card.videoFace}
         poster={card.imageFace}
-        className="fixed inset-0 h-full w-full object-cover"
+        className="fixed inset-0 z-20 h-full w-full object-cover"
         autoPlay
         muted
         loop
@@ -214,17 +225,20 @@ function TimedCardVideo({ card, onDone }) {
 
 function RevelationVideo({ onEnded }) {
   const [visible, setVisible] = useState(false);
+  const [finished, setFinished] = useState(false);
   const endedRef = useRef(false);
   const fallbackTimerRef = useRef(null);
 
   useEffect(() => {
     endedRef.current = false;
     setVisible(false);
+    setFinished(false);
 
     window.clearTimeout(fallbackTimerRef.current);
     fallbackTimerRef.current = window.setTimeout(() => {
       if (!endedRef.current) {
         endedRef.current = true;
+        setFinished(true);
         onEnded();
       }
     }, 6500);
@@ -242,6 +256,7 @@ function RevelationVideo({ onEnded }) {
     if (endedRef.current) return;
     endedRef.current = true;
     window.clearTimeout(fallbackTimerRef.current);
+    setFinished(true);
     onEnded();
   };
 
@@ -259,7 +274,7 @@ function RevelationVideo({ onEnded }) {
       />
 
       <motion.video
-        src="/videos/revelation.mp4?v=10"
+        src="/videos/revelation.mp4?v=11"
         className="fixed inset-0 h-full w-full object-cover"
         autoPlay
         muted
@@ -269,8 +284,17 @@ function RevelationVideo({ onEnded }) {
         onCanPlay={handleReady}
         onEnded={handleEnded}
         initial={{ opacity: 0 }}
-        animate={{ opacity: visible ? 1 : 0 }}
+        animate={{ opacity: visible && !finished ? 1 : 0 }}
         transition={{ duration: 1.2, ease: "easeInOut" }}
+      />
+
+      <motion.div
+        className="fixed inset-0 bg-black bg-cover bg-center"
+        style={{ backgroundImage: "url('/images/revelation-final.png')" }}
+        aria-hidden="true"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: finished ? 1 : 0 }}
+        transition={{ duration: 0.45, ease: "easeInOut" }}
       />
     </main>
   );
@@ -311,10 +335,10 @@ function OracleVideoBackground() {
 
   return (
     <>
-      <img
-        src="/images/revelation-final.png"
-        alt=""
-        className="fixed inset-0 h-full w-full object-cover"
+      <div
+        className="fixed inset-0 bg-black bg-cover bg-center"
+        style={{ backgroundImage: "url('/images/revelation-final.png')" }}
+        aria-hidden="true"
       />
 
       <motion.video
@@ -498,12 +522,12 @@ function SwipeUpDrawScreen({ onDraw }) {
         className="pointer-events-none fixed inset-0 z-20"
         initial={false}
         animate={{
-          opacity: isSwiping ? Math.max(0.08, swipeProgress) : 0
+          opacity: isSwiping ? 0.12 + swipeProgress * 0.48 : 0
         }}
-        transition={{ duration: isSwiping ? 0.08 : 0.5, ease: "easeOut" }}
+        transition={{ duration: isSwiping ? 0.22 : 0.85, ease: "easeInOut" }}
         style={{
-          backdropFilter: `invert(${0.22 + swipeProgress * 0.78}) contrast(${1 + swipeProgress * 0.28}) saturate(${1 + swipeProgress * 0.35})`,
-          WebkitBackdropFilter: `invert(${0.22 + swipeProgress * 0.78}) contrast(${1 + swipeProgress * 0.28}) saturate(${1 + swipeProgress * 0.35})`
+          backdropFilter: `invert(${0.12 + swipeProgress * 0.48}) contrast(${1 + swipeProgress * 0.12}) saturate(${1 + swipeProgress * 0.16})`,
+          WebkitBackdropFilter: `invert(${0.12 + swipeProgress * 0.48}) contrast(${1 + swipeProgress * 0.12}) saturate(${1 + swipeProgress * 0.16})`
         }}
       />
 
@@ -511,10 +535,10 @@ function SwipeUpDrawScreen({ onDraw }) {
         className="pointer-events-none fixed inset-x-0 bottom-0 z-20 h-[44vh] bg-gradient-to-t from-white/22 via-white/8 to-transparent"
         initial={false}
         animate={{
-          opacity: isSwiping ? swipeProgress : 0,
-          y: isSwiping ? `${(1 - swipeProgress) * 55}%` : "55%"
+          opacity: isSwiping ? swipeProgress * 0.58 : 0,
+          y: isSwiping ? `${(1 - swipeProgress) * 48}%` : "48%"
         }}
-        transition={{ duration: 0.12, ease: "easeOut" }}
+        transition={{ duration: 0.22, ease: "easeInOut" }}
         style={{ mixBlendMode: "overlay" }}
       />
 
