@@ -9,7 +9,7 @@ const CARD_FADE_MS = 6000;
 const FALLBACK_CARD_DURATION_MS = 5000;
 const ORACLE_WAIT_MS = 3600;
 const ORACLE_PANEL_MS = 8000;
-const SWIPE_UP_THRESHOLD = 105;
+const LONG_PRESS_MS = 2500;
 const FADE_DURATION = 0.85;
 
 function pickRandomCard(excluded = []) {
@@ -425,16 +425,17 @@ function AudioToggleButton({ enabled, onToggle }) {
 }
 
 
-function SwipeUpDrawScreen({ onDraw }) {
-  const startYRef = useRef(null);
-  const hasDrawnRef = useRef(false);
+function LongPressDrawScreen({ onDraw }) {
+  const [isPressing, setIsPressing] = useState(false);
+  const [isReady, setIsReady] = useState(false);
+  const timerRef = useRef(null);
 
-  const resetSwipe = () => {
-    startYRef.current = null;
-    hasDrawnRef.current = false;
+  const clearPress = () => {
+    window.clearTimeout(timerRef.current);
+    timerRef.current = null;
   };
 
-  const startSwipe = (event) => {
+  const startPress = (event) => {
     event.preventDefault();
     event.stopPropagation();
 
@@ -446,55 +447,144 @@ function SwipeUpDrawScreen({ onDraw }) {
       }
     }
 
-    startYRef.current = event.clientY;
-    hasDrawnRef.current = false;
+    clearPress();
+    setIsPressing(true);
+    setIsReady(false);
+
+    timerRef.current = window.setTimeout(() => {
+      setIsReady(true);
+    }, LONG_PRESS_MS);
   };
 
-  const moveSwipe = (event) => {
-    if (startYRef.current === null || hasDrawnRef.current) return;
-
+  const endPress = (event) => {
     event.preventDefault();
     event.stopPropagation();
 
-    const deltaY = startYRef.current - event.clientY;
+    const ready = isReady;
+    clearPress();
+    setIsPressing(false);
+    setIsReady(false);
 
-    if (deltaY >= SWIPE_UP_THRESHOLD) {
-      hasDrawnRef.current = true;
+    if (ready) {
       onDraw();
     }
   };
 
-  const endSwipe = (event) => {
+  const cancelPress = (event) => {
     event.preventDefault();
     event.stopPropagation();
-    resetSwipe();
+
+    clearPress();
+    setIsPressing(false);
+    setIsReady(false);
   };
 
-  const cancelSwipe = (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    resetSwipe();
-  };
+  useEffect(() => {
+    return () => clearPress();
+  }, []);
 
   return (
     <Background>
+      <motion.div
+        className="pointer-events-none fixed inset-0 z-20"
+        initial={false}
+        animate={{
+          opacity: isPressing ? 1 : 0,
+          scale: isPressing ? 1.02 : 1
+        }}
+        transition={{ duration: isPressing ? LONG_PRESS_MS / 1000 : 0.55, ease: "easeInOut" }}
+        style={{
+          backdropFilter: isReady
+            ? "invert(1) contrast(1.25) saturate(1.35)"
+            : "invert(0.55) contrast(1.1) saturate(1.15)",
+          WebkitBackdropFilter: isReady
+            ? "invert(1) contrast(1.25) saturate(1.35)"
+            : "invert(0.55) contrast(1.1) saturate(1.15)"
+        }}
+      />
+
+      <motion.div
+        className="pointer-events-none fixed inset-0 z-20 bg-white/0"
+        animate={
+          isPressing
+            ? { opacity: [0.05, 0.18, 0.05] }
+            : { opacity: 0 }
+        }
+        transition={{
+          duration: 1.6,
+          repeat: isPressing ? Infinity : 0,
+          ease: "easeInOut"
+        }}
+        style={{ mixBlendMode: "overlay" }}
+      />
+
       <button
         type="button"
         aria-label="Tirer"
-        className="fixed inset-0 z-30 cursor-default touch-none select-none"
-        style={{
-          WebkitUserSelect: "none",
-          userSelect: "none",
-          WebkitTouchCallout: "none",
-          touchAction: "none"
-        }}
-        onPointerDown={startSwipe}
-        onPointerMove={moveSwipe}
-        onPointerUp={endSwipe}
-        onPointerCancel={cancelSwipe}
-        onPointerLeave={cancelSwipe}
+        className="fixed inset-0 z-30 cursor-default touch-none"
+        onPointerDown={startPress}
+        onPointerUp={endPress}
+        onPointerCancel={cancelPress}
+        onPointerLeave={cancelPress}
       />
     </Background>
+  );
+}
+
+
+function MouthButton({ status, onClick }) {
+  const isLoading = status === "loading";
+  const isPlaying = status === "playing";
+
+  return (
+    <motion.button
+      type="button"
+      aria-label="Lire l’oracle"
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onClick();
+      }}
+      className="fixed left-1/2 z-40 flex h-14 w-14 -translate-x-1/2 items-center justify-center rounded-full border border-white/60 shadow-[0_0_32px_rgba(255,255,255,0.22)] backdrop-blur-md active:scale-95"
+      style={{
+        bottom: "calc(50vh + 1.25rem)",
+        backgroundColor: isPlaying ? "rgba(255,255,255,0.92)" : "rgba(0,0,0,0.54)",
+        color: isPlaying ? "black" : "white"
+      }}
+      animate={
+        isLoading
+          ? { opacity: [0.42, 1, 0.42], scale: [0.98, 1.04, 0.98], x: "-50%" }
+          : { opacity: 1, scale: 1, x: "-50%" }
+      }
+      transition={
+        isLoading
+          ? { duration: 2.4, repeat: Infinity, ease: "easeInOut" }
+          : { duration: 0.25, ease: "easeOut" }
+      }
+    >
+      <svg width="31" height="20" viewBox="0 0 64 38" fill="none" aria-hidden="true">
+        <path
+          d="M6 19C14 7.5 22.5 5 32 12C41.5 5 50 7.5 58 19C50 30.5 41.5 33 32 26C22.5 33 14 30.5 6 19Z"
+          stroke="currentColor"
+          strokeWidth="3.2"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M9 19H55"
+          stroke="currentColor"
+          strokeWidth="3"
+          strokeLinecap="round"
+        />
+        {isPlaying ? (
+          <path
+            d="M23 24C28.5 29 35.5 29 41 24"
+            stroke="currentColor"
+            strokeWidth="2.6"
+            strokeLinecap="round"
+          />
+        ) : null}
+      </svg>
+    </motion.button>
   );
 }
 
@@ -993,7 +1083,7 @@ export default function App() {
   }
 
   if (stage === "awaitingDraw") {
-    return <SwipeUpDrawScreen onDraw={drawNextCard} />;
+    return <LongPressDrawScreen onDraw={drawNextCard} />;
   }
 
   if (stage === "signal") {
