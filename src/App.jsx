@@ -4,6 +4,7 @@ import { deck, positions } from "./cards";
 
 const DRAW_TARGET = 3;
 const QUESTION_DISPLAY_MS = 5000;
+const NEGATIVE_SIGNAL_MS = 5000;
 const CARD_DISPLAY_MS = 5000;
 const FADE_DURATION = 0.85;
 
@@ -32,10 +33,10 @@ function createFallbackReading(cards, question) {
   };
 }
 
-function Background({ onClick, children }) {
+function Background({ onClick, children, negativeSignal = false }) {
   return (
     <main className="fixed inset-0 overflow-hidden bg-black text-stone-100" onClick={onClick}>
-      <video
+      <motion.video
         src="/videos/cards/fond-graphique.mp4"
         poster="/images/cards/fond-graphique.jpg"
         className="absolute inset-0 h-full w-full object-cover"
@@ -44,6 +45,17 @@ function Background({ onClick, children }) {
         loop
         playsInline
         preload="metadata"
+        initial={false}
+        animate={
+          negativeSignal
+            ? { filter: ["invert(1)", "invert(1)", "invert(0)"] }
+            : { filter: "invert(0)" }
+        }
+        transition={
+          negativeSignal
+            ? { duration: 5, times: [0, 0.4, 1], ease: "linear" }
+            : { duration: 0 }
+        }
       />
       <div className="absolute inset-0 bg-black/5" />
       <div className="relative z-10 h-full w-full">{children}</div>
@@ -106,16 +118,14 @@ function QuestionOverlay({ question }) {
     <motion.div
       className="fixed inset-0 z-20 flex items-center justify-center px-7 text-center"
       initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: FADE_DURATION }}
+      animate={{ opacity: [0, 1, 1, 0] }}
+      transition={{ duration: 5, times: [0, 0.17, 0.83, 1], ease: "easeInOut" }}
     >
       <p
-        className="text-3xl font-semibold leading-tight text-white md:text-5xl"
+        className="text-4xl font-semibold leading-tight text-white md:text-6xl"
         style={{
-          WebkitTextStroke: "1.15px black",
           textShadow:
-            "0 2px 0 #000, 2px 0 0 #000, -2px 0 0 #000, 0 -2px 0 #000, 0 0 18px rgba(0,0,0,0.9)"
+            "0 6px 18px rgba(0,0,0,0.95), 0 2px 4px rgba(0,0,0,0.95), 0 0 28px rgba(0,0,0,0.85)"
         }}
       >
         {question}
@@ -311,8 +321,16 @@ export default function App() {
   useEffect(() => {
     if (stage !== "question") return undefined;
     const timer = window.setTimeout(() => {
-      setStage("awaitingDraw");
+      setStage("signal");
     }, QUESTION_DISPLAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [stage]);
+
+  useEffect(() => {
+    if (stage !== "signal") return undefined;
+    const timer = window.setTimeout(() => {
+      setStage("awaitingDraw");
+    }, NEGATIVE_SIGNAL_MS);
     return () => window.clearTimeout(timer);
   }, [stage]);
 
@@ -442,6 +460,10 @@ export default function App() {
 
   if (stage === "awaitingDraw") {
     return <Background onClick={drawNextCard} />;
+  }
+
+  if (stage === "signal") {
+    return <Background negativeSignal />;
   }
 
   if (stage === "question") {
