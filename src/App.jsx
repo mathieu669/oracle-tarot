@@ -8,7 +8,7 @@ const NEGATIVE_SIGNAL_MS = 5000;
 const CARD_FADE_MS = 6000;
 const FALLBACK_CARD_DURATION_MS = 5000;
 const ORACLE_WAIT_MS = 3600;
-const ORACLE_PANEL_MS = 7000;
+const ORACLE_PANEL_MS = 8000;
 const FADE_DURATION = 0.85;
 
 function pickRandomCard(excluded = []) {
@@ -246,21 +246,29 @@ function OracleVideoBackground() {
   };
 
   return (
-    <motion.video
-      ref={videoRef}
-      src="/videos/oracle.mp4?v=4"
-      className="fixed inset-0 h-full w-full object-cover"
-      autoPlay
-      muted
-      loop
-      playsInline
-      preload="auto"
-      onLoadedData={handleReady}
-      onCanPlay={handleReady}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: ready ? 1 : 0 }}
-      transition={{ duration: 1.2, ease: "easeInOut" }}
-    />
+    <>
+      <img
+        src="/images/revelation-final.png"
+        alt=""
+        className="fixed inset-0 h-full w-full object-cover"
+      />
+
+      <motion.video
+        ref={videoRef}
+        src="/videos/oracle.mp4?v=5"
+        className="fixed inset-0 h-full w-full object-cover"
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="auto"
+        onLoadedData={handleReady}
+        onCanPlay={handleReady}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: ready ? 1 : 0 }}
+        transition={{ duration: 1.2, ease: "easeInOut" }}
+      />
+    </>
   );
 }
 
@@ -437,7 +445,7 @@ export default function App() {
     setMicActive(false);
     setQuestion(capturedQuestion);
     resetRecognition();
-    setStage("question");
+    setStage("signal");
   };
 
   const startRecording = (event) => {
