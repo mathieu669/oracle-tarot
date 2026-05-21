@@ -5,7 +5,7 @@ import { deck, positions } from "./cards";
 const DRAW_TARGET = 3;
 const QUESTION_DISPLAY_MS = 5000;
 const NEGATIVE_SIGNAL_MS = 5000;
-const CARD_FADE_MS = 2000;
+const CARD_FADE_MS = 4000;
 const FALLBACK_CARD_DURATION_MS = 5000;
 const FADE_DURATION = 0.85;
 
@@ -305,67 +305,83 @@ function QuestionOverlay({ question }) {
   );
 }
 
-function ResultScreen({ cards, reading, question, onRestart }) {
+function ResultScreen({ reading, question, onRestart }) {
   return (
-    <main className="fixed inset-0 overflow-y-auto bg-[#060504] px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))] text-stone-100">
-      <div className="mx-auto w-full max-w-[460px]">
-        <div className="mb-5 flex items-center justify-between gap-4">
-          <p className="text-[10px] uppercase tracking-[0.42em] text-stone-500">Oracle</p>
-          <button
-            onClick={onRestart}
-            className="rounded-full border border-stone-700 bg-black/30 px-4 py-2 text-[10px] uppercase tracking-[0.32em] text-stone-200 backdrop-blur-md active:scale-95"
-          >
-            Recommencer
-          </button>
-        </div>
+    <main className="fixed inset-0 overflow-hidden bg-black text-stone-100">
+      <video
+        src="/videos/oracle.mp4"
+        className="fixed inset-0 h-full w-full object-cover"
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="auto"
+      />
 
-        <div className="mb-6 flex items-start justify-center gap-3">
-          {cards.map((card) => (
-            <img
-              key={card.slug}
-              src={card.imageFace}
-              alt={card.name}
-              className="aspect-[2/3.2] h-[112px] w-auto shrink-0 rounded-[18px] object-cover"
-            />
-          ))}
-        </div>
+      <div className="pointer-events-none fixed inset-0 bg-gradient-to-b from-black/5 via-black/12 to-black/72" />
 
-        <div className="mb-5 rounded-[1.4rem] border border-stone-800 bg-black/30 p-4 shadow-xl backdrop-blur-md">
-          <p className="text-[10px] uppercase tracking-[0.32em] text-stone-500">Question</p>
-          <p className="mt-2 text-xl font-semibold leading-7 text-stone-100">{question || "Question silencieuse"}</p>
-        </div>
+      <button
+        onClick={onRestart}
+        className="fixed right-4 top-[max(1rem,env(safe-area-inset-top))] z-30 rounded-full border border-white/30 bg-black/25 px-4 py-2 text-[10px] uppercase tracking-[0.32em] text-white/80 backdrop-blur-md active:scale-95"
+      >
+        Recommencer
+      </button>
 
-        <div className="rounded-[2rem] border border-stone-800 bg-black/38 p-5 shadow-2xl backdrop-blur-md">
-          <p className="text-[10px] uppercase tracking-[0.32em] text-stone-500">Titre</p>
-          <h1 className="mt-2 text-3xl font-semibold leading-tight text-stone-50">{reading.title}</h1>
+      <section className="fixed bottom-0 left-0 right-0 z-20 h-[52vh] overflow-hidden px-6 pb-[max(2rem,env(safe-area-inset-bottom))] pt-8">
+        <motion.div
+          className="mx-auto max-w-[520px] text-center"
+          initial={{ y: "88%", opacity: 0 }}
+          animate={{ y: "-100%", opacity: 1 }}
+          transition={{ duration: 58, ease: "linear" }}
+        >
+          <p className="text-[10px] uppercase tracking-[0.38em] text-white/62">Question</p>
+          <p className="mt-3 text-2xl font-semibold leading-8 text-white drop-shadow-[0_4px_16px_rgba(0,0,0,0.95)]">
+            {question || "Question silencieuse"}
+          </p>
 
-          <div className="mt-6 space-y-5">
+          <div className="my-9 h-px w-24 bg-white/30 mx-auto" />
+
+          <h1 className="text-3xl font-semibold leading-tight text-white drop-shadow-[0_4px_18px_rgba(0,0,0,0.95)]">
+            {reading.title}
+          </h1>
+
+          <div className="mt-8 space-y-8 text-left">
             {reading.cards.map((item, index) => (
-              <article key={`${item.cardName}-${index}`} className="border-b border-stone-800 pb-5 last:border-b-0 last:pb-0">
-                <p className="text-[10px] uppercase tracking-[0.32em] text-stone-600">{item.position}</p>
-                <h2 className="mt-2 text-2xl font-semibold text-stone-100">{item.cardName}</h2>
-                <p className="mt-1 text-sm italic text-stone-400">{item.key}</p>
-                <p className="mt-3 text-[15px] leading-7 text-stone-300">{item.interpretation}</p>
+              <article key={`${item.cardName}-${index}`}>
+                <p className="text-[10px] uppercase tracking-[0.32em] text-white/45">{item.position}</p>
+                <h2 className="mt-2 text-2xl font-semibold text-white drop-shadow-[0_4px_16px_rgba(0,0,0,0.95)]">
+                  {item.cardName}
+                </h2>
+                <p className="mt-1 text-base italic text-white/72">{item.key}</p>
+                <p className="mt-3 text-xl leading-8 text-white drop-shadow-[0_4px_14px_rgba(0,0,0,0.95)]">
+                  {item.interpretation}
+                </p>
               </article>
             ))}
           </div>
 
-          <div className="mt-6 border-t border-stone-800 pt-5">
-            <p className="text-[10px] uppercase tracking-[0.32em] text-stone-500">Lecture croisée</p>
-            <p className="mt-3 text-[15px] leading-7 text-stone-300">{reading.crossReading}</p>
+          <div className="my-9 h-px w-24 bg-white/30 mx-auto" />
+
+          <p className="text-[10px] uppercase tracking-[0.32em] text-white/45">Lecture croisée</p>
+          <p className="mt-3 text-xl leading-8 text-white drop-shadow-[0_4px_14px_rgba(0,0,0,0.95)]">
+            {reading.crossReading}
+          </p>
+
+          <div className="mt-9">
+            <p className="text-[10px] uppercase tracking-[0.32em] text-white/45">Synthèse</p>
+            <p className="mt-3 text-xl leading-8 text-white drop-shadow-[0_4px_14px_rgba(0,0,0,0.95)]">
+              {reading.synthesis}
+            </p>
           </div>
 
-          <div className="mt-6 border-t border-stone-800 pt-5">
-            <p className="text-[10px] uppercase tracking-[0.32em] text-stone-500">Synthèse</p>
-            <p className="mt-3 text-[15px] leading-7 text-stone-300">{reading.synthesis}</p>
+          <div className="mt-10 mb-24">
+            <p className="text-[10px] uppercase tracking-[0.32em] text-white/45">Phrase-oracle</p>
+            <p className="mt-3 text-3xl font-semibold leading-10 text-white drop-shadow-[0_4px_18px_rgba(0,0,0,0.95)]">
+              {reading.oracleSentence}
+            </p>
           </div>
-
-          <div className="mt-6 rounded-[1.5rem] border border-stone-700 bg-stone-100 p-4 text-black">
-            <p className="text-[10px] uppercase tracking-[0.32em] text-stone-500">Phrase-oracle</p>
-            <p className="mt-3 text-xl font-semibold leading-8">{reading.oracleSentence}</p>
-          </div>
-        </div>
-      </div>
+        </motion.div>
+      </section>
     </main>
   );
 }
@@ -619,7 +635,7 @@ export default function App() {
             Lecture locale affichée : {error}
           </div>
         ) : null}
-        <ResultScreen cards={drawnCards} reading={reading || createFallbackReading(drawnCards, question)} question={question} onRestart={restart} />
+        <ResultScreen reading={reading || createFallbackReading(drawnCards, question)} question={question} onRestart={restart} />
       </>
     );
   }
