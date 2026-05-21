@@ -180,6 +180,25 @@ app.post("/api/oracle-audio", async (req, res) => {
   }
 });
 
+app.get("/api/voice-test", async (req, res) => {
+  try {
+    const buffer = await generateElevenLabsBuffer(
+      "Attends. Si tu entends cette phrase, la voix ElevenLabs fonctionne depuis Render."
+    );
+
+    res.setHeader("Content-Type", "audio/mpeg");
+    res.setHeader("Content-Length", buffer.length);
+    res.setHeader("Cache-Control", "no-store");
+    res.send(buffer);
+  } catch (error) {
+    console.error("Voice test error:", error);
+    res.status(500).json({
+      error: "Erreur pendant le test audio ElevenLabs.",
+      details: error.message
+    });
+  }
+});
+
 app.post("/api/reading", async (req, res) => {
   try {
     const openai = getOpenAIClient();
