@@ -5,7 +5,8 @@ import { deck, positions } from "./cards";
 const DRAW_TARGET = 3;
 const QUESTION_DISPLAY_MS = 5000;
 const NEGATIVE_SIGNAL_MS = 5000;
-const CARD_DISPLAY_MS = 5000;
+const CARD_FADE_MS = 2000;
+const FALLBACK_CARD_DURATION_MS = 5000;
 const FADE_DURATION = 0.85;
 
 function pickRandomCard(excluded = []) {
@@ -63,23 +64,89 @@ function Background({ onClick, children, negativeSignal = false }) {
   );
 }
 
-function CardVideo({ card }) {
+function TimedCardVideo({ card, onDone }) {
+  const [isLeaving, setIsLeaving] = useState(false);
+  const fallbackTimerRef = useRef(null);
+  const leaveTimerRef = useRef(null);
+  const doneTimerRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      window.clearTimeout(fallbackTimerRef.current);
+      window.clearTimeout(leaveTimerRef.current);
+      window.clearTimeout(doneTimerRef.current);
+    };
+  }, []);
+
+  const scheduleFromDuration = (durationSeconds) => {
+    window.clearTimeout(fallbackTimerRef.current);
+    window.clearTimeout(leaveTimerRef.current);
+    window.clearTimeout(doneTimerRef.current);
+
+    const durationMs =
+      Number.isFinite(durationSeconds) && durationSeconds > 0
+        ? durationSeconds * 1000
+        : FALLBACK_CARD_DURATION_MS;
+
+    leaveTimerRef.current = window.setTimeout(() => {
+      setIsLeaving(true);
+    }, CARD_FADE_MS + durationMs);
+
+    doneTimerRef.current = window.setTimeout(() => {
+      onDone();
+    }, CARD_FADE_MS + durationMs + CARD_FADE_MS);
+  };
+
+  useEffect(() => {
+    fallbackTimerRef.current = window.setTimeout(() => {
+      scheduleFromDuration(FALLBACK_CARD_DURATION_MS / 1000);
+    }, 900);
+
+    return () => {
+      window.clearTimeout(fallbackTimerRef.current);
+    };
+  }, [card.slug]);
+
   return (
-    <motion.video
-      key={card.slug}
-      src={card.videoFace}
-      poster={card.imageFace}
-      className="fixed inset-0 h-full w-full bg-black object-cover"
-      autoPlay
-      muted
-      loop
-      playsInline
-      preload="metadata"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
-    />
+    <main className="fixed inset-0 overflow-hidden bg-black">
+      <motion.video
+        key={card.slug}
+        src={card.videoFace}
+        poster={card.imageFace}
+        className="fixed inset-0 h-full w-full bg-black object-cover"
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="metadata"
+        onLoadedMetadata={(event) => {
+          scheduleFromDuration(event.currentTarget.duration);
+        }}
+        initial={{ opacity: 0, filter: "blur(0px)" }}
+        animate={
+          isLeaving
+            ? { opacity: 0, filter: "blur(28px)" }
+            : { opacity: 1, filter: "blur(0px)" }
+        }
+        transition={{ duration: CARD_FADE_MS / 1000, ease: "easeInOut" }}
+      />
+    </main>
+  );
+}
+
+function RevelationVideo() {
+  return (
+    <main className="fixed inset-0 overflow-hidden bg-black">
+      <video
+        src="/videos/revelation.mp4"
+        className="fixed inset-0 h-full w-full object-cover"
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="auto"
+      />
+    </main>
   );
 }
 
@@ -343,16 +410,10 @@ export default function App() {
     setStage("cardReveal");
   };
 
-  useEffect(() => {
-    if (stage !== "cardReveal") return undefined;
-
-    const timer = window.setTimeout(() => {
-      setCurrentCard(null);
-      setStage(drawnCards.length >= DRAW_TARGET ? "generating" : "awaitingDraw");
-    }, CARD_DISPLAY_MS);
-
-    return () => window.clearTimeout(timer);
-  }, [stage, drawnCards.length]);
+  const completeCardReveal = () => {
+    setCurrentCard(null);
+    setStage(drawnCards.length >= DRAW_TARGET ? "generating" : "awaitingDraw");
+  };
 
   useEffect(() => {
     if (stage !== "generating") return undefined;
@@ -434,28 +495,11 @@ export default function App() {
   }
 
   if (stage === "generating") {
-    return (
-      <Background>
-        <div className="flex h-full items-center justify-center px-8 text-center">
-          <motion.p
-            className="text-[11px] uppercase tracking-[0.42em] text-white"
-            style={{ textShadow: "0 0 12px black, 0 2px 0 black" }}
-            animate={{ opacity: [0.35, 1, 0.35] }}
-            transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
-          >
-            L’oracle se formule
-          </motion.p>
-        </div>
-      </Background>
-    );
+    return <RevelationVideo />;
   }
 
   if (stage === "cardReveal" && currentCard) {
-    return (
-      <main className="fixed inset-0 overflow-hidden bg-black">
-        <CardVideo card={currentCard} />
-      </main>
-    );
+    return <TimedCardVideo card={currentCard} onDone={completeCardReveal} />;
   }
 
   if (stage === "awaitingDraw") {
