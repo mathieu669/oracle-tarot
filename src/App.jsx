@@ -55,6 +55,30 @@ function base64ToObjectUrl(base64, mimeType = "audio/mpeg") {
   return URL.createObjectURL(new Blob([bytes], { type: mimeType }));
 }
 
+function startBackgroundMusic(audioElement) {
+  if (!audioElement) return;
+
+  audioElement.loop = true;
+  audioElement.muted = false;
+  audioElement.volume = 0.34;
+
+  if (!audioElement.src || !audioElement.src.includes("/audio/background.mp3")) {
+    audioElement.src = "/audio/background.mp3?v=1";
+  }
+
+  const promise = audioElement.play();
+  if (promise?.catch) {
+    promise.catch(() => {
+      // Mobile browsers may block audio until the user taps the sound icon again.
+    });
+  }
+}
+
+function stopBackgroundMusic(audioElement) {
+  if (!audioElement) return;
+  audioElement.pause();
+}
+
 
 function createFallbackReading(cards, question) {
   return {
@@ -399,52 +423,7 @@ function AudioToggleButton({ enabled, onToggle }) {
   );
 }
 
-function ResultScreen({ reading, question, audio, audioPlayer }) {
-  const audioUrlRef = useRef(null);
-
-  const playOracleAudio = () => {
-    if (!audioPlayer || !audio?.base64 || !audio?.mimeType) return;
-
-    audioPlayer.muted = false;
-    audioPlayer.volume = 1;
-    audioPlayer.currentTime = 0;
-
-    const promise = audioPlayer.play();
-    if (promise?.catch) {
-      promise.catch(() => {
-        // Silent fallback if the browser blocks autoplay.
-      });
-    }
-  };
-
-  useEffect(() => {
-    if (!audio?.base64 || !audio?.mimeType || !audioPlayer) return undefined;
-
-    if (audioUrlRef.current) {
-      URL.revokeObjectURL(audioUrlRef.current);
-      audioUrlRef.current = null;
-    }
-
-    const audioUrl = base64ToObjectUrl(audio.base64, audio.mimeType);
-    audioUrlRef.current = audioUrl;
-    audioPlayer.src = audioUrl;
-    audioPlayer.load();
-
-    const timer = window.setTimeout(() => {
-      playOracleAudio();
-    }, ORACLE_WAIT_MS);
-
-    return () => {
-      window.clearTimeout(timer);
-      audioPlayer.pause();
-      audioPlayer.removeAttribute("src");
-
-      if (audioUrlRef.current) {
-        URL.revokeObjectURL(audioUrlRef.current);
-        audioUrlRef.current = null;
-      }
-    };
-  }, [audio, audioPlayer]);
+function ResultScreen({ reading, question }) {
 
   const panels = [
     [question || "Question silencieuse"],
@@ -479,7 +458,7 @@ function ResultScreen({ reading, question, audio, audioPlayer }) {
   }, [panelIndex, isLastPanel, panels.length]);
 
   return (
-    <main className="fixed inset-0 overflow-hidden bg-black text-stone-100" onPointerDown={playOracleAudio}>
+    <main className="fixed inset-0 overflow-hidden bg-black text-stone-100">
       <OracleVideoBackground />
 
       <div className="pointer-events-none fixed inset-0 bg-gradient-to-b from-black/0 via-black/10 to-black/70" />
@@ -527,12 +506,13 @@ function ResultScreen({ reading, question, audio, audioPlayer }) {
 }
 
 export default function App() {
-  const audioElementRef = useRef(null);
+  const backgroundMusicRef = useRef(null);
 
-  if (!audioElementRef.current && typeof Audio !== "undefined") {
-    audioElementRef.current = new Audio();
-    audioElementRef.current.preload = "auto";
-    audioElementRef.current.playsInline = true;
+  if (!backgroundMusicRef.current && typeof Audio !== "undefined") {
+    backgroundMusicRef.current = new Audio("/audio/background.mp3?v=1");
+    backgroundMusicRef.current.loop = true;
+    backgroundMusicRef.current.preload = "auto";
+    backgroundMusicRef.current.volume = 0.34;
   }
 
   const [stage, setStage] = useState("home");
@@ -708,7 +688,6 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           question: question || "Question silencieuse",
-          audioEnabled,
           cards: drawnCards.map((card, index) => ({
             ...card,
             position: positions[index].label,
@@ -765,11 +744,9 @@ export default function App() {
       const next = !enabled;
 
       if (next) {
-        unlockAudioElement(audioElementRef.current);
-      } else if (audioElementRef.current) {
-        audioElementRef.current.pause();
-        audioElementRef.current.removeAttribute("src");
-        audioElementRef.current.dataset.unlocked = "false";
+        startBackgroundMusic(backgroundMusicRef.current);
+      } else {
+        stopBackgroundMusic(backgroundMusicRef.current);
       }
 
       return next;
@@ -805,7 +782,7 @@ export default function App() {
             Lecture locale affichée : {error}
           </div>
         ) : null}
-        <ResultScreen reading={reading || createFallbackReading(drawnCards, question)} question={question} audio={audio} audioPlayer={audioElementRef.current} />
+        <ResultScreen reading={reading || createFallbackReading(drawnCards, question)} question={question} />
       </>
     );
   }
@@ -854,7 +831,10 @@ export default function App() {
   }
 
   return (
-    <Background onClick={() => setStage("microphone")}>
+    <Background onClick={() => {
+      if (audioEnabled) startBackgroundMusic(backgroundMusicRef.current);
+      setStage("microphone");
+    }}>
       <AudioToggleButton enabled={audioEnabled} onToggle={toggleAudio} />
     </Background>
   );
