@@ -17,6 +17,28 @@ function pickRandomCard(excluded = []) {
   return available[Math.floor(Math.random() * available.length)];
 }
 
+function preloadEssentialMedia() {
+  if (typeof window === "undefined") return;
+
+  const videoSources = [
+    "/videos/cards/fond-graphique.mp4",
+    "/videos/revelation.mp4?v=10",
+    "/videos/oracle.mp4?v=5"
+  ];
+
+  videoSources.forEach((source) => {
+    const video = document.createElement("video");
+    video.preload = "auto";
+    video.muted = true;
+    video.playsInline = true;
+    video.src = source;
+    video.load();
+  });
+
+  const audio = new Audio("/audio/background.mp3?v=2");
+  audio.preload = "auto";
+}
+
 const SILENT_WAV =
   "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=";
 
@@ -513,7 +535,7 @@ function MouthButton({ status, onClick }) {
       className="fixed z-40 flex h-16 w-16 items-center justify-center rounded-full border border-white/60 shadow-[0_0_38px_rgba(255,255,255,0.24)] backdrop-blur-md active:scale-95"
       style={{
         left: "50%",
-        top: "27vh",
+        top: "calc(27vh - 6rem)",
         backgroundColor: isLoading ? "rgba(255,255,255,0.92)" : "rgba(0,0,0,0.54)",
         color: isLoading ? "black" : "white"
       }}
@@ -565,6 +587,7 @@ function ResultScreen({ reading, question, musicPlayer }) {
 
   const [panelIndex, setPanelIndex] = useState(-1);
   const isLastPanel = panelIndex === panels.length - 1;
+  const shouldShowVoiceWaiting = voiceStatus === "loading" || (voiceStarted && panelIndex < 0);
 
   useEffect(() => {
     if (panelIndex < 0 || isLastPanel) return undefined;
@@ -654,7 +677,10 @@ function ResultScreen({ reading, question, musicPlayer }) {
 
       setVoiceStatus("playing");
       setVoiceStarted(true);
-      setPanelIndex(0);
+
+      window.requestAnimationFrame(() => {
+        setPanelIndex(0);
+      });
     } catch {
       setVoiceStatus("idle");
       setVoiceStarted(false);
@@ -676,10 +702,10 @@ function ResultScreen({ reading, question, musicPlayer }) {
         <MouthButton status={voiceStatus} onClick={playOracleVoice} />
       ) : null}
 
-      {voiceStatus === "loading" ? (
+      {shouldShowVoiceWaiting ? (
         <motion.div
           className="fixed left-1/2 z-30 -translate-x-1/2 text-center"
-          style={{ top: "calc(27vh + 5rem)" }}
+          style={{ top: "calc(27vh - 1rem)" }}
           animate={{ opacity: [0.35, 1, 0.35] }}
           transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
         >
@@ -746,6 +772,10 @@ export default function App() {
   const transcriptRef = useRef("");
   const hasStartedRef = useRef(false);
   const finalizedRef = useRef(false);
+
+  useEffect(() => {
+    preloadEssentialMedia();
+  }, []);
 
   const SpeechRecognition =
     typeof window !== "undefined"
