@@ -7,7 +7,6 @@ const QUESTION_DISPLAY_MS = 5000;
 const NEGATIVE_SIGNAL_MS = 5000;
 const CARD_FADE_MS = 2000;
 const FALLBACK_CARD_DURATION_MS = 5000;
-const REVELATION_DISPLAY_MS = 6200;
 const FADE_DURATION = 0.85;
 
 function pickRandomCard(excluded = []) {
@@ -15,9 +14,6 @@ function pickRandomCard(excluded = []) {
   return available[Math.floor(Math.random() * available.length)];
 }
 
-function wait(ms) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
-}
 
 function createFallbackReading(cards, question) {
   return {
@@ -114,11 +110,22 @@ function TimedCardVideo({ card, onDone }) {
 
   return (
     <main className="fixed inset-0 overflow-hidden bg-black">
+      <video
+        src="/videos/cards/fond-graphique.mp4"
+        poster="/images/cards/fond-graphique.jpg"
+        className="fixed inset-0 h-full w-full object-cover"
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="metadata"
+      />
+
       <motion.video
         key={card.slug}
         src={card.videoFace}
         poster={card.imageFace}
-        className="fixed inset-0 h-full w-full bg-black object-cover"
+        className="fixed inset-0 h-full w-full object-cover"
         autoPlay
         muted
         loop
@@ -141,23 +148,26 @@ function TimedCardVideo({ card, onDone }) {
 
 function RevelationVideo({ onEnded }) {
   const videoRef = useRef(null);
-  const sources = ["/videos/revelation.mp4?v=6", "/videos/cards/revelation.mp4?v=6"];
+  const sources = ["/videos/revelation.mp4?v=7", "/videos/cards/revelation.mp4?v=7"];
   const [sourceIndex, setSourceIndex] = useState(0);
   const [visible, setVisible] = useState(false);
+  const [finished, setFinished] = useState(false);
   const endedRef = useRef(false);
   const fallbackTimerRef = useRef(null);
 
   useEffect(() => {
     endedRef.current = false;
     setVisible(false);
+    setFinished(false);
 
     window.clearTimeout(fallbackTimerRef.current);
     fallbackTimerRef.current = window.setTimeout(() => {
       if (!endedRef.current) {
         endedRef.current = true;
+        setFinished(true);
         onEnded();
       }
-    }, 9000);
+    }, 12000);
 
     const video = videoRef.current;
     if (!video) return undefined;
@@ -167,7 +177,7 @@ function RevelationVideo({ onEnded }) {
     const playPromise = video.play();
     if (playPromise?.catch) {
       playPromise.catch(() => {
-        // Keep the revelation stage active. A fallback timer will release the flow.
+        // Keep this stage active. The fallback timer will release the flow if playback is blocked.
       });
     }
 
@@ -198,6 +208,7 @@ function RevelationVideo({ onEnded }) {
 
     if (!endedRef.current) {
       endedRef.current = true;
+      setFinished(true);
       onEnded();
     }
   };
@@ -206,6 +217,7 @@ function RevelationVideo({ onEnded }) {
     if (endedRef.current) return;
     endedRef.current = true;
     window.clearTimeout(fallbackTimerRef.current);
+    setFinished(true);
     onEnded();
   };
 
@@ -226,8 +238,17 @@ function RevelationVideo({ onEnded }) {
         onEnded={handleEnded}
         onError={handleError}
         initial={{ opacity: 0 }}
-        animate={{ opacity: visible ? 1 : 0 }}
+        animate={{ opacity: visible && !finished ? 1 : 0 }}
         transition={{ duration: 0.65, ease: "easeInOut" }}
+      />
+
+      <motion.img
+        src="/images/revelation-final.png"
+        alt=""
+        className="fixed inset-0 h-full w-full object-cover"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: finished ? 1 : 0 }}
+        transition={{ duration: 0.45, ease: "easeInOut" }}
       />
     </main>
   );
@@ -542,10 +563,7 @@ export default function App() {
       setError(null);
 
       try {
-        const [apiReading] = await Promise.all([
-          fetchReading(),
-          wait(REVELATION_DISPLAY_MS)
-        ]);
+        const apiReading = await fetchReading();
 
         if (!cancelled) {
           setReading(apiReading);
