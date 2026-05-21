@@ -35,9 +35,24 @@ function preloadEssentialMedia() {
     video.load();
   });
 
-  const audio = new Audio("/audio/background.mp3?v=2");
+  const audio = new Audio("/audio/background.mp3?v=3");
   audio.preload = "auto";
 }
+function PersistentFond() {
+  return (
+    <video
+      src="/videos/cards/fond-graphique.mp4"
+      poster="/images/cards/fond-graphique.jpg"
+      className="fixed inset-0 z-0 h-full w-full object-cover"
+      autoPlay
+      muted
+      loop
+      playsInline
+      preload="auto"
+    />
+  );
+}
+
 
 const SILENT_WAV =
   "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=";
@@ -86,7 +101,7 @@ function startBackgroundMusic(audioElement) {
   audioElement.volume = 0.34;
 
   if (!audioElement.src || !audioElement.src.includes("/audio/background.mp3")) {
-    audioElement.src = "/audio/background.mp3?v=2";
+    audioElement.src = "/audio/background.mp3?v=3";
   }
 
   const promise = audioElement.play();
@@ -125,29 +140,26 @@ function createFallbackReading(cards, question) {
 
 function Background({ onClick, children, negativeSignal = false }) {
   return (
-    <main className="fixed inset-0 overflow-hidden bg-black text-stone-100" onClick={onClick}>
-      <motion.video
-        src="/videos/cards/fond-graphique.mp4"
-        poster="/images/cards/fond-graphique.jpg"
-        className="absolute inset-0 h-full w-full object-cover"
-        autoPlay
-        muted
-        loop
-        playsInline
-        preload="metadata"
+    <main className="fixed inset-0 z-10 overflow-hidden text-stone-100" onClick={onClick}>
+      <motion.div
+        className="pointer-events-none absolute inset-0 z-0"
         initial={false}
         animate={
           negativeSignal
-            ? { filter: ["invert(1)", "invert(1)", "invert(0)"] }
-            : { filter: "invert(0)" }
+            ? { opacity: [1, 1, 0] }
+            : { opacity: 0 }
         }
         transition={
           negativeSignal
             ? { duration: 5, times: [0, 0.4, 1], ease: "linear" }
             : { duration: 0 }
         }
+        style={{
+          backdropFilter: "invert(1)",
+          WebkitBackdropFilter: "invert(1)"
+        }}
       />
-      <div className="absolute inset-0 bg-black/5" />
+      <div className="absolute inset-0 z-0 bg-black/5" />
       <div className="relative z-10 h-full w-full">{children}</div>
     </main>
   );
@@ -197,23 +209,13 @@ function TimedCardVideo({ card, onDone }) {
   }, [card.slug]);
 
   return (
-    <main className="fixed inset-0 overflow-hidden bg-black">
-      <video
-        src="/videos/cards/fond-graphique.mp4"
-        poster="/images/cards/fond-graphique.jpg"
-        className="fixed inset-0 h-full w-full object-cover"
-        autoPlay
-        muted
-        loop
-        playsInline
-        preload="metadata"
-      />
+    <main className="fixed inset-0 z-20 overflow-hidden">
 
       <motion.video
         key={card.slug}
         src={card.videoFace}
         poster={card.imageFace}
-        className="fixed inset-0 h-full w-full object-cover"
+        className="fixed inset-0 z-20 h-full w-full object-cover"
         autoPlay
         muted
         loop
@@ -268,21 +270,11 @@ function RevelationVideo({ onEnded }) {
   };
 
   return (
-    <main className="fixed inset-0 overflow-hidden bg-black">
-      <video
-        src="/videos/cards/fond-graphique.mp4"
-        poster="/images/cards/fond-graphique.jpg"
-        className="fixed inset-0 h-full w-full object-cover"
-        autoPlay
-        muted
-        loop
-        playsInline
-        preload="metadata"
-      />
+    <main className="fixed inset-0 z-20 overflow-hidden">
 
       <motion.video
         src="/videos/revelation.mp4?v=10"
-        className="fixed inset-0 h-full w-full object-cover"
+        className="fixed inset-0 z-20 h-full w-full object-cover"
         autoPlay
         muted
         playsInline
@@ -520,60 +512,7 @@ function SwipeUpDrawScreen({ onDraw }) {
   );
 }
 
-function MouthButton({ status, onClick }) {
-  const isLoading = status === "loading";
-
-  return (
-    <motion.button
-      type="button"
-      aria-label="Lire l’oracle"
-      onClick={(event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        onClick();
-      }}
-      className="fixed z-40 flex h-16 w-16 items-center justify-center rounded-full border border-white/60 shadow-[0_0_38px_rgba(255,255,255,0.24)] backdrop-blur-md active:scale-95"
-      style={{
-        left: "50%",
-        top: "calc(27vh - 6rem)",
-        backgroundColor: isLoading ? "rgba(255,255,255,0.92)" : "rgba(0,0,0,0.54)",
-        color: isLoading ? "black" : "white"
-      }}
-      animate={
-        isLoading
-          ? { opacity: [0.52, 1, 0.52], scale: [0.98, 1.06, 0.98], x: "-50%" }
-          : { opacity: 1, scale: 1, x: "-50%" }
-      }
-      transition={
-        isLoading
-          ? { duration: 2.2, repeat: Infinity, ease: "easeInOut" }
-          : { duration: 0.25, ease: "easeOut" }
-      }
-    >
-      <svg width="36" height="23" viewBox="0 0 64 38" fill="none" aria-hidden="true">
-        <path
-          d="M6 19C14 7.5 22.5 5 32 12C41.5 5 50 7.5 58 19C50 30.5 41.5 33 32 26C22.5 33 14 30.5 6 19Z"
-          stroke="currentColor"
-          strokeWidth="3.2"
-          strokeLinejoin="round"
-        />
-        <path
-          d="M9 19H55"
-          stroke="currentColor"
-          strokeWidth="3"
-          strokeLinecap="round"
-        />
-      </svg>
-    </motion.button>
-  );
-}
-
-function ResultScreen({ reading, question, musicPlayer }) {
-  const [voiceStatus, setVoiceStatus] = useState("idle");
-  const [voiceStarted, setVoiceStarted] = useState(false);
-  const voiceAudioRef = useRef(null);
-  const voiceUrlRef = useRef(null);
-
+function ResultScreen({ reading, question }) {
   const panels = [
     [question || "Question silencieuse"],
     ...reading.cards.map((item) => [
@@ -587,7 +526,14 @@ function ResultScreen({ reading, question, musicPlayer }) {
 
   const [panelIndex, setPanelIndex] = useState(-1);
   const isLastPanel = panelIndex === panels.length - 1;
-  const shouldShowVoiceWaiting = voiceStatus === "loading" || (voiceStarted && panelIndex < 0);
+
+  useEffect(() => {
+    const introTimer = window.setTimeout(() => {
+      setPanelIndex(0);
+    }, ORACLE_WAIT_MS);
+
+    return () => window.clearTimeout(introTimer);
+  }, []);
 
   useEffect(() => {
     if (panelIndex < 0 || isLastPanel) return undefined;
@@ -599,123 +545,25 @@ function ResultScreen({ reading, question, musicPlayer }) {
     return () => window.clearTimeout(timer);
   }, [panelIndex, isLastPanel, panels.length]);
 
-  useEffect(() => {
-    return () => {
-      if (voiceAudioRef.current) {
-        voiceAudioRef.current.pause();
-      }
-
-      if (voiceUrlRef.current) {
-        URL.revokeObjectURL(voiceUrlRef.current);
-        voiceUrlRef.current = null;
-      }
-
-      if (musicPlayer) {
-        musicPlayer.volume = 0.34;
-      }
-    };
-  }, [musicPlayer]);
-
-  const playOracleVoice = async () => {
-    if (voiceStatus === "loading" || voiceStarted) return;
-
-    setVoiceStatus("loading");
-
-    if (musicPlayer) {
-      musicPlayer.volume = 0.12;
-    }
-
-    try {
-      const response = await fetch("/api/oracle-audio", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question, reading })
-      });
-
-      if (!response.ok) {
-        throw new Error("Audio unavailable");
-      }
-
-      const audioBlob = await response.blob();
-
-      if (voiceUrlRef.current) {
-        URL.revokeObjectURL(voiceUrlRef.current);
-      }
-
-      const audioUrl = URL.createObjectURL(audioBlob);
-      voiceUrlRef.current = audioUrl;
-
-      const audio = new Audio(audioUrl);
-      audio.preload = "auto";
-      audio.volume = 1;
-
-      voiceAudioRef.current = audio;
-
-      audio.onended = () => {
-        setVoiceStatus("done");
-
-        if (musicPlayer) {
-          musicPlayer.volume = 0.34;
-        }
-      };
-
-      audio.onerror = () => {
-        setVoiceStatus("idle");
-        setVoiceStarted(false);
-        setPanelIndex(-1);
-
-        if (musicPlayer) {
-          musicPlayer.volume = 0.34;
-        }
-      };
-
-      const playPromise = audio.play();
-
-      if (playPromise?.catch) {
-        await playPromise;
-      }
-
-      setVoiceStatus("playing");
-      setVoiceStarted(true);
-
-      window.requestAnimationFrame(() => {
-        setPanelIndex(0);
-      });
-    } catch {
-      setVoiceStatus("idle");
-      setVoiceStarted(false);
-      setPanelIndex(-1);
-
-      if (musicPlayer) {
-        musicPlayer.volume = 0.34;
-      }
-    }
-  };
-
   return (
     <main className="fixed inset-0 overflow-hidden bg-black text-stone-100">
       <OracleVideoBackground />
 
       <div className="pointer-events-none fixed inset-0 bg-gradient-to-b from-black/0 via-black/10 to-black/70" />
 
-      {!voiceStarted ? (
-        <MouthButton status={voiceStatus} onClick={playOracleVoice} />
-      ) : null}
-
-      {shouldShowVoiceWaiting ? (
-        <motion.div
-          className="fixed left-1/2 z-30 -translate-x-1/2 text-center"
-          style={{ top: "calc(27vh - 1rem)" }}
-          animate={{ opacity: [0.35, 1, 0.35] }}
-          transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
-        >
-          <p className="text-2xl font-semibold text-white drop-shadow-[0_5px_18px_rgba(0,0,0,0.95)]">
-            attends.
-          </p>
-        </motion.div>
-      ) : null}
-
-      {panelIndex >= 0 ? (
+      {panelIndex < 0 ? (
+        <section className="fixed bottom-0 left-0 right-0 z-20 flex h-[50vh] items-center justify-center px-7 pb-[max(2rem,env(safe-area-inset-bottom))] pt-8">
+          <motion.div
+            className="mx-auto max-w-[560px] text-center"
+            animate={{ opacity: [0.38, 1, 0.38], scale: [0.985, 1, 0.985] }}
+            transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
+          >
+            <p className="text-3xl font-semibold text-white drop-shadow-[0_5px_18px_rgba(0,0,0,0.95)]">
+              attends.
+            </p>
+          </motion.div>
+        </section>
+      ) : (
         <section className="fixed bottom-0 left-0 right-0 z-20 flex h-[50vh] items-center justify-center px-7 pb-[max(2rem,env(safe-area-inset-bottom))] pt-8">
           <motion.div
             key={panelIndex}
@@ -742,7 +590,7 @@ function ResultScreen({ reading, question, musicPlayer }) {
             ))}
           </motion.div>
         </section>
-      ) : null}
+      )}
     </main>
   );
 }
@@ -751,7 +599,7 @@ export default function App() {
   const backgroundMusicRef = useRef(null);
 
   if (!backgroundMusicRef.current && typeof Audio !== "undefined") {
-    backgroundMusicRef.current = new Audio("/audio/background.mp3?v=2");
+    backgroundMusicRef.current = new Audio("/audio/background.mp3?v=3");
     backgroundMusicRef.current.loop = true;
     backgroundMusicRef.current.preload = "auto";
     backgroundMusicRef.current.volume = 0.34;
@@ -1020,6 +868,13 @@ export default function App() {
     setRevelationEnded(false);
   };
 
+  const withFond = (content) => (
+    <>
+      <PersistentFond />
+      {content}
+    </>
+  );
+
   if (stage === "result") {
     return (
       <>
@@ -1028,29 +883,29 @@ export default function App() {
             Lecture locale affichée : {error}
           </div>
         ) : null}
-        <ResultScreen reading={reading || createFallbackReading(drawnCards, question)} question={question} musicPlayer={backgroundMusicRef.current} />
+        <ResultScreen reading={reading || createFallbackReading(drawnCards, question)} question={question} />
       </>
     );
   }
 
   if (stage === "revelation") {
-    return <RevelationVideo onEnded={() => setRevelationEnded(true)} />;
+    return withFond(<RevelationVideo onEnded={() => setRevelationEnded(true)} />);
   }
 
   if (stage === "cardReveal" && currentCard) {
-    return <TimedCardVideo card={currentCard} onDone={completeCardReveal} />;
+    return withFond(<TimedCardVideo card={currentCard} onDone={completeCardReveal} />);
   }
 
   if (stage === "awaitingDraw") {
-    return <SwipeUpDrawScreen onDraw={drawNextCard} />;
+    return withFond(<SwipeUpDrawScreen onDraw={drawNextCard} />);
   }
 
   if (stage === "signal") {
-    return <Background negativeSignal />;
+    return withFond(<Background negativeSignal />);
   }
 
   if (stage === "question") {
-    return (
+    return withFond(
       <Background>
         <QuestionOverlay question={question} />
       </Background>
@@ -1058,7 +913,7 @@ export default function App() {
   }
 
   if (stage === "microphone") {
-    return (
+    return withFond(
       <Background>
         <div className="flex h-full flex-col items-center justify-center px-6 text-center">
           <button
@@ -1076,7 +931,7 @@ export default function App() {
     );
   }
 
-  return (
+  return withFond(
     <Background onClick={() => {
       if (audioEnabled) startBackgroundMusic(backgroundMusicRef.current);
       setStage("microphone");
