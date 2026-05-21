@@ -5,8 +5,10 @@ import { deck, positions } from "./cards";
 const DRAW_TARGET = 3;
 const QUESTION_DISPLAY_MS = 5000;
 const NEGATIVE_SIGNAL_MS = 5000;
-const CARD_FADE_MS = 4000;
+const CARD_FADE_MS = 6000;
 const FALLBACK_CARD_DURATION_MS = 5000;
+const ORACLE_WAIT_MS = 3600;
+const ORACLE_PANEL_MS = 7000;
 const FADE_DURATION = 0.85;
 
 function pickRandomCard(excluded = []) {
@@ -147,82 +149,35 @@ function TimedCardVideo({ card, onDone }) {
 }
 
 function RevelationVideo({ onEnded }) {
-  const videoRef = useRef(null);
-  const sources = ["/videos/revelation.mp4?v=8", "/videos/cards/revelation.mp4?v=8"];
-  const [sourceIndex, setSourceIndex] = useState(0);
   const [visible, setVisible] = useState(false);
-  const [finished, setFinished] = useState(false);
   const endedRef = useRef(false);
-  const readyRef = useRef(false);
   const fallbackTimerRef = useRef(null);
 
   useEffect(() => {
     endedRef.current = false;
-    readyRef.current = false;
     setVisible(false);
-    setFinished(false);
 
     window.clearTimeout(fallbackTimerRef.current);
     fallbackTimerRef.current = window.setTimeout(() => {
       if (!endedRef.current) {
         endedRef.current = true;
-        setFinished(true);
         onEnded();
       }
-    }, 12000);
-
-    const video = videoRef.current;
-    if (!video) return undefined;
-
-    video.load();
-
-    const playPromise = video.play();
-    if (playPromise?.catch) {
-      playPromise.catch(() => {
-        // The fixed final image / fallback timer keeps the flow alive if playback is blocked.
-      });
-    }
+    }, 6500);
 
     return () => {
       window.clearTimeout(fallbackTimerRef.current);
     };
-  }, [sourceIndex, onEnded]);
+  }, [onEnded]);
 
   const handleReady = () => {
-    if (readyRef.current) return;
-    readyRef.current = true;
-
-    const video = videoRef.current;
-    if (!video) return;
-
-    try {
-      video.currentTime = 0;
-      video.play();
-    } catch {
-      // Ignore playback errors.
-    }
-
     setVisible(true);
-  };
-
-  const handleError = () => {
-    if (sourceIndex < sources.length - 1) {
-      setSourceIndex((index) => index + 1);
-      return;
-    }
-
-    if (!endedRef.current) {
-      endedRef.current = true;
-      setFinished(true);
-      onEnded();
-    }
   };
 
   const handleEnded = () => {
     if (endedRef.current) return;
     endedRef.current = true;
     window.clearTimeout(fallbackTimerRef.current);
-    setFinished(true);
     onEnded();
   };
 
@@ -240,9 +195,7 @@ function RevelationVideo({ onEnded }) {
       />
 
       <motion.video
-        ref={videoRef}
-        key={sources[sourceIndex]}
-        src={sources[sourceIndex]}
+        src="/videos/revelation.mp4?v=10"
         className="fixed inset-0 h-full w-full object-cover"
         autoPlay
         muted
@@ -251,19 +204,9 @@ function RevelationVideo({ onEnded }) {
         onLoadedData={handleReady}
         onCanPlay={handleReady}
         onEnded={handleEnded}
-        onError={handleError}
         initial={{ opacity: 0 }}
-        animate={{ opacity: visible && !finished ? 1 : 0 }}
+        animate={{ opacity: visible ? 1 : 0 }}
         transition={{ duration: 1.2, ease: "easeInOut" }}
-      />
-
-      <motion.img
-        src="/images/revelation-final.png"
-        alt=""
-        className="fixed inset-0 h-full w-full object-cover"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: finished ? 1 : 0 }}
-        transition={{ duration: 0.65, ease: "easeInOut" }}
       />
     </main>
   );
@@ -271,12 +214,9 @@ function RevelationVideo({ onEnded }) {
 
 function OracleVideoBackground() {
   const videoRef = useRef(null);
-  const sources = ["/videos/oracle.mp4?v=3", "/videos/cards/oracle.mp4?v=3"];
-  const [sourceIndex, setSourceIndex] = useState(0);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    setReady(false);
     const video = videoRef.current;
     if (!video) return undefined;
 
@@ -285,12 +225,12 @@ function OracleVideoBackground() {
     const playPromise = video.play();
     if (playPromise?.catch) {
       playPromise.catch(() => {
-        // Keep the poster/final image visible if autoplay is blocked.
+        // The black background remains if autoplay is blocked.
       });
     }
 
     return undefined;
-  }, [sourceIndex]);
+  }, []);
 
   const handleReady = () => {
     const video = videoRef.current;
@@ -305,38 +245,22 @@ function OracleVideoBackground() {
     setReady(true);
   };
 
-  const handleError = () => {
-    if (sourceIndex < sources.length - 1) {
-      setSourceIndex((index) => index + 1);
-    }
-  };
-
   return (
-    <>
-      <img
-        src="/images/revelation-final.png"
-        alt=""
-        className="fixed inset-0 h-full w-full object-cover"
-      />
-
-      <motion.video
-        ref={videoRef}
-        key={sources[sourceIndex]}
-        src={sources[sourceIndex]}
-        className="fixed inset-0 h-full w-full object-cover"
-        autoPlay
-        muted
-        loop
-        playsInline
-        preload="auto"
-        onLoadedData={handleReady}
-        onCanPlay={handleReady}
-        onError={handleError}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: ready ? 1 : 0 }}
-        transition={{ duration: 1.2, ease: "easeInOut" }}
-      />
-    </>
+    <motion.video
+      ref={videoRef}
+      src="/videos/oracle.mp4?v=4"
+      className="fixed inset-0 h-full w-full object-cover"
+      autoPlay
+      muted
+      loop
+      playsInline
+      preload="auto"
+      onLoadedData={handleReady}
+      onCanPlay={handleReady}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: ready ? 1 : 0 }}
+      transition={{ duration: 1.2, ease: "easeInOut" }}
+    />
   );
 }
 
@@ -392,67 +316,82 @@ function QuestionOverlay({ question }) {
 }
 
 function ResultScreen({ reading, question }) {
+  const panels = [
+    [question || "Question silencieuse"],
+    ...reading.cards.map((item) => [
+      `${item.cardName}.`,
+      item.interpretation
+    ]),
+    [reading.crossReading],
+    [reading.synthesis],
+    [reading.oracleSentence]
+  ];
+
+  const [panelIndex, setPanelIndex] = useState(-1);
+  const isLastPanel = panelIndex === panels.length - 1;
+
+  useEffect(() => {
+    const introTimer = window.setTimeout(() => {
+      setPanelIndex(0);
+    }, ORACLE_WAIT_MS);
+
+    return () => window.clearTimeout(introTimer);
+  }, []);
+
+  useEffect(() => {
+    if (panelIndex < 0 || isLastPanel) return undefined;
+
+    const timer = window.setTimeout(() => {
+      setPanelIndex((index) => Math.min(index + 1, panels.length - 1));
+    }, ORACLE_PANEL_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [panelIndex, isLastPanel, panels.length]);
+
   return (
     <main className="fixed inset-0 overflow-hidden bg-black text-stone-100">
       <OracleVideoBackground />
 
-      <div className="pointer-events-none fixed inset-0 bg-gradient-to-b from-black/5 via-black/12 to-black/72" />
+      <div className="pointer-events-none fixed inset-0 bg-gradient-to-b from-black/0 via-black/10 to-black/70" />
 
-      <section className="fixed bottom-0 left-0 right-0 z-20 h-[52vh] overflow-hidden px-6 pb-[max(2rem,env(safe-area-inset-bottom))] pt-8">
+      {panelIndex < 0 ? (
         <motion.div
-          className="mx-auto max-w-[520px] text-center"
-          initial={{ y: "88%", opacity: 0 }}
-          animate={{ y: "-100%", opacity: 1 }}
-          transition={{ duration: 58, ease: "linear" }}
+          className="fixed inset-x-0 bottom-[18vh] z-20 flex justify-center px-8 text-center"
+          animate={{ opacity: [0.38, 1, 0.38], scale: [0.985, 1, 0.985] }}
+          transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
         >
-          <p className="text-[10px] uppercase tracking-[0.38em] text-white/62">Question</p>
-          <p className="mt-3 text-2xl font-semibold leading-8 text-white drop-shadow-[0_4px_16px_rgba(0,0,0,0.95)]">
-            {question || "Question silencieuse"}
+          <p className="text-3xl font-semibold text-white drop-shadow-[0_5px_18px_rgba(0,0,0,0.95)]">
+            attends.
           </p>
-
-          <div className="my-9 h-px w-24 bg-white/30 mx-auto" />
-
-          <h1 className="text-3xl font-semibold leading-tight text-white drop-shadow-[0_4px_18px_rgba(0,0,0,0.95)]">
-            {reading.title}
-          </h1>
-
-          <div className="mt-8 space-y-8 text-left">
-            {reading.cards.map((item, index) => (
-              <article key={`${item.cardName}-${index}`}>
-                <p className="text-[10px] uppercase tracking-[0.32em] text-white/45">{item.position}</p>
-                <h2 className="mt-2 text-2xl font-semibold text-white drop-shadow-[0_4px_16px_rgba(0,0,0,0.95)]">
-                  {item.cardName}
-                </h2>
-                <p className="mt-1 text-base italic text-white/72">{item.key}</p>
-                <p className="mt-3 text-xl leading-8 text-white drop-shadow-[0_4px_14px_rgba(0,0,0,0.95)]">
-                  {item.interpretation}
-                </p>
-              </article>
-            ))}
-          </div>
-
-          <div className="my-9 h-px w-24 bg-white/30 mx-auto" />
-
-          <p className="text-[10px] uppercase tracking-[0.32em] text-white/45">Lecture croisée</p>
-          <p className="mt-3 text-xl leading-8 text-white drop-shadow-[0_4px_14px_rgba(0,0,0,0.95)]">
-            {reading.crossReading}
-          </p>
-
-          <div className="mt-9">
-            <p className="text-[10px] uppercase tracking-[0.32em] text-white/45">Synthèse</p>
-            <p className="mt-3 text-xl leading-8 text-white drop-shadow-[0_4px_14px_rgba(0,0,0,0.95)]">
-              {reading.synthesis}
-            </p>
-          </div>
-
-          <div className="mt-10 mb-24">
-            <p className="text-[10px] uppercase tracking-[0.32em] text-white/45">Phrase-oracle</p>
-            <p className="mt-3 text-3xl font-semibold leading-10 text-white drop-shadow-[0_4px_18px_rgba(0,0,0,0.95)]">
-              {reading.oracleSentence}
-            </p>
-          </div>
         </motion.div>
-      </section>
+      ) : (
+        <section className="fixed bottom-0 left-0 right-0 z-20 flex h-[50vh] items-center justify-center px-7 pb-[max(2rem,env(safe-area-inset-bottom))] pt-8">
+          <motion.div
+            key={panelIndex}
+            className="mx-auto max-w-[560px] text-center"
+            initial={{ opacity: 0, y: 12, filter: "blur(10px)" }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            exit={{ opacity: 0, y: -8, filter: "blur(10px)" }}
+            transition={{ duration: 1.1, ease: "easeInOut" }}
+          >
+            {panels[panelIndex].map((line, index) => (
+              <p
+                key={`${panelIndex}-${index}`}
+                className={[
+                  "text-white drop-shadow-[0_5px_18px_rgba(0,0,0,0.95)]",
+                  isLastPanel
+                    ? "text-3xl font-semibold leading-10"
+                    : index === 0 && panels[panelIndex].length > 1
+                      ? "text-3xl font-semibold leading-10"
+                      : "text-2xl font-medium leading-9"
+                ].join(" ")}
+              >
+                {line}
+              </p>
+            ))}
+          </motion.div>
+        </section>
+      )}
     </main>
   );
 }
