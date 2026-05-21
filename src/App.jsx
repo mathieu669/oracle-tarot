@@ -34,10 +34,7 @@ function createFallbackReading(cards, question) {
 
 function Background({ onClick, children }) {
   return (
-    <main
-      className="fixed inset-0 overflow-hidden bg-black text-stone-100"
-      onClick={onClick}
-    >
+    <main className="fixed inset-0 overflow-hidden bg-black text-stone-100" onClick={onClick}>
       <video
         src="/videos/cards/fond-graphique.mp4"
         poster="/images/cards/fond-graphique.jpg"
@@ -74,22 +71,28 @@ function CardVideo({ card }) {
   );
 }
 
-function MicrophoneIcon({ pressed = false }) {
+function MicrophoneIcon({ active = false }) {
   return (
     <motion.div
-      animate={{ scale: pressed ? 0.92 : 1, opacity: pressed ? 1 : 0.92 }}
+      animate={{ scale: active ? 0.95 : 1 }}
       transition={{ duration: 0.18 }}
-      className="flex h-24 w-24 items-center justify-center rounded-full border border-white/70 bg-black/35 shadow-[0_0_45px_rgba(255,255,255,0.22)] backdrop-blur-md"
+      className={[
+        "flex h-24 w-24 items-center justify-center rounded-full border backdrop-blur-md",
+        "shadow-[0_0_45px_rgba(255,255,255,0.22)]",
+        active
+          ? "border-black bg-white text-black"
+          : "border-white/70 bg-black/35 text-white"
+      ].join(" ")}
     >
       <svg width="42" height="42" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path
           d="M12 14.5c1.8 0 3.2-1.4 3.2-3.2V5.7C15.2 3.9 13.8 2.5 12 2.5S8.8 3.9 8.8 5.7v5.6c0 1.8 1.4 3.2 3.2 3.2Z"
-          stroke="white"
+          stroke="currentColor"
           strokeWidth="1.7"
         />
         <path
           d="M5.5 10.5c0 3.6 2.8 6.4 6.5 6.4s6.5-2.8 6.5-6.4M12 16.9v4.6M8.8 21.5h6.4"
-          stroke="white"
+          stroke="currentColor"
           strokeWidth="1.7"
           strokeLinecap="round"
         />
@@ -183,10 +186,8 @@ function ResultScreen({ cards, reading, onRestart }) {
 
 export default function App() {
   const [stage, setStage] = useState("home");
-  const [isRecording, setIsRecording] = useState(false);
-  const [micHint, setMicHint] = useState("Maintenez le micro pour parler.");
+  const [micActive, setMicActive] = useState(false);
   const [question, setQuestion] = useState("");
-  const [liveTranscript, setLiveTranscript] = useState("");
   const [drawnCards, setDrawnCards] = useState([]);
   const [currentCard, setCurrentCard] = useState(null);
   const [reading, setReading] = useState(null);
@@ -194,8 +195,7 @@ export default function App() {
 
   const recognitionRef = useRef(null);
   const transcriptRef = useRef("");
-  const pointerIsDownRef = useRef(false);
-  const recognitionHasStartedRef = useRef(false);
+  const hasStartedRef = useRef(false);
   const finalizedRef = useRef(false);
 
   const SpeechRecognition =
@@ -205,7 +205,7 @@ export default function App() {
 
   const resetRecognition = () => {
     recognitionRef.current = null;
-    recognitionHasStartedRef.current = false;
+    hasStartedRef.current = false;
     finalizedRef.current = false;
   };
 
@@ -216,18 +216,13 @@ export default function App() {
     const capturedQuestion = transcriptRef.current.trim();
 
     if (!capturedQuestion) {
-      setIsRecording(false);
-      setLiveTranscript("");
-      setQuestion("");
-      setMicHint("Aucune question captée. Maintenez le micro et parlez.");
+      setMicActive(false);
       resetRecognition();
       return;
     }
 
-    setIsRecording(false);
-    setLiveTranscript("");
+    setMicActive(false);
     setQuestion(capturedQuestion);
-    setMicHint("Maintenez le micro pour parler.");
     resetRecognition();
     setStage("question");
   };
@@ -236,19 +231,12 @@ export default function App() {
     event.preventDefault();
     event.stopPropagation();
 
-    pointerIsDownRef.current = true;
+    if (micActive) return;
+
     transcriptRef.current = "";
     finalizedRef.current = false;
-    setLiveTranscript("");
-    setQuestion("");
-    setIsRecording(true);
-    setMicHint("Autorisation micro…");
 
-    if (!SpeechRecognition) {
-      setIsRecording(false);
-      setMicHint("La dictée vocale n’est pas disponible sur ce navigateur.");
-      return;
-    }
+    if (!SpeechRecognition) return;
 
     if (recognitionRef.current) {
       try {
@@ -264,21 +252,8 @@ export default function App() {
     recognition.interimResults = true;
 
     recognition.onstart = () => {
-      recognitionHasStartedRef.current = true;
-
-      if (!pointerIsDownRef.current) {
-        setIsRecording(false);
-        setMicHint("Micro autorisé. Maintenez à nouveau pour dicter.");
-        try {
-          recognition.stop();
-        } catch {
-          // Ignore stop errors.
-        }
-        return;
-      }
-
-      setIsRecording(true);
-      setMicHint("Je vous écoute. Relâchez pour valider.");
+      hasStartedRef.current = true;
+      setMicActive(true);
     };
 
     recognition.onresult = (speechEvent) => {
@@ -294,21 +269,18 @@ export default function App() {
         }
       }
 
-      const text = `${finalText} ${interimText}`.trim();
-      transcriptRef.current = text;
-      setLiveTranscript(text);
+      transcriptRef.current = `${finalText} ${interimText}`.trim();
     };
 
     recognition.onerror = () => {
-      setIsRecording(false);
-      setMicHint("Erreur micro. Réessayez en maintenant l’icône.");
+      setMicActive(false);
       resetRecognition();
     };
 
     recognition.onend = () => {
-      if (recognitionHasStartedRef.current && !pointerIsDownRef.current && !finalizedRef.current) {
+      if (hasStartedRef.current && !finalizedRef.current) {
         finalizeQuestion();
-      } else if (!pointerIsDownRef.current) {
+      } else {
         resetRecognition();
       }
     };
@@ -318,8 +290,7 @@ export default function App() {
     try {
       recognition.start();
     } catch {
-      setIsRecording(false);
-      setMicHint("Impossible de démarrer le micro. Réessayez.");
+      setMicActive(false);
       resetRecognition();
     }
   };
@@ -328,23 +299,11 @@ export default function App() {
     event.preventDefault();
     event.stopPropagation();
 
-    pointerIsDownRef.current = false;
+    if (!micActive || !recognitionRef.current) return;
 
-    if (!recognitionHasStartedRef.current) {
-      setIsRecording(false);
-      setMicHint("Micro autorisé. Maintenez à nouveau pour dicter.");
-      return;
-    }
-
-    setMicHint("Question reçue…");
-
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch {
-        finalizeQuestion();
-      }
-    } else {
+    try {
+      recognitionRef.current.stop();
+    } catch {
       finalizeQuestion();
     }
   };
@@ -434,12 +393,9 @@ export default function App() {
     }
 
     resetRecognition();
-    pointerIsDownRef.current = false;
     setStage("home");
-    setIsRecording(false);
-    setMicHint("Maintenez le micro pour parler.");
+    setMicActive(false);
     setQuestion("");
-    setLiveTranscript("");
     setDrawnCards([]);
     setCurrentCard(null);
     setReading(null);
@@ -502,33 +458,14 @@ export default function App() {
         <div className="flex h-full flex-col items-center justify-center px-6 text-center">
           <button
             type="button"
-            aria-label="Dicter la question"
+            aria-label="Microphone"
             onPointerDown={startRecording}
             onPointerUp={stopRecording}
             onPointerCancel={stopRecording}
             className="touch-none"
           >
-            <MicrophoneIcon pressed={isRecording} />
+            <MicrophoneIcon active={micActive} />
           </button>
-
-          <p
-            className="mt-6 max-w-[82vw] text-center text-sm uppercase tracking-[0.22em] text-white"
-            style={{ textShadow: "0 2px 0 #000, 0 0 16px rgba(0,0,0,0.9)" }}
-          >
-            {micHint}
-          </p>
-
-          {isRecording && liveTranscript ? (
-            <p
-              className="mt-8 max-w-[82vw] text-center text-2xl font-semibold leading-tight text-white"
-              style={{
-                WebkitTextStroke: "0.9px black",
-                textShadow: "0 2px 0 #000, 0 0 16px rgba(0,0,0,0.9)"
-              }}
-            >
-              {liveTranscript}
-            </p>
-          ) : null}
         </div>
       </Background>
     );
