@@ -235,7 +235,7 @@ function ActionButtons({
   );
 }
 
-function ClavesScreen({ onIterum, onNoctem }) {
+function ClavesScreen({ reading, question, onIterum, onNoctem, onVerbatim, onDuodecim, onBulla }) {
   return (
     <motion.main
       className="fixed inset-0 overflow-y-auto bg-white px-7 pb-28 pt-[max(2rem,env(safe-area-inset-top))] text-center text-black"
@@ -271,13 +271,13 @@ function ClavesScreen({ onIterum, onNoctem }) {
       </div>
 
       <div className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-0 right-0 z-30 text-black">
-        <ActionButtons onIterum={onIterum} onNoctem={onNoctem} compact />
+        <ActionButtons onIterum={onIterum} onNoctem={onNoctem} onVerbatim={onVerbatim} onDuodecim={onDuodecim} onBulla={onBulla} compact />
       </div>
     </motion.main>
   );
 }
 
-function NoctemScreen({ onIterum, onClaves }) {
+function NoctemScreen({ reading, question, onIterum, onClaves, onVerbatim, onDuodecim, onBulla }) {
   const [selectedCard, setSelectedCard] = useState(null);
   const [isClosingCard, setIsClosingCard] = useState(false);
 
@@ -328,7 +328,7 @@ function NoctemScreen({ onIterum, onClaves }) {
       </div>
 
       <div className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-0 right-0 z-30 text-white">
-        <ActionButtons onIterum={onIterum} onClaves={onClaves} compact />
+        <ActionButtons onIterum={onIterum} onClaves={onClaves} onVerbatim={onVerbatim} onDuodecim={onDuodecim} onBulla={onBulla} compact />
       </div>
 
       {selectedCard ? (
@@ -500,23 +500,6 @@ function downloadVerbatimPdf(reading, question) {
   URL.revokeObjectURL(url);
 }
 
-function HomeMark() {
-  return (
-    <motion.div
-      className="pointer-events-none fixed inset-0 z-20 flex items-center justify-center"
-      initial={{ opacity: 0, scale: 0.96 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 1.4, ease: "easeInOut" }}
-    >
-      <img
-        src="/images/nox-icon.png"
-        alt="Nox"
-        className="h-[min(42vw,210px)] w-[min(42vw,210px)] object-contain shadow-[0_0_60px_rgba(0,0,0,0.55)]"
-      />
-    </motion.div>
-  );
-}
-
 const DUODECIM_NAMES = [
   "Jagger",
   "Freud",
@@ -533,18 +516,18 @@ const DUODECIM_NAMES = [
 ];
 
 const DUODECIM_FACE_TRANSFORMS = [
-  "rotateY(0deg) translateZ(132px)",
-  "rotateY(72deg) translateZ(132px)",
-  "rotateY(144deg) translateZ(132px)",
-  "rotateY(216deg) translateZ(132px)",
-  "rotateY(288deg) translateZ(132px)",
-  "rotateX(64deg) rotateY(36deg) translateZ(132px)",
-  "rotateX(64deg) rotateY(108deg) translateZ(132px)",
-  "rotateX(64deg) rotateY(180deg) translateZ(132px)",
-  "rotateX(-64deg) rotateY(36deg) translateZ(132px)",
-  "rotateX(-64deg) rotateY(108deg) translateZ(132px)",
-  "rotateX(-64deg) rotateY(180deg) translateZ(132px)",
-  "rotateX(180deg) translateZ(132px)"
+  "translateZ(132px)",
+  "rotateY(0deg) rotateX(63deg) translateZ(132px)",
+  "rotateY(72deg) rotateX(63deg) translateZ(132px)",
+  "rotateY(144deg) rotateX(63deg) translateZ(132px)",
+  "rotateY(216deg) rotateX(63deg) translateZ(132px)",
+  "rotateY(288deg) rotateX(63deg) translateZ(132px)",
+  "rotateY(36deg) rotateX(-63deg) translateZ(132px)",
+  "rotateY(108deg) rotateX(-63deg) translateZ(132px)",
+  "rotateY(180deg) rotateX(-63deg) translateZ(132px)",
+  "rotateY(252deg) rotateX(-63deg) translateZ(132px)",
+  "rotateY(324deg) rotateX(-63deg) translateZ(132px)",
+  "rotateY(180deg) translateZ(132px)"
 ];
 
 function getDuodecimSentence(name, reading) {
@@ -568,7 +551,7 @@ function getDuodecimSentence(name, reading) {
   return sentences[name] || sign;
 }
 
-function DuodecimScreen({ reading, onIterum, onClaves, onNoctem }) {
+function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbatim, onBulla }) {
   const [rotation, setRotation] = useState({ x: -18, y: 26 });
   const [selectedName, setSelectedName] = useState(null);
   const dragRef = useRef(null);
@@ -608,7 +591,7 @@ function DuodecimScreen({ reading, onIterum, onClaves, onNoctem }) {
     >
       <div className="flex h-full items-center justify-center [perspective:900px]">
         <div
-          className="relative h-[280px] w-[280px] touch-none"
+          className="relative h-[310px] w-[310px] touch-none"
           onPointerDown={startDrag}
           onPointerMove={moveDrag}
           onPointerUp={endDrag}
@@ -626,7 +609,7 @@ function DuodecimScreen({ reading, onIterum, onClaves, onNoctem }) {
               <button
                 key={name}
                 type="button"
-                className="absolute left-1/2 top-1/2 flex h-[112px] w-[112px] -translate-x-1/2 -translate-y-1/2 items-center justify-center border border-white/45 bg-white/8 text-center text-[12px] uppercase tracking-[0.16em] text-white shadow-[0_0_25px_rgba(255,255,255,0.08)] backdrop-blur-sm"
+                className="absolute left-1/2 top-1/2 flex h-[104px] w-[104px] -translate-x-1/2 -translate-y-1/2 items-center justify-center border border-white/80 bg-transparent px-2 text-center text-[8px] uppercase leading-tight tracking-[0.10em] text-white shadow-[0_0_18px_rgba(255,255,255,0.06)]"
                 style={{
                   clipPath: "polygon(50% 0%, 97% 35%, 79% 91%, 21% 91%, 3% 35%)",
                   transform: DUODECIM_FACE_TRANSFORMS[index]
@@ -656,13 +639,13 @@ function DuodecimScreen({ reading, onIterum, onClaves, onNoctem }) {
       ) : null}
 
       <div className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-0 right-0 z-30">
-        <ActionButtons onIterum={onIterum} onClaves={onClaves} onNoctem={onNoctem} compact />
+        <ActionButtons onIterum={onIterum} onClaves={onClaves} onNoctem={onNoctem} onVerbatim={onVerbatim} onBulla={onBulla} compact />
       </div>
     </motion.main>
   );
 }
 
-function BullaScreen({ reading, onIterum, onClaves, onNoctem }) {
+function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbatim, onDuodecim }) {
   return (
     <motion.main
       className="fixed inset-0 flex items-center justify-center overflow-hidden bg-black px-8 text-center text-white"
@@ -677,7 +660,7 @@ function BullaScreen({ reading, onIterum, onClaves, onNoctem }) {
       </div>
 
       <div className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-0 right-0 z-30">
-        <ActionButtons onIterum={onIterum} onClaves={onClaves} onNoctem={onNoctem} compact />
+        <ActionButtons onIterum={onIterum} onClaves={onClaves} onNoctem={onNoctem} onVerbatim={onVerbatim} onDuodecim={onDuodecim} compact />
       </div>
     </motion.main>
   );
@@ -1131,7 +1114,7 @@ function ResultScreen({ reading, question, onShowClaves, onShowNoctem, onShowDuo
     const base = "text-white drop-shadow-[0_5px_18px_rgba(0,0,0,0.95)]";
 
     if (panel.type === "question") {
-      return `${base} text-xl font-medium leading-8`;
+      return `${base} whitespace-pre-wrap text-lg font-medium leading-7`;
     }
 
     if (panel.type === "action") {
@@ -1179,7 +1162,7 @@ function ResultScreen({ reading, question, onShowClaves, onShowNoctem, onShowDuo
             className={[
               "mx-auto max-w-[560px] text-center",
               currentPanel?.type === "question"
-                ? "max-h-[42vh] overflow-y-auto overscroll-contain pr-1"
+                ? "max-h-[42vh] overflow-y-auto overscroll-contain px-1 [scrollbar-width:none] [-ms-overflow-style:none]"
                 : ""
             ].join(" ")}
             initial={{ opacity: 0, y: 12, filter: "blur(10px)" }}
@@ -1503,8 +1486,13 @@ export default function App() {
   if (stage === "claves") {
     return (
       <ClavesScreen
+        reading={reading || createFallbackReading(drawnCards, question)}
+        question={question}
         onIterum={() => setStage("result")}
         onNoctem={() => setStage("noctem")}
+        onVerbatim={() => downloadVerbatimPdf(reading || createFallbackReading(drawnCards, question), question)}
+        onDuodecim={() => setStage("duodecim")}
+        onBulla={() => setStage("bulla")}
       />
     );
   }
@@ -1512,8 +1500,13 @@ export default function App() {
   if (stage === "noctem") {
     return (
       <NoctemScreen
+        reading={reading || createFallbackReading(drawnCards, question)}
+        question={question}
         onIterum={() => setStage("result")}
         onClaves={() => setStage("claves")}
+        onVerbatim={() => downloadVerbatimPdf(reading || createFallbackReading(drawnCards, question), question)}
+        onDuodecim={() => setStage("duodecim")}
+        onBulla={() => setStage("bulla")}
       />
     );
   }
@@ -1522,9 +1515,12 @@ export default function App() {
     return (
       <DuodecimScreen
         reading={reading || createFallbackReading(drawnCards, question)}
+        question={question}
         onIterum={() => setStage("result")}
         onClaves={() => setStage("claves")}
         onNoctem={() => setStage("noctem")}
+        onVerbatim={() => downloadVerbatimPdf(reading || createFallbackReading(drawnCards, question), question)}
+        onBulla={() => setStage("bulla")}
       />
     );
   }
@@ -1533,9 +1529,12 @@ export default function App() {
     return (
       <BullaScreen
         reading={reading || createFallbackReading(drawnCards, question)}
+        question={question}
         onIterum={() => setStage("result")}
         onClaves={() => setStage("claves")}
         onNoctem={() => setStage("noctem")}
+        onVerbatim={() => downloadVerbatimPdf(reading || createFallbackReading(drawnCards, question), question)}
+        onDuodecim={() => setStage("duodecim")}
       />
     );
   }
@@ -1608,7 +1607,6 @@ export default function App() {
       if (audioEnabled) startBackgroundMusic(backgroundMusicRef.current);
       setStage("microphone");
     }}>
-      <HomeMark />
       <AudioToggleButton enabled={audioEnabled} onToggle={toggleAudio} />
     </Background>
   );
