@@ -91,6 +91,334 @@ function contextSecretsToPromptText(secrets) {
 }
 
 
+function isSupabaseEnabled() {
+  return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+}
+
+function supabaseHeaders(extra = {}) {
+  return {
+    apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+    "Content-Type": "application/json",
+    Prefer: "return=representation",
+    ...extra
+  };
+}
+
+async function supabaseRequest(pathname, options = {}) {
+  if (!isSupabaseEnabled()) {
+    throw new Error("Supabase is not configured.");
+  }
+
+  const baseUrl = process.env.SUPABASE_URL.replace(/\/$/, "");
+  const response = await fetch(`${baseUrl}/rest/v1/${pathname}`, {
+    ...options,
+    headers: supabaseHeaders(options.headers || {})
+  });
+
+  const text = await response.text();
+  const data = text ? JSON.parse(text) : null;
+
+  if (!response.ok) {
+    throw new Error(`Supabase ${response.status}: ${text}`);
+  }
+
+  return data;
+}
+
+function mapContextSecretFromDb(row) {
+  return {
+    id: row.id,
+    createdAt: row.created_at,
+    userName: row.user_name || "",
+    text: row.text || ""
+  };
+}
+
+function mapArchiveFromDb(row) {
+  return {
+    id: row.id,
+    createdAt: row.created_at,
+    message: row.message || "",
+    photoDataUrl: row.photo_data_url || "",
+    question: row.question || "",
+    oracleSentence: row.oracle_sentence || "",
+    action: row.action || "",
+    fatum: Number.isFinite(Number(row.fatum)) ? Number(row.fatum) : null,
+    reaction: row.reaction || "",
+    comments: Array.isArray(row.comments) ? row.comments : []
+  };
+}
+
+function mapFatumUserFromDb(row) {
+  return {
+    id: row.id,
+    name: row.name || "",
+    score: Number(row.score) || 0,
+    credited: Array.isArray(row.credited) ? row.credited : [],
+    secretumUnlockedLevel: Number(row.secretum_unlocked_level) || 0
+  };
+}
+
+async function readContextSecrets() {
+  if (isSupabaseEnabled()) {
+    const rows = await supabaseRequest("nox_context_secrets?select=*&order=created_at.desc&limit=300");
+    return rows.map(mapContextSecretFromDb);
+  }
+
+  return readContextSecretsFromServer();
+}
+
+async function insertContextSecret({ text, userName }) {
+  if (isSupabaseEnabled()) {
+    const rows = await supabaseRequest("nox_context_secrets", {
+      method: "POST",
+      body: JSON.stringify({
+        user_name: userName || "",
+        text
+      })
+    });
+
+    return rows?.[0] ? mapContextSecretFromDb(rows[0]) : null;
+  }
+
+  const secrets = readContextSecretsFromServer();
+  const nextSecrets = [
+    {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      createdAt: new Date().toISOString(),
+      userName: userName || "",
+      text
+    },
+    ...secrets
+  ].slice(0, 300);
+
+  writeContextSecretsToServer(nextSecrets);
+  return nextSecrets[0];
+}
+
+async function readArchives() {
+  if (isSupabaseEnabled()) {
+    const rows = await supabaseRequest("nox_archives?select=*&order=created_at.desc&limit=500");
+    return rows.map(mapArchiveFromDb);
+  }
+
+  return readJsonArrayFromServer(ARCHIVES_FILE);
+}
+
+async function insertArchive(entry) {
+  if (isSupabaseEnabled()) {
+    const rows = await supabaseRequest("nox_archives", {
+      method: "POST",
+      body: JSON.stringify({
+        message: entry.message || "",
+        photo_data_url: entry.photoDataUrl || "",
+        question: entry.question || "",
+        oracle_sentence: entry.oracleSentence || "",
+        action: entry.action || "",
+        fatum: Number.isFinite(Number(entry.fatum)) ? Number(entry.fatum) : null,
+        reaction: "",
+        comments: []
+      })
+    });
+
+    return rows?.[0] ? mapArchiveFromDb(rows[0]) : null;
+  }
+
+  const archives = readJsonArrayFromServer(ARCHIVES_FILE);
+  const nextArchives = [
+    {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      createdAt: new Date().toISOString(),
+      message: entry.message || "",
+      photoDataUrl: entry.photoDataUrl || "",
+      question: entry.question || "",
+      oracleSentence: entry.oracleSentence || "",
+      action: entry.action || "",
+      fatum: Number.isFinite(Number(entry.fatum)) ? Number(entry.fatum) : null,
+      reaction: "",
+      comments: []
+    },
+    ...archives
+  ].slice(0, 500);
+
+  writeJsonArrayToServer(ARCHIVES_FILE, nextArchives, 500);
+  return nextArchives[0];
+}
+
+async function updateArchive(id, patch) {
+  if (isSupabaseEnabled()) {
+    const currentRows = await supabaseRequest(`nox_archives?select=comments&id=eq.${encodeURIComponent(id)}&limit=1`);
+    const current = currentRows?.[0] || {};
+    const updatePayload = {};
+
+    if (typeof patch.reaction === "string") {
+      updatePayload.reaction = patch.reaction;
+    }
+
+    if (typeof patch.comment === "string") {
+      const comments = Array.isArray(current.comments) ? current.comments : [];
+      if (comments.length < 9 && patch.comment.trim()) {
+        updatePayload.comments = [...comments, patch.comment.trim()].slice(0, 9);
+      }
+    }
+
+    if (!Object.keys(updatePayload).length) {
+      return null;
+    }
+
+    const rows = await supabaseRequest(`nox_archives?id=eq.${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(updatePayload)
+    });
+
+    return rows?.[0] ? mapArchiveFromDb(rows[0]) : null;
+  }
+
+  const archives = readJsonArrayFromServer(ARCHIVES_FILE);
+  const nextArchives = archives.map((entry) => {
+    if (entry.id !== id) return entry;
+
+    const nextEntry = { ...entry };
+
+    if (typeof patch.reaction === "string") {
+      nextEntry.reaction = patch.reaction;
+    }
+
+    if (typeof patch.comment === "string") {
+      const comments = Array.isArray(nextEntry.comments)
+        ? nextEntry.comments
+        : nextEntry.comment
+          ? [nextEntry.comment]
+          : [];
+
+      if (comments.length < 9 && patch.comment.trim()) {
+        nextEntry.comments = [...comments, patch.comment.trim()].slice(0, 9);
+        delete nextEntry.comment;
+      }
+    }
+
+    return nextEntry;
+  });
+
+  writeJsonArrayToServer(ARCHIVES_FILE, nextArchives, 500);
+  return nextArchives.find((entry) => entry.id === id) || null;
+}
+
+async function deleteArchive(id) {
+  if (isSupabaseEnabled()) {
+    await supabaseRequest(`nox_archives?id=eq.${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers: { Prefer: "return=minimal" }
+    });
+
+    return true;
+  }
+
+  const archives = readJsonArrayFromServer(ARCHIVES_FILE);
+  const nextArchives = archives.filter((entry) => entry.id !== id);
+  writeJsonArrayToServer(ARCHIVES_FILE, nextArchives, 500);
+  return true;
+}
+
+async function readFatumUsers() {
+  if (isSupabaseEnabled()) {
+    const rows = await supabaseRequest("nox_fatum_users?select=*&order=created_at.asc&limit=9");
+    return rows.map(mapFatumUserFromDb);
+  }
+
+  return readJsonArrayFromServer(FATUM_USERS_FILE);
+}
+
+async function insertFatumUser(name) {
+  if (isSupabaseEnabled()) {
+    const rows = await supabaseRequest("nox_fatum_users", {
+      method: "POST",
+      body: JSON.stringify({
+        name,
+        score: 0,
+        credited: [],
+        secretum_unlocked_level: 0
+      })
+    });
+
+    return rows?.[0] ? mapFatumUserFromDb(rows[0]) : null;
+  }
+
+  const users = readJsonArrayFromServer(FATUM_USERS_FILE);
+  const nextUsers = [
+    ...users,
+    {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      name,
+      score: 0,
+      credited: [],
+      secretumUnlockedLevel: 0
+    }
+  ].slice(0, 9);
+
+  writeJsonArrayToServer(FATUM_USERS_FILE, nextUsers, 9);
+  return nextUsers[nextUsers.length - 1];
+}
+
+async function updateFatumUser(id, patch) {
+  if (isSupabaseEnabled()) {
+    const updatePayload = {};
+
+    if (Number.isFinite(Number(patch.score))) {
+      updatePayload.score = Math.max(0, Math.round(Number(patch.score)));
+    }
+
+    if (Array.isArray(patch.credited)) {
+      updatePayload.credited = patch.credited.slice(0, 500);
+    }
+
+    if (Number.isFinite(Number(patch.secretumUnlockedLevel))) {
+      updatePayload.secretum_unlocked_level = Math.max(0, Math.round(Number(patch.secretumUnlockedLevel)));
+    }
+
+    if (!Object.keys(updatePayload).length) {
+      return null;
+    }
+
+    const rows = await supabaseRequest(`nox_fatum_users?id=eq.${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(updatePayload)
+    });
+
+    return rows?.[0] ? mapFatumUserFromDb(rows[0]) : null;
+  }
+
+  const users = readJsonArrayFromServer(FATUM_USERS_FILE);
+  const nextUsers = users.map((user) => {
+    if (user.id !== id) return user;
+
+    const nextUser = { ...user };
+
+    if (Number.isFinite(Number(patch.score))) {
+      nextUser.score = Math.max(0, Math.round(Number(patch.score)));
+    }
+
+    if (Array.isArray(patch.credited)) {
+      nextUser.credited = patch.credited.slice(0, 500);
+    }
+
+    if (Number.isFinite(Number(patch.secretumUnlockedLevel))) {
+      nextUser.secretumUnlockedLevel = Math.max(0, Math.round(Number(patch.secretumUnlockedLevel)));
+    }
+
+    return nextUser;
+  });
+
+  writeJsonArrayToServer(FATUM_USERS_FILE, nextUsers, 9);
+  return nextUsers.find((user) => user.id === id) || null;
+}
+
+async function getContextSecretsForPrompt() {
+  return contextSecretsToPromptText(await readContextSecrets());
+}
+
+
 
 app.use(express.json({ limit: "20mb" }));
 
@@ -290,7 +618,7 @@ app.post("/api/reading", async (req, res) => {
 
     const payload = {
       currentDate: new Date().toISOString().slice(0, 10),
-      dynamicContextSecrets: contextSecretsToPromptText(readContextSecretsFromServer()),
+      dynamicContextSecrets: await getContextSecretsForPrompt(),
       question: question?.trim() || "Question silencieuse",
       spread: "Ce qui insiste / Ce qui dévie / Ce qui tranche",
       cards: cards.map((card, index) => ({
@@ -400,34 +728,53 @@ app.use(["/api/archives", "/api/fatum-users", "/api/memory-status"], (req, res, 
   next();
 });
 
-app.get("/api/memory-status", (req, res) => {
-  res.json({
-    dataDir: DATA_DIR,
-    files: {
-      contextSecrets: {
-        path: CONTEXT_SECRETS_FILE,
-        count: readContextSecretsFromServer().length
-      },
-      archives: {
-        path: ARCHIVES_FILE,
-        count: readJsonArrayFromServer(ARCHIVES_FILE).length
-      },
-      fatumUsers: {
-        path: FATUM_USERS_FILE,
-        count: readJsonArrayFromServer(FATUM_USERS_FILE).length
+
+app.get("/api/memory-status", async (req, res) => {
+  try {
+    const [contextSecrets, archives, fatumUsers] = await Promise.all([
+      readContextSecrets(),
+      readArchives(),
+      readFatumUsers()
+    ]);
+
+    res.json({
+      backend: isSupabaseEnabled() ? "supabase" : "json",
+      dataDir: DATA_DIR,
+      supabaseConfigured: isSupabaseEnabled(),
+      files: {
+        contextSecrets: {
+          path: isSupabaseEnabled() ? "supabase:nox_context_secrets" : CONTEXT_SECRETS_FILE,
+          count: contextSecrets.length
+        },
+        archives: {
+          path: isSupabaseEnabled() ? "supabase:nox_archives" : ARCHIVES_FILE,
+          count: archives.length
+        },
+        fatumUsers: {
+          path: isSupabaseEnabled() ? "supabase:nox_fatum_users" : FATUM_USERS_FILE,
+          count: fatumUsers.length
+        }
       }
-    }
-  });
+    });
+  } catch (error) {
+    console.error("Memory status error:", error);
+    res.status(500).json({ error: "Erreur pendant la lecture de la mémoire." });
+  }
 });
 
-app.get("/api/archives", (req, res) => {
-  res.json({
-    archives: readJsonArrayFromServer(ARCHIVES_FILE),
-    storage: ARCHIVES_FILE
-  });
+app.get("/api/archives", async (req, res) => {
+  try {
+    res.json({
+      archives: await readArchives(),
+      storage: isSupabaseEnabled() ? "supabase:nox_archives" : ARCHIVES_FILE
+    });
+  } catch (error) {
+    console.error("Archive read error:", error);
+    res.status(500).json({ error: "Erreur pendant la lecture des archives." });
+  }
 });
 
-app.post("/api/archives", (req, res) => {
+app.post("/api/archives", async (req, res) => {
   try {
     const entry = req.body || {};
     const message = String(entry.message || "").trim();
@@ -436,93 +783,64 @@ app.post("/api/archives", (req, res) => {
       return res.status(400).json({ error: "Archive vide." });
     }
 
-    const archives = readJsonArrayFromServer(ARCHIVES_FILE);
-    const nextArchives = [
-      {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        createdAt: new Date().toISOString(),
-        message: message || "Image sans légende.",
-        photoDataUrl: entry.photoDataUrl || "",
-        question: entry.question || "",
-        oracleSentence: entry.oracleSentence || "",
-        action: entry.action || "",
-        fatum: Number.isFinite(Number(entry.fatum)) ? Number(entry.fatum) : null,
-        reaction: "",
-        comments: []
-      },
-      ...archives
-    ].slice(0, 500);
+    await insertArchive({
+      message: message || "Image sans légende.",
+      photoDataUrl: entry.photoDataUrl || "",
+      question: entry.question || "",
+      oracleSentence: entry.oracleSentence || "",
+      action: entry.action || "",
+      fatum: Number.isFinite(Number(entry.fatum)) ? Number(entry.fatum) : null
+    });
 
-    writeJsonArrayToServer(ARCHIVES_FILE, nextArchives, 500);
-    console.log("Archive saved.", { count: nextArchives.length, storage: ARCHIVES_FILE });
-    res.json({ ok: true, archives: nextArchives });
+    const archives = await readArchives();
+
+    console.log("Archive saved.", {
+      count: archives.length,
+      storage: isSupabaseEnabled() ? "supabase:nox_archives" : ARCHIVES_FILE
+    });
+
+    res.json({ ok: true, archives });
   } catch (error) {
     console.error("Archive save error:", error);
     res.status(500).json({ error: "Erreur pendant l’écriture de l’archive." });
   }
 });
 
-app.patch("/api/archives/:id", (req, res) => {
+app.patch("/api/archives/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const patch = req.body || {};
-    const archives = readJsonArrayFromServer(ARCHIVES_FILE);
-
-    const nextArchives = archives.map((entry) => {
-      if (entry.id !== id) return entry;
-
-      const nextEntry = { ...entry };
-
-      if (typeof patch.reaction === "string") {
-        nextEntry.reaction = patch.reaction;
-      }
-
-      if (typeof patch.comment === "string") {
-        const comments = Array.isArray(nextEntry.comments)
-          ? nextEntry.comments
-          : nextEntry.comment
-            ? [nextEntry.comment]
-            : [];
-
-        if (comments.length < 9 && patch.comment.trim()) {
-          nextEntry.comments = [...comments, patch.comment.trim()].slice(0, 9);
-          delete nextEntry.comment;
-        }
-      }
-
-      return nextEntry;
-    });
-
-    writeJsonArrayToServer(ARCHIVES_FILE, nextArchives, 500);
-    res.json({ ok: true, archives: nextArchives });
+    await updateArchive(id, req.body || {});
+    res.json({ ok: true, archives: await readArchives() });
   } catch (error) {
     console.error("Archive update error:", error);
     res.status(500).json({ error: "Erreur pendant la mise à jour de l’archive." });
   }
 });
 
-app.delete("/api/archives/:id", (req, res) => {
+app.delete("/api/archives/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const archives = readJsonArrayFromServer(ARCHIVES_FILE);
-    const nextArchives = archives.filter((entry) => entry.id !== id);
-
-    writeJsonArrayToServer(ARCHIVES_FILE, nextArchives, 500);
-    res.json({ ok: true, archives: nextArchives });
+    await deleteArchive(id);
+    res.json({ ok: true, archives: await readArchives() });
   } catch (error) {
     console.error("Archive delete error:", error);
     res.status(500).json({ error: "Erreur pendant la suppression de l’archive." });
   }
 });
 
-app.get("/api/fatum-users", (req, res) => {
-  res.json({
-    users: readJsonArrayFromServer(FATUM_USERS_FILE),
-    storage: FATUM_USERS_FILE
-  });
+app.get("/api/fatum-users", async (req, res) => {
+  try {
+    res.json({
+      users: await readFatumUsers(),
+      storage: isSupabaseEnabled() ? "supabase:nox_fatum_users" : FATUM_USERS_FILE
+    });
+  } catch (error) {
+    console.error("Fatum user read error:", error);
+    res.status(500).json({ error: "Erreur pendant la lecture du fatum." });
+  }
 });
 
-app.post("/api/fatum-users", (req, res) => {
+app.post("/api/fatum-users", async (req, res) => {
   try {
     const { name } = req.body || {};
     const trimmed = String(name || "").trim();
@@ -531,25 +849,20 @@ app.post("/api/fatum-users", (req, res) => {
       return res.status(400).json({ error: "Nom vide." });
     }
 
-    const users = readJsonArrayFromServer(FATUM_USERS_FILE);
+    const users = await readFatumUsers();
 
     if (users.length >= 9) {
       return res.status(400).json({ error: "Limite de 9 utilisateurs atteinte." });
     }
 
-    const nextUsers = [
-      ...users,
-      {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        name: trimmed,
-        score: 0,
-        credited: [],
-        secretumUnlockedLevel: 0
-      }
-    ].slice(0, 9);
+    await insertFatumUser(trimmed);
+    const nextUsers = await readFatumUsers();
 
-    writeJsonArrayToServer(FATUM_USERS_FILE, nextUsers, 9);
-    console.log("Fatum user saved.", { count: nextUsers.length, storage: FATUM_USERS_FILE });
+    console.log("Fatum user saved.", {
+      count: nextUsers.length,
+      storage: isSupabaseEnabled() ? "supabase:nox_fatum_users" : FATUM_USERS_FILE
+    });
+
     res.json({ ok: true, users: nextUsers });
   } catch (error) {
     console.error("Fatum user create error:", error);
@@ -557,51 +870,33 @@ app.post("/api/fatum-users", (req, res) => {
   }
 });
 
-app.patch("/api/fatum-users/:id", (req, res) => {
+app.patch("/api/fatum-users/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const patch = req.body || {};
-    const users = readJsonArrayFromServer(FATUM_USERS_FILE);
-
-    const nextUsers = users.map((user) => {
-      if (user.id !== id) return user;
-
-      const nextUser = { ...user };
-
-      if (Number.isFinite(Number(patch.score))) {
-        nextUser.score = Math.max(0, Math.round(Number(patch.score)));
-      }
-
-      if (Array.isArray(patch.credited)) {
-        nextUser.credited = patch.credited.slice(0, 500);
-      }
-
-      if (Number.isFinite(Number(patch.secretumUnlockedLevel))) {
-        nextUser.secretumUnlockedLevel = Math.max(0, Math.round(Number(patch.secretumUnlockedLevel)));
-      }
-
-      return nextUser;
-    });
-
-    writeJsonArrayToServer(FATUM_USERS_FILE, nextUsers, 9);
-    res.json({ ok: true, users: nextUsers });
+    await updateFatumUser(id, req.body || {});
+    res.json({ ok: true, users: await readFatumUsers() });
   } catch (error) {
     console.error("Fatum user update error:", error);
     res.status(500).json({ error: "Erreur pendant la mise à jour du fatum." });
   }
 });
 
+app.get("/api/context-secrets", async (req, res) => {
+  try {
+    const secrets = await readContextSecrets();
 
-app.get("/api/context-secrets", (req, res) => {
-  const secrets = readContextSecretsFromServer();
-  res.json({
-    secrets,
-    count: secrets.length,
-    storage: CONTEXT_SECRETS_FILE
-  });
+    res.json({
+      secrets,
+      count: secrets.length,
+      storage: isSupabaseEnabled() ? "supabase:nox_context_secrets" : CONTEXT_SECRETS_FILE
+    });
+  } catch (error) {
+    console.error("Context secret read error:", error);
+    res.status(500).json({ error: "Erreur pendant la lecture des secrets." });
+  }
 });
 
-app.post("/api/context-secret", (req, res) => {
+app.post("/api/context-secret", async (req, res) => {
   try {
     const { text, userName } = req.body || {};
     const trimmed = String(text || "").trim();
@@ -610,27 +905,20 @@ app.post("/api/context-secret", (req, res) => {
       return res.status(400).json({ error: "Secret vide." });
     }
 
-    const secrets = readContextSecretsFromServer();
-
-    const nextSecrets = [
-      {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        createdAt: new Date().toISOString(),
-        userName: String(userName || "").trim(),
-        text: trimmed
-      },
-      ...secrets
-    ].slice(0, 300);
-
-    writeContextSecretsToServer(nextSecrets);
-
-    console.log("Context secret saved.", {
-      count: nextSecrets.length,
-      userName: userName || "",
-      storage: CONTEXT_SECRETS_FILE
+    await insertContextSecret({
+      text: trimmed,
+      userName: String(userName || "").trim()
     });
 
-    res.json({ ok: true, count: nextSecrets.length });
+    const secrets = await readContextSecrets();
+
+    console.log("Context secret saved.", {
+      count: secrets.length,
+      userName: userName || "",
+      storage: isSupabaseEnabled() ? "supabase:nox_context_secrets" : CONTEXT_SECRETS_FILE
+    });
+
+    res.json({ ok: true, count: secrets.length });
   } catch (error) {
     console.error("Context secret save error:", error);
     res.status(500).json({ error: "Erreur pendant l’écriture du secret." });
