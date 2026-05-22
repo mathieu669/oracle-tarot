@@ -1663,7 +1663,7 @@ function FatumIcon({ src, label, large = false }) {
       src={src}
       alt={label}
       title={label}
-      className={large ? "h-10 w-10 object-contain [filter:brightness(0)_invert(1)]" : "h-5 w-5 object-contain [filter:brightness(0)_invert(1)]"}
+      className={large ? "h-10 w-10 object-contain" : "h-5 w-5 object-contain"}
       draggable={false}
     />
   );
