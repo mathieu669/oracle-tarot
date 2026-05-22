@@ -208,6 +208,7 @@ function ActionButtons({
   onVerbatim,
   onDuodecim,
   onBulla,
+  onArchive,
   compact = false
 }) {
   const buttonClass = [
@@ -221,7 +222,8 @@ function ActionButtons({
     ["Noctem", onNoctem],
     ["Verbatim", onVerbatim],
     ["Duodecim", onDuodecim],
-    ["Bulla", onBulla]
+    ["Bulla", onBulla],
+    ["A", onArchive]
   ].filter(([, action]) => Boolean(action));
 
   return (
@@ -235,7 +237,7 @@ function ActionButtons({
   );
 }
 
-function ClavesScreen({ reading, question, onIterum, onNoctem, onVerbatim, onDuodecim, onBulla }) {
+function ClavesScreen({ reading, question, onIterum, onNoctem, onVerbatim, onDuodecim, onBulla, onArchive }) {
   return (
     <motion.main
       className="fixed inset-0 overflow-y-auto bg-white px-7 pb-28 pt-[max(2rem,env(safe-area-inset-top))] text-center text-black"
@@ -271,13 +273,13 @@ function ClavesScreen({ reading, question, onIterum, onNoctem, onVerbatim, onDuo
       </div>
 
       <div className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-0 right-0 z-30 text-black">
-        <ActionButtons onIterum={onIterum} onNoctem={onNoctem} onVerbatim={onVerbatim} onDuodecim={onDuodecim} onBulla={onBulla} compact />
+        <ActionButtons onIterum={onIterum} onNoctem={onNoctem} onVerbatim={onVerbatim} onDuodecim={onDuodecim} onBulla={onBulla} onArchive={onArchive} compact />
       </div>
     </motion.main>
   );
 }
 
-function NoctemScreen({ reading, question, onIterum, onClaves, onVerbatim, onDuodecim, onBulla }) {
+function NoctemScreen({ reading, question, onIterum, onClaves, onVerbatim, onDuodecim, onBulla, onArchive }) {
   const [selectedCard, setSelectedCard] = useState(null);
   const [isClosingCard, setIsClosingCard] = useState(false);
 
@@ -328,7 +330,7 @@ function NoctemScreen({ reading, question, onIterum, onClaves, onVerbatim, onDuo
       </div>
 
       <div className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-0 right-0 z-30 text-white">
-        <ActionButtons onIterum={onIterum} onClaves={onClaves} onVerbatim={onVerbatim} onDuodecim={onDuodecim} onBulla={onBulla} compact />
+        <ActionButtons onIterum={onIterum} onClaves={onClaves} onVerbatim={onVerbatim} onDuodecim={onDuodecim} onBulla={onBulla} onArchive={onArchive} compact />
       </div>
 
       {selectedCard ? (
@@ -552,7 +554,7 @@ function getDuodecimFallbackSentence(name, reading, question) {
   return sentences[name] || `${q} ${sign}`;
 }
 
-function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbatim, onBulla }) {
+function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbatim, onBulla, onArchive }) {
   const [rotation, setRotation] = useState({ x: -18, y: 26 });
   const [selectedName, setSelectedName] = useState(null);
   const [selectedSentence, setSelectedSentence] = useState("");
@@ -705,20 +707,20 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
       ) : null}
 
       <div className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-0 right-0 z-30">
-        <ActionButtons onIterum={onIterum} onClaves={onClaves} onNoctem={onNoctem} onVerbatim={onVerbatim} onBulla={onBulla} compact />
+        <ActionButtons onIterum={onIterum} onClaves={onClaves} onNoctem={onNoctem} onVerbatim={onVerbatim} onBulla={onBulla} onArchive={onArchive} compact />
       </div>
     </motion.main>
   );
 }
 
-function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbatim, onDuodecim }) {
+function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, onArchive }) {
   const [micActive, setMicActive] = useState(false);
   const [status, setStatus] = useState("idle");
   const recognitionRef = useRef(null);
   const transcriptRef = useRef("");
   const finalizedRef = useRef(false);
 
-  const sendBulla = async (message) => {
+  const archiveBulla = (message) => {
     const trimmed = message.trim();
 
     if (!trimmed) {
@@ -726,28 +728,14 @@ function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
       return;
     }
 
-    setStatus("sending");
+    saveBullaArchive({
+      message: trimmed,
+      question: question || "",
+      oracleSentence: reading?.oracleSentence || "",
+      action: reading?.action || ""
+    });
 
-    try {
-      const response = await fetch("/api/bulla-message", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: trimmed,
-          question,
-          oracleSentence: reading?.oracleSentence || "",
-          action: reading?.action || ""
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error("Bulla send failed");
-      }
-
-      setStatus("sent");
-    } catch {
-      setStatus("error");
-    }
+    setStatus("archived");
   };
 
   const finalizeBulla = () => {
@@ -766,14 +754,14 @@ function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
 
     const message = transcriptRef.current || "";
     recognitionRef.current = null;
-    sendBulla(message);
+    archiveBulla(message);
   };
 
   const startBullaRecording = (event) => {
     event.preventDefault();
     event.stopPropagation();
 
-    if (micActive || status === "sending") return;
+    if (micActive) return;
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -874,8 +862,7 @@ function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
   const statusText = {
     idle: "",
     empty: "vacua.",
-    sending: "mittitur.",
-    sent: "missum.",
+    archived: "In archivum.",
     error: "fractum."
   }[status];
 
@@ -895,15 +882,15 @@ function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
           onPointerCancel={stopBullaRecording}
           className="touch-none"
         >
-          <MicrophoneIcon active={micActive || status === "sending"} />
+          <MicrophoneIcon active={micActive} />
         </button>
 
         {statusText ? (
           <motion.p
             className="text-sm uppercase tracking-[0.22em] text-white/62"
             initial={{ opacity: 0 }}
-            animate={{ opacity: status === "sending" ? [0.35, 1, 0.35] : 1 }}
-            transition={{ duration: 2.2, repeat: status === "sending" ? Infinity : 0, ease: "easeInOut" }}
+            animate={{ opacity: status === "archived" ? [0.35, 1, 0.35] : 1 }}
+            transition={{ duration: 2.2, repeat: status === "archived" ? Infinity : 0, ease: "easeInOut" }}
           >
             {statusText}
           </motion.p>
@@ -911,7 +898,115 @@ function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
       </div>
 
       <div className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-0 right-0 z-30">
-        <ActionButtons onIterum={onIterum} onClaves={onClaves} onNoctem={onNoctem} onVerbatim={onVerbatim} onDuodecim={onDuodecim} compact />
+        <ActionButtons onIterum={onIterum} onClaves={onClaves} onNoctem={onNoctem} onVerbatim={onVerbatim} onDuodecim={onDuodecim} onArchive={onArchive} compact />
+      </div>
+    </motion.main>
+  );
+}
+
+
+const BULLA_ARCHIVE_KEY = "nox:bulla-archives";
+
+function readBullaArchives() {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const raw = window.localStorage.getItem(BULLA_ARCHIVE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveBullaArchive(entry) {
+  if (typeof window === "undefined") return [];
+
+  const archives = readBullaArchives();
+  const nextArchives = [
+    {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      createdAt: new Date().toISOString(),
+      ...entry
+    },
+    ...archives
+  ].slice(0, 240);
+
+  window.localStorage.setItem(BULLA_ARCHIVE_KEY, JSON.stringify(nextArchives));
+  window.dispatchEvent(new CustomEvent("nox:bulla-archives-updated", { detail: nextArchives }));
+
+  return nextArchives;
+}
+
+function formatArchiveDate(value) {
+  try {
+    return new Intl.DateTimeFormat("fr-FR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit"
+    }).format(new Date(value));
+  } catch {
+    return value;
+  }
+}
+
+function ArchivesScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, onBulla }) {
+  const [archives, setArchives] = useState(() => readBullaArchives());
+
+  useEffect(() => {
+    const refreshArchives = () => {
+      setArchives(readBullaArchives());
+    };
+
+    window.addEventListener("storage", refreshArchives);
+    window.addEventListener("nox:bulla-archives-updated", refreshArchives);
+
+    return () => {
+      window.removeEventListener("storage", refreshArchives);
+      window.removeEventListener("nox:bulla-archives-updated", refreshArchives);
+    };
+  }, []);
+
+  return (
+    <motion.main
+      className="fixed inset-0 overflow-y-auto bg-white px-5 pb-28 pt-[max(1.5rem,env(safe-area-inset-top))] text-black"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
+    >
+      <h1 className="mb-5 text-center text-3xl font-semibold tracking-[0.12em]">Archivum</h1>
+
+      {archives.length ? (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {archives.map((entry) => (
+            <article key={entry.id} className="border border-black/18 p-3 text-left">
+              <p className="mb-2 text-[10px] uppercase tracking-[0.16em] text-black/46">
+                {formatArchiveDate(entry.createdAt)}
+              </p>
+              <p className="whitespace-pre-wrap text-[12px] leading-[1.45] text-black/88">
+                {entry.message}
+              </p>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="flex min-h-[50vh] items-center justify-center text-center">
+          <p className="text-sm uppercase tracking-[0.2em] text-black/45">Nihil.</p>
+        </div>
+      )}
+
+      <div className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-0 right-0 z-30 text-black">
+        <ActionButtons
+          onIterum={onIterum}
+          onClaves={onClaves}
+          onNoctem={onNoctem}
+          onVerbatim={onVerbatim}
+          onDuodecim={onDuodecim}
+          onBulla={onBulla}
+          compact
+        />
       </div>
     </motion.main>
   );
@@ -1312,7 +1407,7 @@ function SwipeUpDrawScreen({ onDraw }) {
   );
 }
 
-function ResultScreen({ reading, question, onShowClaves, onShowNoctem, onShowDuodecim, onShowBulla }) {
+function ResultScreen({ reading, question, onShowClaves, onShowNoctem, onShowDuodecim, onShowBulla, onShowArchive }) {
   const panels = [
     { type: "question", lines: [question || "Question silencieuse"] },
     ...reading.cards.map((item) => ({
@@ -1444,6 +1539,7 @@ function ResultScreen({ reading, question, onShowClaves, onShowNoctem, onShowDuo
                   onVerbatim={() => downloadVerbatimPdf(reading, question)}
                   onDuodecim={onShowDuodecim}
                   onBulla={onShowBulla}
+                  onArchive={onShowArchive}
                 />
               </motion.div>
             ) : null}
@@ -1734,6 +1830,20 @@ export default function App() {
     </>
   );
 
+  if (stage === "archives") {
+    return (
+      <ArchivesScreen
+        onIterum={() => setStage("result")}
+        onClaves={() => setStage("claves")}
+        onNoctem={() => setStage("noctem")}
+        onVerbatim={() => downloadVerbatimPdf(reading || createFallbackReading(drawnCards, question), question)}
+        onDuodecim={() => setStage("duodecim")}
+        onBulla={() => setStage("bulla")}
+        onArchive={() => setStage("archives")}
+      />
+    );
+  }
+
   if (stage === "claves") {
     return (
       <ClavesScreen
@@ -1744,6 +1854,7 @@ export default function App() {
         onVerbatim={() => downloadVerbatimPdf(reading || createFallbackReading(drawnCards, question), question)}
         onDuodecim={() => setStage("duodecim")}
         onBulla={() => setStage("bulla")}
+        onArchive={() => setStage("archives")}
       />
     );
   }
@@ -1758,6 +1869,7 @@ export default function App() {
         onVerbatim={() => downloadVerbatimPdf(reading || createFallbackReading(drawnCards, question), question)}
         onDuodecim={() => setStage("duodecim")}
         onBulla={() => setStage("bulla")}
+        onArchive={() => setStage("archives")}
       />
     );
   }
@@ -1786,6 +1898,7 @@ export default function App() {
         onNoctem={() => setStage("noctem")}
         onVerbatim={() => downloadVerbatimPdf(reading || createFallbackReading(drawnCards, question), question)}
         onDuodecim={() => setStage("duodecim")}
+        onArchive={() => setStage("archives")}
       />
     );
   }
@@ -1805,6 +1918,7 @@ export default function App() {
           onShowNoctem={() => setStage("noctem")}
           onShowDuodecim={() => setStage("duodecim")}
           onShowBulla={() => setStage("bulla")}
+          onShowArchive={() => setStage("archives")}
         />
       </>
     );
