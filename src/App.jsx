@@ -151,6 +151,46 @@ function getCardClavis(card) {
     };
   }
 
+  if (searchable.includes("huitre") || searchable.includes("huitres")) {
+    return {
+      key: card.key || "Le nacre et le profit",
+      description:
+        "Carte du succès professionnel, de l’appât du gain et du plaisir froid : elle ouvre ce qui brille, mais coupe parfois les doigts."
+    };
+  }
+
+  if (searchable.includes("ecran")) {
+    return {
+      key: card.key || "La volonté de plaire",
+      description:
+        "Carte du regard captif : elle parle du désir d’être vu, validé, choisi, et de la fatigue douce que cela impose."
+    };
+  }
+
+  if (searchable.includes("excel")) {
+    return {
+      key: card.key || "La tentation de la norme",
+      description:
+        "Carte du retour au rang : elle signale le risque de rebasculer dans une vie morne de travailleur, bien rangée, bien triste."
+    };
+  }
+
+  if (searchable.includes("noah")) {
+    return {
+      key: card.key || "Le jardin secret",
+      description:
+        "Carte de la parenthèse enchantée : un lieu à l’écart du monde, fragile, intime, presque enfantin, où l’on respire sans rendre de comptes."
+    };
+  }
+
+  if (searchable.includes("bambou")) {
+    return {
+      key: card.key || "Le pacte amical",
+      description:
+        "Carte du contrat tacite : elle évoque l’alliance, le pacte entre amis, la promesse tenue sans notaire et parfois sans sobriété."
+    };
+  }
+
   const key = card.key || card.tags?.[0] || "Signe ouvert";
   const description =
     card.promptHint ||
@@ -209,7 +249,7 @@ function ClavesScreen({ onIterum, onFigurae }) {
                   <img
                     src="/images/ornament-separator.png"
                     alt=""
-                    className="mx-auto mb-7 h-auto w-[170px] opacity-90"
+                    className="mx-auto mb-7 h-auto max-w-[70px] opacity-90"
                     loading="lazy"
                   />
                 ) : null}
@@ -325,7 +365,8 @@ function createFallbackReading(cards, question) {
     })),
     crossReading: `${cards[0].name}, ${cards[1].name} et ${cards[2].name} disent ceci : le même motif revient, mais il a changé de costume.`,
     synthesis: "La question ne demande pas une solution héroïque : elle demande de cesser d’appeler destin une vieille habitude bien entretenue.",
-    oracleSentence: "Le signe frappe moins fort quand on arrête de lui servir à boire."
+    oracleSentence: "Le signe frappe moins fort quand on arrête de lui servir à boire.",
+    action: "Sors marcher dix minutes sans regarder ton téléphone."
   };
 }
 
@@ -705,17 +746,25 @@ function SwipeUpDrawScreen({ onDraw }) {
 
 function ResultScreen({ reading, question, onShowClaves, onShowFigurae }) {
   const panels = [
-    [question || "Question silencieuse"],
-    ...reading.cards.map((item) => [
-      `${item.cardName}.`,
-      item.interpretation
-    ]),
-    [reading.crossReading],
-    [reading.synthesis],
-    [reading.oracleSentence]
+    { type: "question", lines: [question || "Question silencieuse"] },
+    ...reading.cards.map((item) => ({
+      type: "card",
+      lines: [`${item.cardName}.`, item.interpretation]
+    })),
+    { type: "cross", lines: [reading.crossReading] },
+    { type: "synthesis", lines: [reading.synthesis] },
+    { type: "oracle", lines: [reading.oracleSentence] },
+    {
+      type: "action",
+      lines: [
+        reading.action ||
+          "Reprends un verre d’eau, pose ton téléphone, et fais enfin ce que tu repousses depuis trois semaines."
+      ]
+    }
   ];
 
   const [panelIndex, setPanelIndex] = useState(-1);
+  const currentPanel = panelIndex >= 0 ? panels[panelIndex] : null;
   const isLastPanel = panelIndex === panels.length - 1;
 
   const replayPanels = () => {
@@ -744,6 +793,28 @@ function ResultScreen({ reading, question, onShowClaves, onShowFigurae }) {
     return () => window.clearTimeout(timer);
   }, [panelIndex, isLastPanel, panels.length]);
 
+  const getLineClass = (index, panel) => {
+    const base = "text-white drop-shadow-[0_5px_18px_rgba(0,0,0,0.95)]";
+
+    if (panel.type === "question") {
+      return `${base} text-xl font-medium leading-8`;
+    }
+
+    if (panel.type === "action") {
+      return `${base} text-2xl font-semibold leading-9`;
+    }
+
+    if (panel.type === "oracle") {
+      return `${base} text-3xl font-semibold leading-10`;
+    }
+
+    if (index === 0 && panel.lines.length > 1) {
+      return `${base} text-3xl font-semibold leading-10`;
+    }
+
+    return `${base} text-2xl font-medium leading-9`;
+  };
+
   return (
     <motion.main
       className="fixed inset-0 overflow-hidden bg-black text-stone-100"
@@ -771,23 +842,21 @@ function ResultScreen({ reading, question, onShowClaves, onShowFigurae }) {
         <section className="fixed bottom-0 left-0 right-0 z-20 flex h-[50vh] items-center justify-center px-7 pb-[max(2rem,env(safe-area-inset-bottom))] pt-8">
           <motion.div
             key={panelIndex}
-            className="mx-auto max-w-[560px] text-center"
+            className={[
+              "mx-auto max-w-[560px] text-center",
+              currentPanel?.type === "question"
+                ? "max-h-[42vh] overflow-y-auto overscroll-contain pr-1"
+                : ""
+            ].join(" ")}
             initial={{ opacity: 0, y: 12, filter: "blur(10px)" }}
             animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
             exit={{ opacity: 0, y: -8, filter: "blur(10px)" }}
             transition={{ duration: 1.1, ease: "easeInOut" }}
           >
-            {panels[panelIndex].map((line, index) => (
+            {currentPanel.lines.map((line, index) => (
               <p
                 key={`${panelIndex}-${index}`}
-                className={[
-                  "text-white drop-shadow-[0_5px_18px_rgba(0,0,0,0.95)]",
-                  isLastPanel
-                    ? "text-3xl font-semibold leading-10"
-                    : index === 0 && panels[panelIndex].length > 1
-                      ? "text-3xl font-semibold leading-10"
-                      : "text-2xl font-medium leading-9"
-                ].join(" ")}
+                className={getLineClass(index, currentPanel)}
               >
                 {line}
               </p>

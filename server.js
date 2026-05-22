@@ -17,7 +17,7 @@ app.use(express.json({ limit: "1mb" }));
 const readingSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["title", "cards", "crossReading", "synthesis", "oracleSentence"],
+  required: ["title", "cards", "crossReading", "synthesis", "oracleSentence", "action"],
   properties: {
     title: {
       type: "string",
@@ -53,6 +53,10 @@ const readingSchema = {
     oracleSentence: {
       type: "string",
       description: "Phrase-oracle finale, une seule phrase courte."
+    },
+    action: {
+      type: "string",
+      description: "Action prescrite concrète, triviale, ferme, piquante, contemporaine, urbaine, terminée par un point. Elle doit matcher le contexte et peut aller vers le geste absurde, social ou domestique."
     }
   }
 };
@@ -249,6 +253,7 @@ La lecture complète doit pouvoir être lue à voix haute en moins d’une minut
 Chaque interprétation de carte doit tenir en 20 à 28 mots.
 La lecture croisée et la synthèse doivent être courtes.
 La phrase-oracle doit être très mémorable, courte, et trancher nettement une direction.
+Après la phrase-oracle, générez aussi une action prescrite concrète, triviale, ferme, assez piquante, contemporaine et urbaine. Elle doit matcher la question, les cartes et le contexte privé. Elle se termine par un point. Exemples de tonalité : reprends un verre, achète un jeu au PMU, fume un saumon de plus, ouvre une huître, prends une douche froide, refais-toi l’intégrale de Breaking Bad, passe trois heures devant CNews sans cligner des yeux, fais une sieste, sors, change de look, arrête la pizza pendant une semaine. Ne copiez pas systématiquement ces exemples : inventez une action adaptée.
       `,
       input: JSON.stringify(payload),
       text: {
