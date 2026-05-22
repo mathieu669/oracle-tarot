@@ -163,8 +163,8 @@ function getCardClavis(card) {
 
 function ActionButtons({ onIterum, onClaves, onFigurae, compact = false }) {
   const buttonClass = [
-    "rounded-full border border-current bg-transparent tracking-[0.16em] uppercase backdrop-blur-md active:scale-95",
-    compact ? "px-3 py-2 text-[10px]" : "px-4 py-2.5 text-[11px]"
+    "border border-current bg-transparent tracking-[0.16em] uppercase backdrop-blur-md active:scale-95",
+    compact ? "px-2.5 py-1.5 text-[9px]" : "px-3 py-2 text-[10px]"
   ].join(" ");
 
   return (
@@ -191,7 +191,7 @@ function ActionButtons({ onIterum, onClaves, onFigurae, compact = false }) {
 function ClavesScreen({ onIterum, onFigurae }) {
   return (
     <motion.main
-      className="fixed inset-0 overflow-y-auto bg-white px-7 pb-28 pt-[max(2rem,env(safe-area-inset-top))] text-black"
+      className="fixed inset-0 overflow-y-auto bg-white px-7 pb-28 pt-[max(2rem,env(safe-area-inset-top))] text-center text-black"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
@@ -199,15 +199,24 @@ function ClavesScreen({ onIterum, onFigurae }) {
       <div className="mx-auto max-w-[680px]">
         <h1 className="mb-8 text-center text-4xl font-semibold tracking-[0.08em]">Claves</h1>
 
-        <div className="space-y-7">
-          {deck.map((card) => {
+        <div className="space-y-8">
+          {deck.map((card, index) => {
             const clavis = getCardClavis(card);
 
             return (
-              <article key={card.slug || card.name} className="border-t border-black/18 pt-5">
+              <article key={card.slug || card.name} className="pt-1">
+                {index > 0 ? (
+                  <img
+                    src="/images/ornament-separator.png"
+                    alt=""
+                    className="mx-auto mb-7 h-auto w-[170px] opacity-90"
+                    loading="lazy"
+                  />
+                ) : null}
+
                 <h2 className="text-2xl font-semibold leading-tight">{card.name}</h2>
                 <p className="mt-1 text-sm uppercase tracking-[0.18em] text-black/55">{clavis.key}</p>
-                <p className="mt-3 text-xl leading-8 text-black/88">{clavis.description}</p>
+                <p className="mx-auto mt-3 max-w-[540px] text-xl leading-8 text-black/88">{clavis.description}</p>
               </article>
             );
           })}
@@ -223,12 +232,24 @@ function ClavesScreen({ onIterum, onFigurae }) {
 
 function FiguraeScreen({ onIterum, onClaves }) {
   const [selectedCard, setSelectedCard] = useState(null);
+  const [isClosingCard, setIsClosingCard] = useState(false);
+
+  const closeSelectedCard = () => {
+    setIsClosingCard(true);
+
+    window.setTimeout(() => {
+      setSelectedCard(null);
+      setIsClosingCard(false);
+    }, FADE_DURATION * 1000);
+  };
 
   useEffect(() => {
     if (!selectedCard) return undefined;
 
+    setIsClosingCard(false);
+
     const timer = window.setTimeout(() => {
-      setSelectedCard(null);
+      closeSelectedCard();
     }, 7000);
 
     return () => window.clearTimeout(timer);
@@ -246,7 +267,7 @@ function FiguraeScreen({ onIterum, onClaves }) {
           <button
             key={card.slug || card.name}
             type="button"
-            className="overflow-hidden rounded-xl border border-white/12 bg-white/5 active:scale-[0.985]"
+            className="overflow-hidden border border-white/12 bg-white/5 active:scale-[0.985]"
             onClick={() => setSelectedCard(card)}
           >
             <img
@@ -267,8 +288,9 @@ function FiguraeScreen({ onIterum, onClaves }) {
         <motion.div
           className="fixed inset-0 z-50 bg-black"
           initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
+          animate={{ opacity: isClosingCard ? 0 : 1 }}
           transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
+          onClick={closeSelectedCard}
         >
           <video
             key={selectedCard.slug}
@@ -502,7 +524,7 @@ function OracleVideoBackground() {
 
       <motion.video
         ref={videoRef}
-        src="/videos/oracle.mp4?v=5"
+        src="/videos/oracle.mp4?v=6"
         className="fixed inset-0 h-full w-full object-cover"
         autoPlay
         muted
@@ -511,9 +533,9 @@ function OracleVideoBackground() {
         preload="auto"
         onLoadedData={handleReady}
         onCanPlay={handleReady}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: ready ? 1 : 0 }}
-        transition={{ duration: 1.2, ease: "easeInOut" }}
+        initial={{ opacity: 0, filter: "blur(8px)" }}
+        animate={{ opacity: ready ? 1 : 0, filter: ready ? "blur(0px)" : "blur(8px)" }}
+        transition={{ duration: 2.2, ease: "easeInOut" }}
       />
     </>
   );
