@@ -92,7 +92,7 @@ function contextSecretsToPromptText(secrets) {
 
 
 
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: "12mb" }));
 
 const readingSchema = {
   type: "object",
@@ -346,7 +346,7 @@ La lecture croisée et la synthèse doivent être courtes, nettes, presque conve
 Règle de ton : gardez l’étrangeté, mais écrivez comme quelqu’un qui comprend le problème, pas comme un grimoire. Pas plus d’un adjectif fort par phrase.
 La phrase-oracle doit être très mémorable, courte, et trancher nettement une direction.
 Après la phrase-oracle, générez aussi une action prescrite concrète, triviale, ferme, assez piquante, contemporaine et urbaine. Elle doit matcher la question, les cartes et le contexte privé. Elle se termine par un point.
-Générez aussi un score Fatum en points, entre 0 et 100 : il mesure la densité du signe, l’alignement du tirage et la pression de nécessité. Ne l’exprimez jamais en pourcentage. Exemples de tonalité : reprends un verre, achète un jeu au PMU, fume un saumon de plus, ouvre une huître, prends une douche froide, refais-toi l’intégrale de Breaking Bad, passe trois heures devant CNews sans cligner des yeux, fais une sieste, sors, change de look, arrête la pizza pendant une semaine. Ne copiez pas systématiquement ces exemples : inventez une action adaptée. Évitez de revenir trop souvent aux huîtres ou au bar à huître dans l’injonction ; piochez largement dans le Cameroun, le Honduras, les échecs, la jungle, les rhums vieux, les negronis, les expressos martini, l’IPA, Lisbonne, la main bleue, le surmatelas, la bouteille sur le front, le vélo, le kayak, la coinche, les discussions intellectuelles et l’humour noir.
+Générez aussi un score Fatum en points, entre 0 et 100 : il mesure la densité du signe, l’alignement du tirage et la pression de nécessité. Ne l’exprimez jamais en pourcentage. Utilisez tout le spectre : certains tirages doivent tomber très bas (0–20), d’autres moyens (40–65), d’autres très hauts (85–100). Évitez de concentrer les scores autour de 70. Exemples de tonalité : reprends un verre, achète un jeu au PMU, fume un saumon de plus, ouvre une huître, prends une douche froide, refais-toi l’intégrale de Breaking Bad, passe trois heures devant CNews sans cligner des yeux, fais une sieste, sors, change de look, arrête la pizza pendant une semaine. Ne copiez pas systématiquement ces exemples : inventez une action adaptée. Évitez de revenir trop souvent aux huîtres ou au bar à huître dans l’injonction ; piochez largement dans le Cameroun, le Honduras, les échecs, la jungle, les rhums vieux, les negronis, les expressos martini, l’IPA, Lisbonne, la main bleue, le surmatelas, la bouteille sur le front, le vélo, le kayak, la coinche, les discussions intellectuelles et l’humour noir.
       `,
       input: JSON.stringify(payload),
       text: {
@@ -362,6 +362,22 @@ Générez aussi un score Fatum en points, entre 0 et 100 : il mesure la densité
     const outputText = response.output_text || "{}";
     const reading = JSON.parse(outputText);
 
+    const fatumSeed = JSON.stringify({
+      question: payload.question,
+      cards: payload.cards.map((card) => card.name),
+      oracleSentence: reading.oracleSentence || "",
+      action: reading.action || ""
+    });
+
+    let fatumHash = 0;
+    for (let index = 0; index < fatumSeed.length; index += 1) {
+      fatumHash = (fatumHash * 33 + fatumSeed.charCodeAt(index)) % 10007;
+    }
+
+    const modelFatum = Number.isFinite(Number(reading.fatum)) ? Number(reading.fatum) : 50;
+    const spreadFatum = fatumHash % 101;
+    reading.fatum = Math.max(0, Math.min(100, Math.round((modelFatum * 0.35) + (spreadFatum * 0.65))));
+
     res.json({ reading });
   } catch (error) {
     console.error(error);
@@ -374,6 +390,27 @@ Générez aussi un score Fatum en points, entre 0 et 100 : il mesure la densité
 
 
 
+
+
+app.get("/api/memory-status", (req, res) => {
+  res.json({
+    dataDir: DATA_DIR,
+    files: {
+      contextSecrets: {
+        path: CONTEXT_SECRETS_FILE,
+        count: readContextSecretsFromServer().length
+      },
+      archives: {
+        path: ARCHIVES_FILE,
+        count: readJsonArrayFromServer(ARCHIVES_FILE).length
+      },
+      fatumUsers: {
+        path: FATUM_USERS_FILE,
+        count: readJsonArrayFromServer(FATUM_USERS_FILE).length
+      }
+    }
+  });
+});
 
 app.get("/api/archives", (req, res) => {
   res.json({

@@ -760,6 +760,8 @@ function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
   const [status, setStatus] = useState("idle");
   const [photoDataUrl, setPhotoDataUrl] = useState("");
   const [photoStatus, setPhotoStatus] = useState("idle");
+  const [textEntryOpen, setTextEntryOpen] = useState(false);
+  const [textEntryValue, setTextEntryValue] = useState("");
   const recognitionRef = useRef(null);
   const transcriptRef = useRef("");
   const finalizedRef = useRef(false);
@@ -925,6 +927,12 @@ function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
     }
   };
 
+  const saveTypedBulla = () => {
+    archiveBulla(textEntryValue);
+    setTextEntryValue("");
+    setTextEntryOpen(false);
+  };
+
   useEffect(() => {
     return () => {
       if (recognitionRef.current) {
@@ -959,16 +967,31 @@ function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
       transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
     >
       <div className="flex flex-col items-center justify-center gap-5">
-        <button
-          type="button"
-          aria-label="Bulla microphone"
-          onPointerDown={startBullaRecording}
-          onPointerUp={stopBullaRecording}
-          onPointerCancel={stopBullaRecording}
-          className="touch-none"
-        >
-          <MicrophoneIcon active={micActive} />
-        </button>
+        <div className="flex items-center justify-center gap-5">
+          <button
+            type="button"
+            aria-label="Bulla microphone"
+            onPointerDown={startBullaRecording}
+            onPointerUp={stopBullaRecording}
+            onPointerCancel={stopBullaRecording}
+            className="touch-none"
+          >
+            <MicrophoneIcon active={micActive} />
+          </button>
+
+          <button
+            type="button"
+            aria-label="Écrire un message"
+            onClick={() => setTextEntryOpen(true)}
+            className="flex h-12 w-12 select-none items-center justify-center rounded-full border border-white/55 bg-transparent text-white active:scale-95"
+          >
+            <svg width="23" height="23" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+              <path d="M12 13H36" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+              <path d="M12 24H32" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+              <path d="M12 35H27" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
 
         <button
           type="button"
@@ -1013,6 +1036,43 @@ function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
           </motion.p>
         ) : null}
       </div>
+
+      {textEntryOpen ? (
+        <motion.div
+          className="fixed inset-x-4 top-[max(1.25rem,env(safe-area-inset-top))] bottom-[max(1.25rem,env(safe-area-inset-bottom))] z-50 flex flex-col border border-white bg-black p-4 text-white shadow-2xl"
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
+        >
+          <textarea
+            className="min-h-0 flex-1 w-full resize-none border border-white/35 bg-black p-3 text-base leading-6 text-white outline-none"
+            value={textEntryValue}
+            onChange={(event) => setTextEntryValue(event.target.value)}
+            placeholder="Bulla"
+            autoFocus
+          />
+
+          <div className="mt-3 flex justify-center gap-2">
+            <button
+              type="button"
+              className="border border-white px-4 py-2 text-[10px] uppercase tracking-[0.16em]"
+              onClick={saveTypedBulla}
+            >
+              Scribere
+            </button>
+            <button
+              type="button"
+              className="border border-white/35 px-4 py-2 text-[10px] uppercase tracking-[0.16em] text-white/55"
+              onClick={() => {
+                setTextEntryOpen(false);
+                setTextEntryValue("");
+              }}
+            >
+              Delere
+            </button>
+          </div>
+        </motion.div>
+      ) : null}
 
       <div className="fixed bottom-[max(2.25rem,calc(env(safe-area-inset-bottom)+1.25rem))] left-0 right-0 z-30">
         <ActionButtons onIterum={onIterum} onClaves={onClaves} onNoctem={onNoctem} onVerbatim={onVerbatim} onDuodecim={onDuodecim} onArchive={onArchive} onFatum={onFatum} compact />
@@ -1338,17 +1398,25 @@ function ArchivesScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
         >
-          <div className="flex items-center justify-center gap-3">
-            {["🔮", "🃏", "🕯️", "🧿", "🗝️", "🪬", "🌘", "✨", "🌀", "⚖️", "💀", "🪦", "🦴", "🕳️", "🖤", "🦉", "🥀", "🌑", "⚰️", "❤️‍🔥", "🫀", "💘", "💞", "🫶", "🔗", "💋", "🩸", "🔥", "⚡️", "👁️", "💥", "🌋", "🫨", "🗡️"].map((emoji) => (
-              <button
-                key={emoji}
-                type="button"
-                className="select-none text-2xl active:scale-95"
-                onClick={() => applyReaction(emoji)}
-              >
-                {emoji}
-              </button>
-            ))}
+          <div className="mx-auto max-w-[292px] overflow-x-auto overscroll-x-contain px-1 pb-2 [scrollbar-width:none] [-ms-overflow-style:none]">
+            <div className="grid grid-flow-col grid-rows-2 auto-cols-[32px] gap-2">
+              {[
+                "🔮", "🃏", "🕯️", "🧿", "🗝️", "🪬", "🌘", "✨",
+                "🌀", "⚖️", "💀", "🪦", "🦴", "🕳️", "🖤", "🦉",
+                "🥀", "🌑", "⚰️", "❤️‍🔥", "🫀", "💘", "💞", "🫶",
+                "🔗", "💋", "🩸", "🔥", "⚡️", "👁️", "💥", "🌋",
+                "🫨", "🗡️"
+              ].map((emoji) => (
+                <button
+                  key={emoji}
+                  type="button"
+                  className="flex h-8 w-8 select-none items-center justify-center text-xl active:scale-95"
+                  onClick={() => applyReaction(emoji)}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
           </div>
 
           {((Array.isArray(reactionTarget.comments) ? reactionTarget.comments : reactionTarget.comment ? [reactionTarget.comment] : []).length < 9) ? (
@@ -1571,7 +1639,7 @@ function FatumIcon({ src, label, large = false }) {
       src={src}
       alt={label}
       title={label}
-      className={large ? "h-10 w-10 object-contain" : "h-5 w-5 object-contain"}
+      className={large ? "h-10 w-10 object-contain [filter:brightness(0)_invert(1)]" : "h-5 w-5 object-contain [filter:brightness(0)_invert(1)]"}
       draggable={false}
     />
   );
@@ -1867,8 +1935,8 @@ function FatumScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
       transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
     >
       <h1 className="mb-3 text-center text-3xl font-semibold tracking-[0.12em]">Fatum</h1>
-      <div className="sticky top-[max(0.75rem,env(safe-area-inset-top))] z-30 mb-5 flex justify-end px-1">
-        <div className="flex h-[28px] items-stretch gap-2">
+      <div className="sticky top-[max(0.75rem,env(safe-area-inset-top))] z-30 mb-5 flex justify-center px-1">
+        <div className="flex h-[28px] items-center justify-center gap-2">
           <button
             type="button"
             className="h-[28px] select-none border border-white bg-white px-2 text-[7px] uppercase tracking-[0.13em] text-black active:scale-95"
@@ -1879,21 +1947,21 @@ function FatumScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
             Novus socius +
           </button>
 
-          <div className="grid h-[28px] grid-cols-2 gap-x-2 border border-white bg-black/82 px-1.5 py-1 text-white backdrop-blur-md">
+          <div className="grid h-[28px] grid-cols-2 gap-x-2 gap-y-0 bg-transparent px-1 text-white">
             <div className="flex items-center gap-1 text-[5.5px] uppercase leading-none">
-              <img src="/images/fatum/calvaria.png" alt="" className="h-2.5 w-2.5 object-contain" />
+              <img src="/images/fatum/calvaria.png" alt="" className="h-2.5 w-2.5 object-contain [filter:brightness(0)_invert(1)]" />
               <span>Calvaria 50</span>
             </div>
             <div className="flex items-center gap-1 text-[5.5px] uppercase leading-none">
-              <img src="/images/fatum/manus.png" alt="" className="h-2.5 w-2.5 object-contain" />
+              <img src="/images/fatum/manus.png" alt="" className="h-2.5 w-2.5 object-contain [filter:brightness(0)_invert(1)]" />
               <span>Manus 100</span>
             </div>
             <div className="flex items-center gap-1 text-[5.5px] uppercase leading-none">
-              <img src="/images/fatum/maleficium.png" alt="" className="h-2.5 w-2.5 object-contain" />
+              <img src="/images/fatum/maleficium.png" alt="" className="h-2.5 w-2.5 object-contain [filter:brightness(0)_invert(1)]" />
               <span>Maleficium 500</span>
             </div>
             <div className="flex items-center gap-1 text-[5.5px] uppercase leading-none">
-              <img src="/images/fatum/oculus.png" alt="" className="h-2.5 w-2.5 object-contain" />
+              <img src="/images/fatum/oculus.png" alt="" className="h-2.5 w-2.5 object-contain [filter:brightness(0)_invert(1)]" />
               <span>Oculus 1000</span>
             </div>
           </div>
@@ -2434,7 +2502,7 @@ function getFatumScore(reading, question = "") {
     hash = (hash * 31 + source.charCodeAt(index)) % 9973;
   }
 
-  return 23 + (hash % 68);
+  return 3 + (hash % 95);
 }
 
 function FatumIndicator({ score }) {
