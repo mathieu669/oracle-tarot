@@ -13,6 +13,85 @@ const ELEVENLABS_OUTPUT_FORMAT = process.env.ELEVENLABS_OUTPUT_FORMAT || "mp3_44
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const DATA_DIR = process.env.NOX_DATA_DIR || path.join(__dirname, "data");
+const CONTEXT_SECRETS_FILE = path.join(DATA_DIR, "context-secrets.json");
+const ARCHIVES_FILE = path.join(DATA_DIR, "archives.json");
+const FATUM_USERS_FILE = path.join(DATA_DIR, "fatum-users.json");
+
+function ensureDataDir() {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+}
+
+function readContextSecretsFromServer() {
+  try {
+    ensureDataDir();
+
+    if (!fs.existsSync(CONTEXT_SECRETS_FILE)) {
+      return [];
+    }
+
+    const raw = fs.readFileSync(CONTEXT_SECRETS_FILE, "utf8");
+    const parsed = JSON.parse(raw);
+
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.error("Context secrets read error:", error);
+    return [];
+  }
+}
+
+function writeContextSecretsToServer(secrets) {
+  ensureDataDir();
+
+  const safeSecrets = Array.isArray(secrets) ? secrets.slice(0, 300) : [];
+  fs.writeFileSync(CONTEXT_SECRETS_FILE, JSON.stringify(safeSecrets, null, 2), "utf8");
+
+  return safeSecrets;
+}
+
+
+function readJsonArrayFromServer(filePath) {
+  try {
+    ensureDataDir();
+
+    if (!fs.existsSync(filePath)) {
+      return [];
+    }
+
+    const raw = fs.readFileSync(filePath, "utf8");
+    const parsed = JSON.parse(raw);
+
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.error("JSON array read error:", filePath, error);
+    return [];
+  }
+}
+
+function writeJsonArrayToServer(filePath, values, maxItems = 500) {
+  ensureDataDir();
+
+  const safeValues = Array.isArray(values) ? values.slice(0, maxItems) : [];
+  fs.writeFileSync(filePath, JSON.stringify(safeValues, null, 2), "utf8");
+
+  return safeValues;
+}
+
+function contextSecretsToPromptText(secrets) {
+  return (Array.isArray(secrets) ? secrets : [])
+    .map((entry) => {
+      const who = entry.userName ? `${entry.userName} : ` : "";
+      return `${who}${entry.text || ""}`;
+    })
+    .filter(Boolean)
+    .join("\n")
+    .slice(0, 6000);
+}
+
+
+
 app.use(express.json({ limit: "1mb" }));
 
 const readingSchema = {
@@ -201,7 +280,7 @@ app.post("/api/reading", async (req, res) => {
       });
     }
 
-    const { question, cards, contextSecrets } = req.body;
+    const { question, cards } = req.body;
 
     if (!Array.isArray(cards) || cards.length !== 3) {
       return res.status(400).json({
@@ -211,7 +290,7 @@ app.post("/api/reading", async (req, res) => {
 
     const payload = {
       currentDate: new Date().toISOString().slice(0, 10),
-      dynamicContextSecrets: String(contextSecrets || "").slice(0, 4000),
+      dynamicContextSecrets: contextSecretsToPromptText(readContextSecretsFromServer()),
       question: question?.trim() || "Question silencieuse",
       spread: "Ce qui insiste / Ce qui dévie / Ce qui tranche",
       cards: cards.map((card, index) => ({
@@ -291,6 +370,224 @@ Générez aussi un score Fatum en points, entre 0 et 100 : il mesure la densité
   }
 });
 
+
+
+
+
+app.get("/api/archives", (req, res) => {
+  res.json({
+    archives: readJsonArrayFromServer(ARCHIVES_FILE),
+    storage: ARCHIVES_FILE
+  });
+});
+
+app.post("/api/archives", (req, res) => {
+  try {
+    const entry = req.body || {};
+    const message = String(entry.message || "").trim();
+
+    if (!message && !entry.photoDataUrl) {
+      return res.status(400).json({ error: "Archive vide." });
+    }
+
+    const archives = readJsonArrayFromServer(ARCHIVES_FILE);
+    const nextArchives = [
+      {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        createdAt: new Date().toISOString(),
+        message: message || "Image sans légende.",
+        photoDataUrl: entry.photoDataUrl || "",
+        question: entry.question || "",
+        oracleSentence: entry.oracleSentence || "",
+        action: entry.action || "",
+        fatum: Number.isFinite(Number(entry.fatum)) ? Number(entry.fatum) : null,
+        reaction: "",
+        comments: []
+      },
+      ...archives
+    ].slice(0, 500);
+
+    writeJsonArrayToServer(ARCHIVES_FILE, nextArchives, 500);
+    res.json({ ok: true, archives: nextArchives });
+  } catch (error) {
+    console.error("Archive save error:", error);
+    res.status(500).json({ error: "Erreur pendant l’écriture de l’archive." });
+  }
+});
+
+app.patch("/api/archives/:id", (req, res) => {
+  try {
+    const { id } = req.params;
+    const patch = req.body || {};
+    const archives = readJsonArrayFromServer(ARCHIVES_FILE);
+
+    const nextArchives = archives.map((entry) => {
+      if (entry.id !== id) return entry;
+
+      const nextEntry = { ...entry };
+
+      if (typeof patch.reaction === "string") {
+        nextEntry.reaction = patch.reaction;
+      }
+
+      if (typeof patch.comment === "string") {
+        const comments = Array.isArray(nextEntry.comments)
+          ? nextEntry.comments
+          : nextEntry.comment
+            ? [nextEntry.comment]
+            : [];
+
+        if (comments.length < 9 && patch.comment.trim()) {
+          nextEntry.comments = [...comments, patch.comment.trim()].slice(0, 9);
+          delete nextEntry.comment;
+        }
+      }
+
+      return nextEntry;
+    });
+
+    writeJsonArrayToServer(ARCHIVES_FILE, nextArchives, 500);
+    res.json({ ok: true, archives: nextArchives });
+  } catch (error) {
+    console.error("Archive update error:", error);
+    res.status(500).json({ error: "Erreur pendant la mise à jour de l’archive." });
+  }
+});
+
+app.delete("/api/archives/:id", (req, res) => {
+  try {
+    const { id } = req.params;
+    const archives = readJsonArrayFromServer(ARCHIVES_FILE);
+    const nextArchives = archives.filter((entry) => entry.id !== id);
+
+    writeJsonArrayToServer(ARCHIVES_FILE, nextArchives, 500);
+    res.json({ ok: true, archives: nextArchives });
+  } catch (error) {
+    console.error("Archive delete error:", error);
+    res.status(500).json({ error: "Erreur pendant la suppression de l’archive." });
+  }
+});
+
+app.get("/api/fatum-users", (req, res) => {
+  res.json({
+    users: readJsonArrayFromServer(FATUM_USERS_FILE),
+    storage: FATUM_USERS_FILE
+  });
+});
+
+app.post("/api/fatum-users", (req, res) => {
+  try {
+    const { name } = req.body || {};
+    const trimmed = String(name || "").trim();
+
+    if (!trimmed) {
+      return res.status(400).json({ error: "Nom vide." });
+    }
+
+    const users = readJsonArrayFromServer(FATUM_USERS_FILE);
+
+    if (users.length >= 9) {
+      return res.status(400).json({ error: "Limite de 9 utilisateurs atteinte." });
+    }
+
+    const nextUsers = [
+      ...users,
+      {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        name: trimmed,
+        score: 0,
+        credited: [],
+        secretumUnlockedLevel: 0
+      }
+    ].slice(0, 9);
+
+    writeJsonArrayToServer(FATUM_USERS_FILE, nextUsers, 9);
+    res.json({ ok: true, users: nextUsers });
+  } catch (error) {
+    console.error("Fatum user create error:", error);
+    res.status(500).json({ error: "Erreur pendant la création du socius." });
+  }
+});
+
+app.patch("/api/fatum-users/:id", (req, res) => {
+  try {
+    const { id } = req.params;
+    const patch = req.body || {};
+    const users = readJsonArrayFromServer(FATUM_USERS_FILE);
+
+    const nextUsers = users.map((user) => {
+      if (user.id !== id) return user;
+
+      const nextUser = { ...user };
+
+      if (Number.isFinite(Number(patch.score))) {
+        nextUser.score = Math.max(0, Math.round(Number(patch.score)));
+      }
+
+      if (Array.isArray(patch.credited)) {
+        nextUser.credited = patch.credited.slice(0, 500);
+      }
+
+      if (Number.isFinite(Number(patch.secretumUnlockedLevel))) {
+        nextUser.secretumUnlockedLevel = Math.max(0, Math.round(Number(patch.secretumUnlockedLevel)));
+      }
+
+      return nextUser;
+    });
+
+    writeJsonArrayToServer(FATUM_USERS_FILE, nextUsers, 9);
+    res.json({ ok: true, users: nextUsers });
+  } catch (error) {
+    console.error("Fatum user update error:", error);
+    res.status(500).json({ error: "Erreur pendant la mise à jour du fatum." });
+  }
+});
+
+
+app.get("/api/context-secrets", (req, res) => {
+  const secrets = readContextSecretsFromServer();
+  res.json({
+    secrets,
+    count: secrets.length,
+    storage: CONTEXT_SECRETS_FILE
+  });
+});
+
+app.post("/api/context-secret", (req, res) => {
+  try {
+    const { text, userName } = req.body || {};
+    const trimmed = String(text || "").trim();
+
+    if (!trimmed) {
+      return res.status(400).json({ error: "Secret vide." });
+    }
+
+    const secrets = readContextSecretsFromServer();
+
+    const nextSecrets = [
+      {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        createdAt: new Date().toISOString(),
+        userName: String(userName || "").trim(),
+        text: trimmed
+      },
+      ...secrets
+    ].slice(0, 300);
+
+    writeContextSecretsToServer(nextSecrets);
+
+    console.log("Context secret saved.", {
+      count: nextSecrets.length,
+      userName: userName || "",
+      storage: CONTEXT_SECRETS_FILE
+    });
+
+    res.json({ ok: true, count: nextSecrets.length });
+  } catch (error) {
+    console.error("Context secret save error:", error);
+    res.status(500).json({ error: "Erreur pendant l’écriture du secret." });
+  }
+});
 
 
 app.post("/api/duodecim-advice", async (req, res) => {

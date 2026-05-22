@@ -765,7 +765,7 @@ function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
   const finalizedRef = useRef(false);
   const fileInputRef = useRef(null);
 
-  const archiveBulla = (message) => {
+  const archiveBulla = async (message) => {
     const trimmed = message.trim();
 
     if (!trimmed && !photoDataUrl) {
@@ -773,16 +773,21 @@ function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
       return;
     }
 
-    saveBullaArchive({
-      message: trimmed || "Image sans légende.",
-      photoDataUrl,
-      question: question || "",
-      oracleSentence: reading?.oracleSentence || "",
-      action: reading?.action || "",
-      fatum: getFatumScore(reading, question)
-    });
+    try {
+      await saveBullaArchive({
+        message: trimmed || "Image sans légende.",
+        photoDataUrl,
+        question: question || "",
+        oracleSentence: reading?.oracleSentence || "",
+        action: reading?.action || "",
+        fatum: getFatumScore(reading, question)
+      });
 
-    setStatus("archived");
+      setStatus("archived");
+    } catch {
+      setStatus("error");
+      return;
+    }
     setPhotoStatus("idle");
     setPhotoDataUrl("");
   };
@@ -1016,7 +1021,17 @@ function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
   );
 }
 
-const BULLA_ARCHIVE_KEY = "nox:bulla-archives";
+const BULLA_ARCHIVE_KEY = "nox:bulla-archives-cache";
+
+async function fetchServerArchives() {
+  const response = await fetch("/api/archives");
+  const data = await response.json();
+
+  if (!response.ok) throw new Error(data?.error || "Archives unavailable");
+
+  window.localStorage.setItem(BULLA_ARCHIVE_KEY, JSON.stringify(data.archives || []));
+  return data.archives || [];
+}
 
 function readBullaArchives() {
   if (typeof window === "undefined") return [];
@@ -1030,23 +1045,50 @@ function readBullaArchives() {
   }
 }
 
-function saveBullaArchive(entry) {
-  if (typeof window === "undefined") return [];
+async function saveBullaArchive(entry) {
+  const response = await fetch("/api/archives", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(entry)
+  });
+  const data = await response.json();
 
-  const archives = readBullaArchives();
-  const nextArchives = [
-    {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      createdAt: new Date().toISOString(),
-      ...entry
-    },
-    ...archives
-  ].slice(0, 240);
+  if (!response.ok) throw new Error(data?.error || "Archive save failed");
 
-  window.localStorage.setItem(BULLA_ARCHIVE_KEY, JSON.stringify(nextArchives));
-  window.dispatchEvent(new CustomEvent("nox:bulla-archives-updated", { detail: nextArchives }));
+  window.localStorage.setItem(BULLA_ARCHIVE_KEY, JSON.stringify(data.archives || []));
+  window.dispatchEvent(new CustomEvent("nox:bulla-archives-updated", { detail: data.archives || [] }));
 
-  return nextArchives;
+  return data.archives || [];
+}
+
+async function updateServerArchive(id, patch) {
+  const response = await fetch(`/api/archives/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch)
+  });
+  const data = await response.json();
+
+  if (!response.ok) throw new Error(data?.error || "Archive update failed");
+
+  window.localStorage.setItem(BULLA_ARCHIVE_KEY, JSON.stringify(data.archives || []));
+  window.dispatchEvent(new CustomEvent("nox:bulla-archives-updated", { detail: data.archives || [] }));
+
+  return data.archives || [];
+}
+
+async function deleteServerArchive(id) {
+  const response = await fetch(`/api/archives/${encodeURIComponent(id)}`, {
+    method: "DELETE"
+  });
+  const data = await response.json();
+
+  if (!response.ok) throw new Error(data?.error || "Archive delete failed");
+
+  window.localStorage.setItem(BULLA_ARCHIVE_KEY, JSON.stringify(data.archives || []));
+  window.dispatchEvent(new CustomEvent("nox:bulla-archives-updated", { detail: data.archives || [] }));
+
+  return data.archives || [];
 }
 
 function formatArchiveDate(value) {
@@ -1078,17 +1120,23 @@ function ArchivesScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
     setArchives(nextArchives);
   };
 
-  const updateArchive = (id, updater) => {
-    const nextArchives = readBullaArchives().map((entry) =>
-      entry.id === id ? updater(entry) : entry
-    );
-
-    writeArchives(nextArchives);
+  const updateArchive = async (id, patch) => {
+    try {
+      const nextArchives = await updateServerArchive(id, patch);
+      writeArchives(nextArchives);
+    } catch {
+      setArchives(readBullaArchives());
+    }
   };
 
-  const deleteArchive = (id) => {
-    const nextArchives = readBullaArchives().filter((entry) => entry.id !== id);
-    writeArchives(nextArchives);
+  const deleteArchive = async (id) => {
+    try {
+      const nextArchives = await deleteServerArchive(id);
+      writeArchives(nextArchives);
+    } catch {
+      setArchives(readBullaArchives());
+    }
+
     setBurnTargetId(null);
   };
 
@@ -1121,10 +1169,7 @@ function ArchivesScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
   const applyReaction = (emoji) => {
     if (!reactionTarget) return;
 
-    updateArchive(reactionTarget.id, (entry) => ({
-      ...entry,
-      reaction: emoji
-    }));
+    updateArchive(reactionTarget.id, { reaction: emoji });
 
     setReactionTarget(null);
   };
@@ -1147,27 +1192,17 @@ function ArchivesScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
       return;
     }
 
-    updateArchive(commentTarget.id, (entry) => {
-      const comments = Array.isArray(entry.comments)
-        ? entry.comments
-        : entry.comment
-          ? [entry.comment]
-          : [];
-
-      if (comments.length >= 9) return entry;
-
-      return {
-        ...entry,
-        comments: [...comments, trimmed].slice(0, 9),
-        comment: undefined
-      };
-    });
+    updateArchive(commentTarget.id, { comment: trimmed });
 
     setCommentTarget(null);
     setCommentValue("");
   };
 
   useEffect(() => {
+    fetchServerArchives()
+      .then(setArchives)
+      .catch(() => setArchives(readBullaArchives()));
+
     const refreshArchives = () => {
       setArchives(readBullaArchives());
     };
@@ -1453,8 +1488,18 @@ function shouldOfferSecretum(user) {
   return currentLevel > unlocked;
 }
 
-const FATUM_USERS_KEY = "nox:fatum-users";
+const FATUM_USERS_KEY = "nox:fatum-users-cache";
 const FATUM_ACTIVE_USER_KEY = "nox:fatum-active-user";
+
+async function fetchServerFatumUsers() {
+  const response = await fetch("/api/fatum-users");
+  const data = await response.json();
+
+  if (!response.ok) throw new Error(data?.error || "Fatum users unavailable");
+
+  writeFatumUsers(data.users || []);
+  return data.users || [];
+}
 
 function readFatumUsers() {
   if (typeof window === "undefined") return [];
@@ -1473,6 +1518,34 @@ function writeFatumUsers(users) {
 
   window.localStorage.setItem(FATUM_USERS_KEY, JSON.stringify(users.slice(0, 9)));
   window.dispatchEvent(new CustomEvent("nox:fatum-users-updated"));
+}
+
+async function createServerFatumUser(name) {
+  const response = await fetch("/api/fatum-users", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name })
+  });
+  const data = await response.json();
+
+  if (!response.ok) throw new Error(data?.error || "Fatum user create failed");
+
+  writeFatumUsers(data.users || []);
+  return data.users || [];
+}
+
+async function updateServerFatumUser(id, patch) {
+  const response = await fetch(`/api/fatum-users/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch)
+  });
+  const data = await response.json();
+
+  if (!response.ok) throw new Error(data?.error || "Fatum user update failed");
+
+  writeFatumUsers(data.users || []);
+  return data.users || [];
 }
 
 function getCurrentOracleKey(reading, question = "") {
@@ -1545,42 +1618,51 @@ function FatumScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
     setUsers(nextUsers.slice(0, 9));
   };
 
-  const creditUser = (userId, baseUsers = readFatumUsers()) => {
-    const nextUsers = baseUsers.map((user) => {
-      if (user.id !== userId) return user;
+  const creditUser = async (userId, baseUsers = readFatumUsers()) => {
+    const user = baseUsers.find((item) => item.id === userId);
+    if (!user) return;
 
-      const credited = Array.isArray(user.credited) ? user.credited : [];
-      if (credited.includes(currentOracleKey)) return user;
+    const credited = Array.isArray(user.credited) ? user.credited : [];
+    if (credited.includes(currentOracleKey)) return;
 
-      return {
-        ...user,
-        score: Math.max(0, Number(user.score) || 0) + currentScore,
-        credited: [currentOracleKey, ...credited].slice(0, 500)
-      };
-    });
+    const patch = {
+      score: Math.max(0, Number(user.score) || 0) + currentScore,
+      credited: [currentOracleKey, ...credited].slice(0, 500)
+    };
 
-    persistUsers(nextUsers);
+    try {
+      const nextUsers = await updateServerFatumUser(userId, patch);
+      persistUsers(nextUsers);
+    } catch {
+      persistUsers(baseUsers);
+    }
   };
 
-  const markSecretumLevel = (userId) => {
-    const nextUsers = readFatumUsers().map((user) => {
-      if (user.id !== userId) return user;
+  const markSecretumLevel = async (userId) => {
+    const user = readFatumUsers().find((item) => item.id === userId);
+    if (!user) return;
 
-      const score = Math.max(0, Number(user.score) || 0);
-      const isMathieu = normalizeCardLabel(user.name || "") === "mathieu";
+    const score = Math.max(0, Number(user.score) || 0);
+    const isMathieu = normalizeCardLabel(user.name || "") === "mathieu";
+    const patch = {
+      secretumUnlockedLevel: isMathieu
+        ? Number(user.secretumUnlockedLevel) || 0
+        : Math.max(Number(user.secretumUnlockedLevel) || 0, Math.floor(score / SECRETUM_INTERVAL))
+    };
 
-      return {
-        ...user,
-        secretumUnlockedLevel: isMathieu
-          ? Number(user.secretumUnlockedLevel) || 0
-          : Math.max(Number(user.secretumUnlockedLevel) || 0, Math.floor(score / SECRETUM_INTERVAL))
-      };
-    });
-
-    persistUsers(nextUsers);
+    try {
+      const nextUsers = await updateServerFatumUser(userId, patch);
+      persistUsers(nextUsers);
+    } catch {
+      // Server sync failed silently.
+    }
   };
 
   useEffect(() => {
+    fetchServerFatumUsers()
+      .then(setUsers)
+      .catch(() => setUsers(readFatumUsers()));
+
     const refresh = () => {
       setUsers(readFatumUsers());
     };
@@ -1624,27 +1706,25 @@ function FatumScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
     creditUser(id);
   };
 
-  const createUser = () => {
+  const createUser = async () => {
     const name = nameValue.trim();
 
     if (!name || users.length >= 9) return;
 
-    const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const nextUsers = [
-      ...users,
-      {
-        id,
-        name,
-        score: 0,
-        credited: [],
-        secretumUnlockedLevel: 0
-      }
-    ].slice(0, 9);
+    try {
+      const nextUsers = await createServerFatumUser(name);
+      persistUsers(nextUsers);
+      const createdUser = nextUsers[nextUsers.length - 1];
 
-    persistUsers(nextUsers);
-    setCreating(false);
-    setNameValue("");
-    selectUser(id);
+      setCreating(false);
+      setNameValue("");
+
+      if (createdUser?.id) {
+        selectUser(createdUser.id);
+      }
+    } catch {
+      setCreating(false);
+    }
   };
 
   const closeSecretum = () => {
@@ -1664,13 +1744,29 @@ function FatumScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
     window.clearTimeout(secretumTimerRef.current);
   };
 
-  const finishSecretum = () => {
+  const finishSecretum = async () => {
     const text = secretumTranscriptRef.current.trim();
 
     if (text) {
-      saveContextSecret(text, activeUser?.name || "");
-      if (activeUserId) markSecretumLevel(activeUserId);
-      setSecretumStatus("sculpted");
+      try {
+        const response = await fetch("/api/context-secret", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text,
+            userName: activeUser?.name || ""
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error("Secretum server write failed");
+        }
+
+        if (activeUserId) markSecretumLevel(activeUserId);
+        setSecretumStatus("sculpted");
+      } catch {
+        setSecretumStatus("fractum");
+      }
     } else {
       setSecretumStatus("empty");
     }
@@ -2710,8 +2806,7 @@ export default function App() {
             ...card,
             position: positions[index].label,
             positionMeaning: positions[index].meaning
-          })),
-          contextSecrets: getContextSecretsText()
+          }))
         })
       });
 
