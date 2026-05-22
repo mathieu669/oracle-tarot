@@ -201,34 +201,41 @@ function getCardClavis(card) {
   return { key, description };
 }
 
-function ActionButtons({ onIterum, onClaves, onFigurae, compact = false }) {
+function ActionButtons({
+  onIterum,
+  onClaves,
+  onNoctem,
+  onVerbatim,
+  onDuodecim,
+  onBulla,
+  compact = false
+}) {
   const buttonClass = [
     "border border-current bg-transparent tracking-[0.16em] uppercase backdrop-blur-md active:scale-95",
-    compact ? "px-2.5 py-1.5 text-[9px]" : "px-3 py-2 text-[10px]"
+    compact ? "px-2 py-1.5 text-[8.5px]" : "px-2.5 py-2 text-[9px]"
   ].join(" ");
 
+  const items = [
+    ["Iterum", onIterum],
+    ["Claves", onClaves],
+    ["Noctem", onNoctem],
+    ["Verbatim", onVerbatim],
+    ["Duodecim", onDuodecim],
+    ["Bulla", onBulla]
+  ].filter(([, action]) => Boolean(action));
+
   return (
-    <div className="flex items-center justify-center gap-2">
-      {onIterum ? (
-        <button type="button" onClick={onIterum} className={buttonClass}>
-          Iterum
+    <div className="flex flex-wrap items-center justify-center gap-2">
+      {items.map(([label, action]) => (
+        <button key={label} type="button" onClick={action} className={buttonClass}>
+          {label}
         </button>
-      ) : null}
-      {onClaves ? (
-        <button type="button" onClick={onClaves} className={buttonClass}>
-          Claves
-        </button>
-      ) : null}
-      {onFigurae ? (
-        <button type="button" onClick={onFigurae} className={buttonClass}>
-          Figurae
-        </button>
-      ) : null}
+      ))}
     </div>
   );
 }
 
-function ClavesScreen({ onIterum, onFigurae }) {
+function ClavesScreen({ onIterum, onNoctem }) {
   return (
     <motion.main
       className="fixed inset-0 overflow-y-auto bg-white px-7 pb-28 pt-[max(2rem,env(safe-area-inset-top))] text-center text-black"
@@ -264,13 +271,13 @@ function ClavesScreen({ onIterum, onFigurae }) {
       </div>
 
       <div className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-0 right-0 z-30 text-black">
-        <ActionButtons onIterum={onIterum} onFigurae={onFigurae} compact />
+        <ActionButtons onIterum={onIterum} onNoctem={onNoctem} compact />
       </div>
     </motion.main>
   );
 }
 
-function FiguraeScreen({ onIterum, onClaves }) {
+function NoctemScreen({ onIterum, onClaves }) {
   const [selectedCard, setSelectedCard] = useState(null);
   const [isClosingCard, setIsClosingCard] = useState(false);
 
@@ -345,6 +352,333 @@ function FiguraeScreen({ onIterum, onClaves }) {
           />
         </motion.div>
       ) : null}
+    </motion.main>
+  );
+}
+
+
+function sanitizePdfText(value = "") {
+  return String(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[’‘]/g, "'")
+    .replace(/[“”]/g, '"')
+    .replace(/[—–]/g, "-")
+    .replace(/œ/g, "oe")
+    .replace(/Œ/g, "OE")
+    .replace(/[^\x20-\x7E\n]/g, "");
+}
+
+function escapePdfText(value = "") {
+  return sanitizePdfText(value)
+    .replace(/\\/g, "\\\\")
+    .replace(/\(/g, "\\(")
+    .replace(/\)/g, "\\)");
+}
+
+function wrapTextForPdf(text, maxLength = 78) {
+  const words = sanitizePdfText(text).split(/\s+/).filter(Boolean);
+  const lines = [];
+  let current = "";
+
+  words.forEach((word) => {
+    const next = current ? `${current} ${word}` : word;
+    if (next.length > maxLength) {
+      if (current) lines.push(current);
+      current = word;
+    } else {
+      current = next;
+    }
+  });
+
+  if (current) lines.push(current);
+  return lines;
+}
+
+function createPdfBlobFromLines(lines) {
+  const pageWidth = 595;
+  const pageHeight = 842;
+  const marginX = 54;
+  const startY = 790;
+  const lineHeight = 18;
+  const maxLinesPerPage = 39;
+
+  const pages = [];
+  for (let i = 0; i < lines.length; i += maxLinesPerPage) {
+    pages.push(lines.slice(i, i + maxLinesPerPage));
+  }
+
+  const objects = [];
+  const addObject = (content) => {
+    objects.push(content);
+    return objects.length;
+  };
+
+  const catalogId = addObject("<< /Type /Catalog /Pages 2 0 R >>");
+  const pagesId = addObject("__PAGES__");
+  const fontId = addObject("<< /Type /Font /Subtype /Type1 /BaseFont /Times-Roman /Encoding /WinAnsiEncoding >>");
+
+  const pageIds = [];
+
+  pages.forEach((pageLines) => {
+    const textCommands = pageLines
+      .map((line, index) => {
+        const y = startY - index * lineHeight;
+        return `BT /F1 11 Tf ${marginX} ${y} Td (${escapePdfText(line)}) Tj ET`;
+      })
+      .join("\n");
+
+    const stream = `<< /Length ${textCommands.length} >>\nstream\n${textCommands}\nendstream`;
+    const contentId = addObject(stream);
+
+    const pageId = addObject(
+      `<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 ${fontId} 0 R >> >> /Contents ${contentId} 0 R >>`
+    );
+
+    pageIds.push(pageId);
+  });
+
+  objects[pagesId - 1] = `<< /Type /Pages /Kids [${pageIds.map((id) => `${id} 0 R`).join(" ")}] /Count ${pageIds.length} >>`;
+
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+
+  objects.forEach((content, index) => {
+    offsets.push(pdf.length);
+    pdf += `${index + 1} 0 obj\n${content}\nendobj\n`;
+  });
+
+  const xrefOffset = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n`;
+  pdf += "0000000000 65535 f \n";
+  offsets.slice(1).forEach((offset) => {
+    pdf += `${String(offset).padStart(10, "0")} 00000 n \n`;
+  });
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root ${catalogId} 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+
+  return new Blob([pdf], { type: "application/pdf" });
+}
+
+function downloadVerbatimPdf(reading, question) {
+  const lines = [
+    "NOX - VERBATIM",
+    "",
+    "Question",
+    ...wrapTextForPdf(question || "Question silencieuse"),
+    "",
+    "Cartes"
+  ];
+
+  reading.cards.forEach((card) => {
+    lines.push("");
+    lines.push(`${card.position || ""} - ${card.cardName || ""}`);
+    lines.push(`Cle: ${card.key || ""}`);
+    lines.push(...wrapTextForPdf(card.interpretation || ""));
+  });
+
+  lines.push("");
+  lines.push("Lecture croisee");
+  lines.push(...wrapTextForPdf(reading.crossReading || ""));
+  lines.push("");
+  lines.push("Synthese");
+  lines.push(...wrapTextForPdf(reading.synthesis || ""));
+  lines.push("");
+  lines.push("Phrase-oracle");
+  lines.push(...wrapTextForPdf(reading.oracleSentence || ""));
+  lines.push("");
+  lines.push("Action");
+  lines.push(...wrapTextForPdf(reading.action || ""));
+
+  const blob = createPdfBlobFromLines(lines);
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "nox-verbatim.pdf";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function HomeMark() {
+  return (
+    <motion.div
+      className="pointer-events-none fixed inset-0 z-20 flex items-center justify-center"
+      initial={{ opacity: 0, scale: 0.96 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 1.4, ease: "easeInOut" }}
+    >
+      <img
+        src="/images/nox-icon.png"
+        alt="Nox"
+        className="h-[min(42vw,210px)] w-[min(42vw,210px)] object-contain shadow-[0_0_60px_rgba(0,0,0,0.55)]"
+      />
+    </motion.div>
+  );
+}
+
+const DUODECIM_NAMES = [
+  "Jagger",
+  "Freud",
+  "Marx",
+  "Nietzsche",
+  "Gainsbourg",
+  "Kant",
+  "Cantona",
+  "VDB",
+  "Raël",
+  "Verges",
+  "Houellebecq",
+  "Bowie"
+];
+
+const DUODECIM_FACE_TRANSFORMS = [
+  "rotateY(0deg) translateZ(132px)",
+  "rotateY(72deg) translateZ(132px)",
+  "rotateY(144deg) translateZ(132px)",
+  "rotateY(216deg) translateZ(132px)",
+  "rotateY(288deg) translateZ(132px)",
+  "rotateX(64deg) rotateY(36deg) translateZ(132px)",
+  "rotateX(64deg) rotateY(108deg) translateZ(132px)",
+  "rotateX(64deg) rotateY(180deg) translateZ(132px)",
+  "rotateX(-64deg) rotateY(36deg) translateZ(132px)",
+  "rotateX(-64deg) rotateY(108deg) translateZ(132px)",
+  "rotateX(-64deg) rotateY(180deg) translateZ(132px)",
+  "rotateX(180deg) translateZ(132px)"
+];
+
+function getDuodecimSentence(name, reading) {
+  const sign = reading?.oracleSentence || reading?.synthesis || "Le signe est là, et il ne négocie plus.";
+
+  const sentences = {
+    Jagger: `Jagger dirait : « Garde le rythme, jette le costume, et fais de ${sign.toLowerCase()} une entrée de scène. »`,
+    Freud: "Freud dirait : « Ce n’est pas la réponse qui vous inquiète, c’est le plaisir très ancien de ne pas l’entendre. »",
+    Marx: "Marx dirait : « Cherchez qui profite de votre hésitation ; le reste n’est que décoration bourgeoise. »",
+    Nietzsche: "Nietzsche dirait : « Choisissez ce qui vous agrandit, même si cela rend votre confort un peu malade. »",
+    Gainsbourg: "Gainsbourg dirait : « Faites le sale geste proprement, avec une cigarette imaginaire et une élégance vaguement coupable. »",
+    Kant: "Kant dirait : « Agissez comme si votre petite lâcheté devait devenir une loi universelle ; vous verrez, ça calme. »",
+    Cantona: "Cantona dirait : « Quand les mouettes doutent, le ballon, lui, sait déjà dans quelle lucarne finir. Frappez. »",
+    VDB: "VDB dirait : « Vous avez voulu un signe ; il est venu avec ses chaussures sales. Maintenant, ouvrez-lui. »",
+    Raël: "Raël dirait : « La solution vient peut-être de plus loin que prévu, mais elle exige tout de même un très bon peignoir. »",
+    Verges: "Vergès dirait : « Défendez l’indéfendable en vous, non pour l’absoudre, mais pour savoir enfin qui parle. »",
+    Houellebecq: "Houellebecq dirait : « Le monde ne s’améliorera pas, mais vous pouvez éviter de vous rendre plus médiocre que nécessaire. »",
+    Bowie: "Bowie dirait : « Changez de peau avant que la peau ne vous dénonce ; la nuit aime les métamorphoses nettes. »"
+  };
+
+  return sentences[name] || sign;
+}
+
+function DuodecimScreen({ reading, onIterum, onClaves, onNoctem }) {
+  const [rotation, setRotation] = useState({ x: -18, y: 26 });
+  const [selectedName, setSelectedName] = useState(null);
+  const dragRef = useRef(null);
+
+  const startDrag = (event) => {
+    event.preventDefault();
+    dragRef.current = {
+      x: event.clientX,
+      y: event.clientY,
+      rotation
+    };
+  };
+
+  const moveDrag = (event) => {
+    if (!dragRef.current) return;
+    event.preventDefault();
+
+    const deltaX = event.clientX - dragRef.current.x;
+    const deltaY = event.clientY - dragRef.current.y;
+
+    setRotation({
+      x: dragRef.current.rotation.x - deltaY * 0.35,
+      y: dragRef.current.rotation.y + deltaX * 0.35
+    });
+  };
+
+  const endDrag = () => {
+    dragRef.current = null;
+  };
+
+  return (
+    <motion.main
+      className="fixed inset-0 overflow-hidden bg-black text-white"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
+    >
+      <div className="flex h-full items-center justify-center [perspective:900px]">
+        <div
+          className="relative h-[280px] w-[280px] touch-none"
+          onPointerDown={startDrag}
+          onPointerMove={moveDrag}
+          onPointerUp={endDrag}
+          onPointerCancel={endDrag}
+          onPointerLeave={endDrag}
+        >
+          <div
+            className="absolute inset-0 [transform-style:preserve-3d]"
+            style={{
+              transform: `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)`,
+              transition: dragRef.current ? "none" : "transform 0.35s ease-out"
+            }}
+          >
+            {DUODECIM_NAMES.map((name, index) => (
+              <button
+                key={name}
+                type="button"
+                className="absolute left-1/2 top-1/2 flex h-[112px] w-[112px] -translate-x-1/2 -translate-y-1/2 items-center justify-center border border-white/45 bg-white/8 text-center text-[12px] uppercase tracking-[0.16em] text-white shadow-[0_0_25px_rgba(255,255,255,0.08)] backdrop-blur-sm"
+                style={{
+                  clipPath: "polygon(50% 0%, 97% 35%, 79% 91%, 21% 91%, 3% 35%)",
+                  transform: DUODECIM_FACE_TRANSFORMS[index]
+                }}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setSelectedName(name);
+                }}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {selectedName ? (
+        <motion.div
+          className="fixed inset-x-6 top-1/2 z-40 -translate-y-1/2 bg-white px-6 py-7 text-center text-black shadow-2xl"
+          initial={{ opacity: 0, y: 20, filter: "blur(10px)" }}
+          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+          transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
+          onClick={() => setSelectedName(null)}
+        >
+          <p className="text-xl leading-8">{getDuodecimSentence(selectedName, reading)}</p>
+        </motion.div>
+      ) : null}
+
+      <div className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-0 right-0 z-30">
+        <ActionButtons onIterum={onIterum} onClaves={onClaves} onNoctem={onNoctem} compact />
+      </div>
+    </motion.main>
+  );
+}
+
+function BullaScreen({ reading, onIterum, onClaves, onNoctem }) {
+  return (
+    <motion.main
+      className="fixed inset-0 flex items-center justify-center overflow-hidden bg-black px-8 text-center text-white"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
+    >
+      <div className="max-w-[520px] border border-white/45 px-7 py-9">
+        <p className="text-sm uppercase tracking-[0.22em] text-white/55">Bulla</p>
+        <p className="mt-5 text-3xl font-semibold leading-10">{reading?.oracleSentence}</p>
+        <p className="mt-5 text-xl leading-8 text-white/78">{reading?.action}</p>
+      </div>
+
+      <div className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-0 right-0 z-30">
+        <ActionButtons onIterum={onIterum} onClaves={onClaves} onNoctem={onNoctem} compact />
+      </div>
     </motion.main>
   );
 }
@@ -744,7 +1078,7 @@ function SwipeUpDrawScreen({ onDraw }) {
   );
 }
 
-function ResultScreen({ reading, question, onShowClaves, onShowFigurae }) {
+function ResultScreen({ reading, question, onShowClaves, onShowNoctem, onShowDuodecim, onShowBulla }) {
   const panels = [
     { type: "question", lines: [question || "Question silencieuse"] },
     ...reading.cards.map((item) => ({
@@ -872,7 +1206,10 @@ function ResultScreen({ reading, question, onShowClaves, onShowFigurae }) {
                 <ActionButtons
                   onIterum={replayPanels}
                   onClaves={onShowClaves}
-                  onFigurae={onShowFigurae}
+                  onNoctem={onShowNoctem}
+                  onVerbatim={() => downloadVerbatimPdf(reading, question)}
+                  onDuodecim={onShowDuodecim}
+                  onBulla={onShowBulla}
                 />
               </motion.div>
             ) : null}
@@ -1167,16 +1504,38 @@ export default function App() {
     return (
       <ClavesScreen
         onIterum={() => setStage("result")}
-        onFigurae={() => setStage("figurae")}
+        onNoctem={() => setStage("noctem")}
       />
     );
   }
 
-  if (stage === "figurae") {
+  if (stage === "noctem") {
     return (
-      <FiguraeScreen
+      <NoctemScreen
         onIterum={() => setStage("result")}
         onClaves={() => setStage("claves")}
+      />
+    );
+  }
+
+  if (stage === "duodecim") {
+    return (
+      <DuodecimScreen
+        reading={reading || createFallbackReading(drawnCards, question)}
+        onIterum={() => setStage("result")}
+        onClaves={() => setStage("claves")}
+        onNoctem={() => setStage("noctem")}
+      />
+    );
+  }
+
+  if (stage === "bulla") {
+    return (
+      <BullaScreen
+        reading={reading || createFallbackReading(drawnCards, question)}
+        onIterum={() => setStage("result")}
+        onClaves={() => setStage("claves")}
+        onNoctem={() => setStage("noctem")}
       />
     );
   }
@@ -1193,7 +1552,9 @@ export default function App() {
           reading={reading || createFallbackReading(drawnCards, question)}
           question={question}
           onShowClaves={() => setStage("claves")}
-          onShowFigurae={() => setStage("figurae")}
+          onShowNoctem={() => setStage("noctem")}
+          onShowDuodecim={() => setStage("duodecim")}
+          onShowBulla={() => setStage("bulla")}
         />
       </>
     );
@@ -1247,6 +1608,7 @@ export default function App() {
       if (audioEnabled) startBackgroundMusic(backgroundMusicRef.current);
       setStage("microphone");
     }}>
+      <HomeMark />
       <AudioToggleButton enabled={audioEnabled} onToggle={toggleAudio} />
     </Background>
   );
