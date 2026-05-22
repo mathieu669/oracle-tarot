@@ -7,8 +7,9 @@ const QUESTION_DISPLAY_MS = 5000;
 const NEGATIVE_SIGNAL_MS = 5000;
 const CARD_FADE_MS = 6000;
 const FALLBACK_CARD_DURATION_MS = 5000;
+const REVELATION_DISPLAY_MS = 5000;
 const ORACLE_WAIT_MS = 3600;
-const ORACLE_PANEL_MS = 8000;
+const ORACLE_PANEL_MS = 9000;
 const SWIPE_UP_THRESHOLD = 105;
 const FADE_DURATION = 0.85;
 
@@ -117,6 +118,174 @@ function stopBackgroundMusic(audioElement) {
   audioElement.pause();
 }
 
+
+function wait(ms) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
+function normalizeCardLabel(value = "") {
+  return String(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function getCardClavis(card) {
+  const searchable = normalizeCardLabel(`${card.name || ""} ${card.slug || ""}`);
+
+  if (searchable.includes("petite") && searchable.includes("merde")) {
+    return {
+      key: "Majeur en la mineur",
+      description:
+        "Carte de résilience modeste : joie dans la douleur, dignité minuscule, rire sec au milieu de l’adversité."
+    };
+  }
+
+  if (searchable.includes("oasis")) {
+    return {
+      key: "La carte ou le territoire",
+      description:
+        "Carte du conflit entre foyer et aventure : explorer, structurer, puis parfois détruire ce qui rassurait trop."
+    };
+  }
+
+  const key = card.key || card.tags?.[0] || "Signe ouvert";
+  const description =
+    card.promptHint ||
+    (Array.isArray(card.tags) && card.tags.length
+      ? `Carte de ${card.tags.slice(0, 3).join(", ")} : elle déplace le regard et force un choix moins confortable.`
+      : "Carte de déplacement intérieur : elle indique une tension, une faille ou un passage à interpréter sans folklore.");
+
+  return { key, description };
+}
+
+function ActionButtons({ onIterum, onClaves, onFigurae, compact = false }) {
+  const buttonClass = [
+    "rounded-full border border-current bg-transparent tracking-[0.16em] uppercase backdrop-blur-md active:scale-95",
+    compact ? "px-3 py-2 text-[10px]" : "px-4 py-2.5 text-[11px]"
+  ].join(" ");
+
+  return (
+    <div className="flex items-center justify-center gap-2">
+      {onIterum ? (
+        <button type="button" onClick={onIterum} className={buttonClass}>
+          Iterum
+        </button>
+      ) : null}
+      {onClaves ? (
+        <button type="button" onClick={onClaves} className={buttonClass}>
+          Claves
+        </button>
+      ) : null}
+      {onFigurae ? (
+        <button type="button" onClick={onFigurae} className={buttonClass}>
+          Figurae
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function ClavesScreen({ onIterum, onFigurae }) {
+  return (
+    <motion.main
+      className="fixed inset-0 overflow-y-auto bg-white px-7 pb-28 pt-[max(2rem,env(safe-area-inset-top))] text-black"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
+    >
+      <div className="mx-auto max-w-[680px]">
+        <h1 className="mb-8 text-center text-4xl font-semibold tracking-[0.08em]">Claves</h1>
+
+        <div className="space-y-7">
+          {deck.map((card) => {
+            const clavis = getCardClavis(card);
+
+            return (
+              <article key={card.slug || card.name} className="border-t border-black/18 pt-5">
+                <h2 className="text-2xl font-semibold leading-tight">{card.name}</h2>
+                <p className="mt-1 text-sm uppercase tracking-[0.18em] text-black/55">{clavis.key}</p>
+                <p className="mt-3 text-xl leading-8 text-black/88">{clavis.description}</p>
+              </article>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-0 right-0 z-30 text-black">
+        <ActionButtons onIterum={onIterum} onFigurae={onFigurae} compact />
+      </div>
+    </motion.main>
+  );
+}
+
+function FiguraeScreen({ onIterum, onClaves }) {
+  const [selectedCard, setSelectedCard] = useState(null);
+
+  useEffect(() => {
+    if (!selectedCard) return undefined;
+
+    const timer = window.setTimeout(() => {
+      setSelectedCard(null);
+    }, 7000);
+
+    return () => window.clearTimeout(timer);
+  }, [selectedCard]);
+
+  return (
+    <motion.main
+      className="fixed inset-0 overflow-y-auto bg-black px-4 pb-24 pt-[max(1.25rem,env(safe-area-inset-top))] text-white"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
+    >
+      <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+        {deck.map((card) => (
+          <button
+            key={card.slug || card.name}
+            type="button"
+            className="overflow-hidden rounded-xl border border-white/12 bg-white/5 active:scale-[0.985]"
+            onClick={() => setSelectedCard(card)}
+          >
+            <img
+              src={card.imageFace}
+              alt={card.name}
+              className="aspect-[9/16] h-full w-full object-cover"
+              loading="lazy"
+            />
+          </button>
+        ))}
+      </div>
+
+      <div className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-0 right-0 z-30 text-white">
+        <ActionButtons onIterum={onIterum} onClaves={onClaves} compact />
+      </div>
+
+      {selectedCard ? (
+        <motion.div
+          className="fixed inset-0 z-50 bg-black"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
+        >
+          <video
+            key={selectedCard.slug}
+            src={selectedCard.videoFace}
+            poster={selectedCard.imageFace}
+            className="h-full w-full object-cover"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="auto"
+          />
+        </motion.div>
+      ) : null}
+    </motion.main>
+  );
+}
 
 function createFallbackReading(cards, question) {
   return {
@@ -512,7 +681,7 @@ function SwipeUpDrawScreen({ onDraw }) {
   );
 }
 
-function ResultScreen({ reading, question }) {
+function ResultScreen({ reading, question, onShowClaves, onShowFigurae }) {
   const panels = [
     [question || "Question silencieuse"],
     ...reading.cards.map((item) => [
@@ -526,6 +695,14 @@ function ResultScreen({ reading, question }) {
 
   const [panelIndex, setPanelIndex] = useState(-1);
   const isLastPanel = panelIndex === panels.length - 1;
+
+  const replayPanels = () => {
+    setPanelIndex(-1);
+
+    window.setTimeout(() => {
+      setPanelIndex(0);
+    }, 450);
+  };
 
   useEffect(() => {
     const introTimer = window.setTimeout(() => {
@@ -546,7 +723,12 @@ function ResultScreen({ reading, question }) {
   }, [panelIndex, isLastPanel, panels.length]);
 
   return (
-    <main className="fixed inset-0 overflow-hidden bg-black text-stone-100">
+    <motion.main
+      className="fixed inset-0 overflow-hidden bg-black text-stone-100"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
+    >
       <OracleVideoBackground />
 
       <div className="pointer-events-none fixed inset-0 bg-gradient-to-b from-black/0 via-black/10 to-black/70" />
@@ -559,7 +741,7 @@ function ResultScreen({ reading, question }) {
             transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
           >
             <p className="text-3xl font-semibold text-white drop-shadow-[0_5px_18px_rgba(0,0,0,0.95)]">
-              attends.
+              Attends.
             </p>
           </motion.div>
         </section>
@@ -588,10 +770,25 @@ function ResultScreen({ reading, question }) {
                 {line}
               </p>
             ))}
+
+            {isLastPanel ? (
+              <motion.div
+                className="mt-8 text-white"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
+              >
+                <ActionButtons
+                  onIterum={replayPanels}
+                  onClaves={onShowClaves}
+                  onFigurae={onShowFigurae}
+                />
+              </motion.div>
+            ) : null}
           </motion.div>
         </section>
       )}
-    </main>
+    </motion.main>
   );
 }
 
@@ -875,6 +1072,24 @@ export default function App() {
     </>
   );
 
+  if (stage === "claves") {
+    return (
+      <ClavesScreen
+        onIterum={() => setStage("result")}
+        onFigurae={() => setStage("figurae")}
+      />
+    );
+  }
+
+  if (stage === "figurae") {
+    return (
+      <FiguraeScreen
+        onIterum={() => setStage("result")}
+        onClaves={() => setStage("claves")}
+      />
+    );
+  }
+
   if (stage === "result") {
     return (
       <>
@@ -883,7 +1098,12 @@ export default function App() {
             Lecture locale affichée : {error}
           </div>
         ) : null}
-        <ResultScreen reading={reading || createFallbackReading(drawnCards, question)} question={question} />
+        <ResultScreen
+          reading={reading || createFallbackReading(drawnCards, question)}
+          question={question}
+          onShowClaves={() => setStage("claves")}
+          onShowFigurae={() => setStage("figurae")}
+        />
       </>
     );
   }
