@@ -209,11 +209,12 @@ function ActionButtons({
   onDuodecim,
   onBulla,
   onArchive,
+  onFatum,
   compact = false
 }) {
   const buttonClass = [
-    "inline-flex min-w-[2.05rem] select-none items-center justify-center border border-current bg-transparent text-center tracking-[0.16em] uppercase backdrop-blur-md active:scale-95",
-    compact ? "px-2 py-1.5 text-[8.5px]" : "px-2.5 py-2 text-[9px]"
+    "inline-flex min-w-[1.35rem] select-none items-center justify-center border border-current bg-transparent text-center tracking-[0.13em] uppercase backdrop-blur-md active:scale-95",
+    compact ? "px-1 py-0.5 text-[6px]" : "px-1.5 py-1 text-[6px]"
   ].join(" ");
 
   const items = [
@@ -223,11 +224,12 @@ function ActionButtons({
     ["Verbatim", onVerbatim],
     ["Duodecim", onDuodecim],
     ["Bulla", onBulla],
-    ["A", onArchive]
+    ["Archivum", onArchive],
+    ["Fatum", onFatum]
   ].filter(([, action]) => Boolean(action));
 
   return (
-    <div className="flex flex-wrap items-center justify-center gap-2">
+    <div className="flex flex-wrap items-center justify-center gap-1.5">
       {items.map(([label, action]) => (
         <button key={label} type="button" onClick={action} className={buttonClass}>
           {label}
@@ -237,7 +239,7 @@ function ActionButtons({
   );
 }
 
-function ClavesScreen({ reading, question, onIterum, onNoctem, onVerbatim, onDuodecim, onBulla, onArchive }) {
+function ClavesScreen({ reading, question, onIterum, onNoctem, onVerbatim, onDuodecim, onBulla, onArchive, onFatum }) {
   return (
     <motion.main
       className="fixed inset-0 overflow-y-auto bg-white px-7 pb-28 pt-[max(2rem,env(safe-area-inset-top))] text-center text-black"
@@ -273,13 +275,13 @@ function ClavesScreen({ reading, question, onIterum, onNoctem, onVerbatim, onDuo
       </div>
 
       <div className="fixed bottom-[max(2.25rem,calc(env(safe-area-inset-bottom)+1.25rem))] left-0 right-0 z-30 text-black">
-        <ActionButtons onIterum={onIterum} onNoctem={onNoctem} onVerbatim={onVerbatim} onDuodecim={onDuodecim} onBulla={onBulla} onArchive={onArchive} compact />
+        <ActionButtons onIterum={onIterum} onNoctem={onNoctem} onVerbatim={onVerbatim} onDuodecim={onDuodecim} onBulla={onBulla} onArchive={onArchive} onFatum={onFatum} compact />
       </div>
     </motion.main>
   );
 }
 
-function NoctemScreen({ reading, question, onIterum, onClaves, onVerbatim, onDuodecim, onBulla, onArchive }) {
+function NoctemScreen({ reading, question, onIterum, onClaves, onVerbatim, onDuodecim, onBulla, onArchive, onFatum }) {
   const [selectedCard, setSelectedCard] = useState(null);
   const [isClosingCard, setIsClosingCard] = useState(false);
 
@@ -330,7 +332,7 @@ function NoctemScreen({ reading, question, onIterum, onClaves, onVerbatim, onDuo
       </div>
 
       <div className="fixed bottom-[max(2.25rem,calc(env(safe-area-inset-bottom)+1.25rem))] left-0 right-0 z-30 text-white">
-        <ActionButtons onIterum={onIterum} onClaves={onClaves} onVerbatim={onVerbatim} onDuodecim={onDuodecim} onBulla={onBulla} onArchive={onArchive} compact />
+        <ActionButtons onIterum={onIterum} onClaves={onClaves} onVerbatim={onVerbatim} onDuodecim={onDuodecim} onBulla={onBulla} onArchive={onArchive} onFatum={onFatum} compact />
       </div>
 
       {selectedCard ? (
@@ -554,7 +556,7 @@ function getDuodecimFallbackSentence(name, reading, question) {
   return sentences[name] || `${q} ${sign}`;
 }
 
-function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbatim, onBulla, onArchive }) {
+function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbatim, onBulla, onArchive, onFatum }) {
   const [rotation, setRotation] = useState({ x: -18, y: 26 });
   const [selectedName, setSelectedName] = useState(null);
   const [selectedSentence, setSelectedSentence] = useState("");
@@ -707,7 +709,7 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
       ) : null}
 
       <div className="fixed bottom-[max(2.25rem,calc(env(safe-area-inset-bottom)+1.25rem))] left-0 right-0 z-30">
-        <ActionButtons onIterum={onIterum} onClaves={onClaves} onNoctem={onNoctem} onVerbatim={onVerbatim} onBulla={onBulla} onArchive={onArchive} compact />
+        <ActionButtons onIterum={onIterum} onClaves={onClaves} onNoctem={onNoctem} onVerbatim={onVerbatim} onBulla={onBulla} onArchive={onArchive} onFatum={onFatum} compact />
       </div>
     </motion.main>
   );
@@ -753,7 +755,7 @@ function fileToArchivePhotoDataUrl(file) {
   });
 }
 
-function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, onArchive }) {
+function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, onArchive, onFatum }) {
   const [micActive, setMicActive] = useState(false);
   const [status, setStatus] = useState("idle");
   const [photoDataUrl, setPhotoDataUrl] = useState("");
@@ -1008,7 +1010,7 @@ function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
       </div>
 
       <div className="fixed bottom-[max(2.25rem,calc(env(safe-area-inset-bottom)+1.25rem))] left-0 right-0 z-30">
-        <ActionButtons onIterum={onIterum} onClaves={onClaves} onNoctem={onNoctem} onVerbatim={onVerbatim} onDuodecim={onDuodecim} onArchive={onArchive} compact />
+        <ActionButtons onIterum={onIterum} onClaves={onClaves} onNoctem={onNoctem} onVerbatim={onVerbatim} onDuodecim={onDuodecim} onArchive={onArchive} onFatum={onFatum} compact />
       </div>
     </motion.main>
   );
@@ -1061,7 +1063,7 @@ function formatArchiveDate(value) {
   }
 }
 
-function ArchivesScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, onBulla }) {
+function ArchivesScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, onBulla, onFatum }) {
   const [archives, setArchives] = useState(() => readBullaArchives());
   const [reactionTarget, setReactionTarget] = useState(null);
   const [commentTarget, setCommentTarget] = useState(null);
@@ -1131,7 +1133,7 @@ function ArchivesScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
     if (!reactionTarget) return;
 
     setCommentTarget(reactionTarget);
-    setCommentValue(reactionTarget.comment || "");
+    setCommentValue("");
     setReactionTarget(null);
   };
 
@@ -1145,10 +1147,21 @@ function ArchivesScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
       return;
     }
 
-    updateArchive(commentTarget.id, (entry) => ({
-      ...entry,
-      comment: entry.comment || trimmed
-    }));
+    updateArchive(commentTarget.id, (entry) => {
+      const comments = Array.isArray(entry.comments)
+        ? entry.comments
+        : entry.comment
+          ? [entry.comment]
+          : [];
+
+      if (comments.length >= 9) return entry;
+
+      return {
+        ...entry,
+        comments: [...comments, trimmed].slice(0, 9),
+        comment: undefined
+      };
+    });
 
     setCommentTarget(null);
     setCommentValue("");
@@ -1264,10 +1277,14 @@ function ArchivesScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
                   />
                 ) : null}
 
-                {entry.comment ? (
-                  <p className={["mt-3 border-t pt-2 text-[11px] italic leading-[1.4]", burning ? "border-white/22 text-white/70" : "border-black/12 text-black/58"].join(" ")}>
-                    {entry.comment}
-                  </p>
+                {(Array.isArray(entry.comments) ? entry.comments : entry.comment ? [entry.comment] : []).length ? (
+                  <div className={["mt-3 space-y-1 border-t pt-2", burning ? "border-white/22 text-white/70" : "border-black/12 text-black/58"].join(" ")}>
+                    {(Array.isArray(entry.comments) ? entry.comments : entry.comment ? [entry.comment] : []).map((comment, commentIndex) => (
+                      <p key={`${entry.id}-comment-${commentIndex}`} className="text-[11px] italic leading-[1.4]">
+                        {comment}
+                      </p>
+                    ))}
+                  </div>
                 ) : null}
               </article>
             );
@@ -1287,7 +1304,7 @@ function ArchivesScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
           transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
         >
           <div className="flex items-center justify-center gap-3">
-            {["🖤", "🥀", "🦪", "🫠", "⚰️"].map((emoji) => (
+            {["🔮", "🃏", "🕯️", "🧿", "🗝️", "🪬", "🌘", "✨", "🌀", "⚖️", "💀", "🪦", "🦴", "🕳️", "🖤", "🦉", "🥀", "🌑", "⚰️", "❤️‍🔥", "🫀", "💘", "💞", "🫶", "🔗", "💋", "🩸", "🔥", "⚡️", "👁️", "💥", "🌋", "🫨", "🗡️"].map((emoji) => (
               <button
                 key={emoji}
                 type="button"
@@ -1299,7 +1316,7 @@ function ArchivesScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
             ))}
           </div>
 
-          {!reactionTarget.comment ? (
+          {((Array.isArray(reactionTarget.comments) ? reactionTarget.comments : reactionTarget.comment ? [reactionTarget.comment] : []).length < 9) ? (
             <button
               type="button"
               className="mt-5 border border-black px-4 py-2 text-[10px] uppercase tracking-[0.16em]"
@@ -1321,13 +1338,13 @@ function ArchivesScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
 
       {commentTarget ? (
         <motion.div
-          className="fixed inset-x-5 bottom-[max(5.5rem,calc(env(safe-area-inset-bottom)+5rem))] z-50 border border-black bg-white p-4 shadow-2xl"
+          className="fixed inset-x-4 top-[max(1.25rem,env(safe-area-inset-top))] bottom-[max(1.25rem,env(safe-area-inset-bottom))] z-50 flex flex-col border border-black bg-white p-4 shadow-2xl"
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
         >
           <textarea
-            className="h-24 w-full resize-none border border-black/30 bg-white p-3 text-sm leading-5 outline-none"
+            className="min-h-0 flex-1 w-full resize-none border border-black/30 bg-white p-3 text-base leading-6 outline-none"
             value={commentValue}
             onChange={(event) => setCommentValue(event.target.value)}
             placeholder="Commentarium"
@@ -1364,6 +1381,536 @@ function ArchivesScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
           onVerbatim={onVerbatim}
           onDuodecim={onDuodecim}
           onBulla={onBulla}
+          onFatum={onFatum}
+          compact
+        />
+      </div>
+    </motion.main>
+  );
+}
+
+
+
+const NOX_CONTEXT_KEY = "nox:context-secrets";
+const SECRETUM_INTERVAL = 500;
+
+function readContextSecrets() {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const raw = window.localStorage.getItem(NOX_CONTEXT_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveContextSecret(text, userName = "") {
+  const trimmed = String(text || "").trim();
+
+  if (!trimmed || typeof window === "undefined") return [];
+
+  const secrets = readContextSecrets();
+  const nextSecrets = [
+    {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      createdAt: new Date().toISOString(),
+      userName,
+      text: trimmed
+    },
+    ...secrets
+  ].slice(0, 80);
+
+  window.localStorage.setItem(NOX_CONTEXT_KEY, JSON.stringify(nextSecrets));
+  window.dispatchEvent(new CustomEvent("nox:context-secrets-updated", { detail: nextSecrets }));
+
+  return nextSecrets;
+}
+
+function getContextSecretsText() {
+  return readContextSecrets()
+    .map((entry) => {
+      const who = entry.userName ? `${entry.userName} : ` : "";
+      return `${who}${entry.text}`;
+    })
+    .join("\n");
+}
+
+function shouldOfferSecretum(user) {
+  if (!user) return false;
+
+  const score = Math.max(0, Number(user.score) || 0);
+  const isMathieu = normalizeCardLabel(user.name || "") === "mathieu";
+
+  if (isMathieu) return true;
+
+  if (score < SECRETUM_INTERVAL) return false;
+
+  const currentLevel = Math.floor(score / SECRETUM_INTERVAL);
+  const unlocked = Math.max(0, Number(user.secretumUnlockedLevel) || 0);
+
+  return currentLevel > unlocked;
+}
+
+const FATUM_USERS_KEY = "nox:fatum-users";
+const FATUM_ACTIVE_USER_KEY = "nox:fatum-active-user";
+
+function readFatumUsers() {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const raw = window.localStorage.getItem(FATUM_USERS_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeFatumUsers(users) {
+  if (typeof window === "undefined") return;
+
+  window.localStorage.setItem(FATUM_USERS_KEY, JSON.stringify(users.slice(0, 9)));
+  window.dispatchEvent(new CustomEvent("nox:fatum-users-updated"));
+}
+
+function getCurrentOracleKey(reading, question = "") {
+  return `${question || ""}::${reading?.oracleSentence || ""}::${reading?.action || ""}::${getFatumScore(reading, question)}`;
+}
+
+function decomposeFatum(score) {
+  let remaining = Math.max(0, Math.floor(Number(score) || 0));
+  const oculus = Math.floor(remaining / 1000);
+  remaining %= 1000;
+  const maleficium = Math.floor(remaining / 500);
+  remaining %= 500;
+  const manus = Math.floor(remaining / 100);
+  remaining %= 100;
+  const calvaria = Math.floor(remaining / 50);
+
+  return { oculus, maleficium, manus, calvaria };
+}
+
+function FatumIcon({ src, label, large = false }) {
+  return (
+    <img
+      src={src}
+      alt={label}
+      title={label}
+      className={large ? "h-10 w-10 object-contain" : "h-5 w-5 object-contain"}
+      draggable={false}
+    />
+  );
+}
+
+function FatumGlyphs({ score }) {
+  const parts = decomposeFatum(score);
+
+  return (
+    <div className="mt-2 flex min-h-[3rem] flex-wrap items-end justify-center gap-1.5">
+      {Array.from({ length: parts.oculus }).map((_, index) => (
+        <FatumIcon key={`oculus-${index}`} src="/images/fatum/oculus.png" label="Oculus — 1000 pts" large />
+      ))}
+      {Array.from({ length: parts.maleficium }).map((_, index) => (
+        <FatumIcon key={`maleficium-${index}`} src="/images/fatum/maleficium.png" label="Maleficium — 500 pts" />
+      ))}
+      {Array.from({ length: parts.manus }).map((_, index) => (
+        <FatumIcon key={`manus-${index}`} src="/images/fatum/manus.png" label="Manus — 100 pts" />
+      ))}
+      {Array.from({ length: parts.calvaria }).map((_, index) => (
+        <FatumIcon key={`calvaria-${index}`} src="/images/fatum/calvaria.png" label="Calvaria — 50 pts" />
+      ))}
+    </div>
+  );
+}
+
+function FatumScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, onBulla, onArchive }) {
+  const [users, setUsers] = useState(() => readFatumUsers());
+  const [activeUserId, setActiveUserId] = useState(() => window.localStorage.getItem(FATUM_ACTIVE_USER_KEY) || "");
+  const [creating, setCreating] = useState(false);
+  const [nameValue, setNameValue] = useState("");
+  const [secretumVisible, setSecretumVisible] = useState(false);
+  const [secretumActive, setSecretumActive] = useState(false);
+  const [secretumStatus, setSecretumStatus] = useState("idle");
+  const secretumRecognitionRef = useRef(null);
+  const secretumTranscriptRef = useRef("");
+  const secretumTimerRef = useRef(null);
+  const currentScore = getFatumScore(reading, question);
+  const currentOracleKey = getCurrentOracleKey(reading, question);
+  const activeUser = users.find((user) => user.id === activeUserId);
+
+  const persistUsers = (nextUsers) => {
+    writeFatumUsers(nextUsers);
+    setUsers(nextUsers.slice(0, 9));
+  };
+
+  const creditUser = (userId, baseUsers = readFatumUsers()) => {
+    const nextUsers = baseUsers.map((user) => {
+      if (user.id !== userId) return user;
+
+      const credited = Array.isArray(user.credited) ? user.credited : [];
+      if (credited.includes(currentOracleKey)) return user;
+
+      return {
+        ...user,
+        score: Math.max(0, Number(user.score) || 0) + currentScore,
+        credited: [currentOracleKey, ...credited].slice(0, 500)
+      };
+    });
+
+    persistUsers(nextUsers);
+  };
+
+  const markSecretumLevel = (userId) => {
+    const nextUsers = readFatumUsers().map((user) => {
+      if (user.id !== userId) return user;
+
+      const score = Math.max(0, Number(user.score) || 0);
+      const isMathieu = normalizeCardLabel(user.name || "") === "mathieu";
+
+      return {
+        ...user,
+        secretumUnlockedLevel: isMathieu
+          ? Number(user.secretumUnlockedLevel) || 0
+          : Math.max(Number(user.secretumUnlockedLevel) || 0, Math.floor(score / SECRETUM_INTERVAL))
+      };
+    });
+
+    persistUsers(nextUsers);
+  };
+
+  useEffect(() => {
+    const refresh = () => {
+      setUsers(readFatumUsers());
+    };
+
+    window.addEventListener("storage", refresh);
+    window.addEventListener("nox:fatum-users-updated", refresh);
+
+    return () => {
+      window.removeEventListener("storage", refresh);
+      window.removeEventListener("nox:fatum-users-updated", refresh);
+
+      if (secretumRecognitionRef.current) {
+        try {
+          secretumRecognitionRef.current.abort();
+        } catch {
+          // Ignore.
+        }
+      }
+
+      window.clearTimeout(secretumTimerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (activeUserId) {
+      creditUser(activeUserId);
+    }
+  }, [activeUserId]);
+
+  useEffect(() => {
+    const user = readFatumUsers().find((item) => item.id === activeUserId);
+    if (shouldOfferSecretum(user)) {
+      setSecretumVisible(true);
+      setSecretumStatus("idle");
+    }
+  }, [activeUserId, users.length]);
+
+  const selectUser = (id) => {
+    setActiveUserId(id);
+    window.localStorage.setItem(FATUM_ACTIVE_USER_KEY, id);
+    creditUser(id);
+  };
+
+  const createUser = () => {
+    const name = nameValue.trim();
+
+    if (!name || users.length >= 9) return;
+
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const nextUsers = [
+      ...users,
+      {
+        id,
+        name,
+        score: 0,
+        credited: [],
+        secretumUnlockedLevel: 0
+      }
+    ].slice(0, 9);
+
+    persistUsers(nextUsers);
+    setCreating(false);
+    setNameValue("");
+    selectUser(id);
+  };
+
+  const closeSecretum = () => {
+    if (activeUserId) markSecretumLevel(activeUserId);
+    setSecretumVisible(false);
+    setSecretumActive(false);
+    setSecretumStatus("idle");
+
+    if (secretumRecognitionRef.current) {
+      try {
+        secretumRecognitionRef.current.abort();
+      } catch {
+        // Ignore.
+      }
+    }
+
+    window.clearTimeout(secretumTimerRef.current);
+  };
+
+  const finishSecretum = () => {
+    const text = secretumTranscriptRef.current.trim();
+
+    if (text) {
+      saveContextSecret(text, activeUser?.name || "");
+      if (activeUserId) markSecretumLevel(activeUserId);
+      setSecretumStatus("sculpted");
+    } else {
+      setSecretumStatus("empty");
+    }
+
+    setSecretumActive(false);
+    window.clearTimeout(secretumTimerRef.current);
+
+    if (secretumRecognitionRef.current) {
+      try {
+        secretumRecognitionRef.current.abort();
+      } catch {
+        // Ignore.
+      }
+    }
+
+    secretumRecognitionRef.current = null;
+  };
+
+  const startSecretum = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      setSecretumStatus("fractum");
+      return;
+    }
+
+    secretumTranscriptRef.current = "";
+    setSecretumStatus("listening");
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "fr-FR";
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    recognition.onstart = () => {
+      setSecretumActive(true);
+      window.clearTimeout(secretumTimerRef.current);
+      secretumTimerRef.current = window.setTimeout(finishSecretum, 5 * 60 * 1000);
+    };
+
+    recognition.onresult = (speechEvent) => {
+      let finalText = "";
+      let interimText = "";
+
+      for (let i = 0; i < speechEvent.results.length; i += 1) {
+        const transcript = speechEvent.results[i][0].transcript;
+
+        if (speechEvent.results[i].isFinal) {
+          finalText += transcript;
+        } else {
+          interimText += transcript;
+        }
+      }
+
+      secretumTranscriptRef.current = `${finalText} ${interimText}`.trim();
+    };
+
+    recognition.onerror = () => {
+      setSecretumActive(false);
+      setSecretumStatus("fractum");
+    };
+
+    recognition.onend = () => {
+      if (secretumActive) finishSecretum();
+    };
+
+    secretumRecognitionRef.current = recognition;
+
+    try {
+      recognition.start();
+    } catch {
+      setSecretumActive(false);
+      setSecretumStatus("fractum");
+    }
+  };
+
+  const stopSecretum = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (!secretumRecognitionRef.current) return;
+
+    try {
+      secretumRecognitionRef.current.stop();
+    } catch {
+      finishSecretum();
+    }
+  };
+
+  return (
+    <motion.main
+      className="fixed inset-0 overflow-y-auto bg-black px-5 pb-40 pt-[max(1.5rem,env(safe-area-inset-top))] text-white"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
+    >
+      <h1 className="mb-5 text-center text-3xl font-semibold tracking-[0.12em]">Fatum</h1>
+
+      {users.length ? (
+        <div className="mx-auto grid max-w-[760px] grid-cols-1 gap-4 sm:grid-cols-2">
+          {users.map((user) => (
+            <button
+              key={user.id}
+              type="button"
+              className={[
+                "select-none border p-4 text-center active:scale-[0.99]",
+                user.id === activeUserId ? "border-white bg-white text-black" : "border-white/28 bg-transparent text-white"
+              ].join(" ")}
+              onClick={() => selectUser(user.id)}
+            >
+              <p className="text-sm uppercase tracking-[0.2em]">{user.name}</p>
+              <FatumGlyphs score={user.score} />
+              <p className="mt-3 text-[11px] uppercase tracking-[0.16em] opacity-65">{user.score || 0} pts</p>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className="flex min-h-[45vh] items-center justify-center text-center">
+          <p className="text-sm uppercase tracking-[0.2em] text-white/45">Nullus socius.</p>
+        </div>
+      )}
+
+      {creating ? (
+        <motion.div
+          className="fixed inset-x-5 top-1/2 z-50 -translate-y-1/2 border border-white bg-black p-5 text-white shadow-2xl"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
+        >
+          <input
+            className="w-full border border-white/45 bg-black p-4 text-center text-xl outline-none"
+            value={nameValue}
+            onChange={(event) => setNameValue(event.target.value)}
+            placeholder="Nomen"
+            maxLength={24}
+            autoFocus
+          />
+          <div className="mt-4 flex justify-center gap-2">
+            <button type="button" className="border border-white px-4 py-2 text-[10px] uppercase tracking-[0.16em]" onClick={createUser}>
+              Scribere
+            </button>
+            <button type="button" className="border border-white/35 px-4 py-2 text-[10px] uppercase tracking-[0.16em] text-white/55" onClick={() => setCreating(false)}>
+              Claudere
+            </button>
+          </div>
+        </motion.div>
+      ) : null}
+
+      {secretumVisible ? (
+        <motion.div
+          className="fixed inset-x-5 top-1/2 z-50 -translate-y-1/2 border border-white bg-black px-6 py-7 text-center text-white shadow-2xl"
+          initial={{ opacity: 0, y: 18, filter: "blur(10px)" }}
+          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+          transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
+          onClick={() => {
+            if (secretumStatus === "sculpted" || secretumStatus === "empty" || secretumStatus === "fractum") {
+              closeSecretum();
+            }
+          }}
+        >
+          <p className="text-2xl font-semibold tracking-[0.08em]">Secretum committere ?</p>
+          <p className="mt-2 text-[10px] uppercase tracking-[0.18em] text-white/45">Vox : 5 min max.</p>
+
+          <div className="mt-7 flex items-center justify-center gap-8">
+            <button
+              type="button"
+              className="touch-none"
+              onPointerDown={startSecretum}
+              onPointerUp={stopSecretum}
+              onPointerCancel={stopSecretum}
+            >
+              <MicrophoneIcon active={secretumActive} />
+            </button>
+
+            <button
+              type="button"
+              className="select-none text-4xl active:scale-95"
+              aria-label="Chut"
+              onClick={(event) => {
+                event.stopPropagation();
+                closeSecretum();
+              }}
+            >
+              🤫
+            </button>
+          </div>
+
+          {secretumStatus === "sculpted" ? (
+            <motion.p
+              className="mt-6 text-sm uppercase tracking-[0.18em] text-white/66"
+              animate={{ opacity: [0.45, 1, 0.45] }}
+              transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+            >
+              Arcanum sculptum.
+            </motion.p>
+          ) : null}
+          {secretumStatus === "empty" ? (
+            <p className="mt-6 text-sm uppercase tracking-[0.18em] text-white/45">Vacuum.</p>
+          ) : null}
+          {secretumStatus === "fractum" ? (
+            <p className="mt-6 text-sm uppercase tracking-[0.18em] text-white/45">Fractum.</p>
+          ) : null}
+        </motion.div>
+      ) : null}
+
+      <div className="fixed bottom-[max(2.25rem,calc(env(safe-area-inset-bottom)+1.25rem))] left-5 z-30">
+        <button
+          type="button"
+          className="select-none border border-white bg-black px-2 py-1 text-[6px] uppercase tracking-[0.13em] text-white"
+          onClick={() => {
+            if (users.length < 9) setCreating(true);
+          }}
+        >
+          Novus socius
+        </button>
+      </div>
+
+      <div className="fixed bottom-[max(2.25rem,calc(env(safe-area-inset-bottom)+1.25rem))] right-4 z-30 border border-white bg-black/82 p-2 text-white backdrop-blur-md">
+        <table className="text-[8px] leading-5">
+          <tbody>
+            <tr><td className="pr-3"><img src="/images/fatum/calvaria.png" alt="" className="h-4 w-4 object-contain" /></td><td>Calvaria</td><td className="pl-3">50</td></tr>
+            <tr><td className="pr-3"><img src="/images/fatum/manus.png" alt="" className="h-4 w-4 object-contain" /></td><td>Manus</td><td className="pl-3">100</td></tr>
+            <tr><td className="pr-3"><img src="/images/fatum/maleficium.png" alt="" className="h-4 w-4 object-contain" /></td><td>Maleficium</td><td className="pl-3">500</td></tr>
+            <tr><td className="pr-3"><img src="/images/fatum/oculus.png" alt="" className="h-4 w-4 object-contain" /></td><td>Oculus</td><td className="pl-3">1000</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div className="fixed bottom-[max(5.6rem,calc(env(safe-area-inset-bottom)+4.4rem))] left-0 right-0 z-30">
+        <ActionButtons
+          onIterum={onIterum}
+          onClaves={onClaves}
+          onNoctem={onNoctem}
+          onVerbatim={onVerbatim}
+          onDuodecim={onDuodecim}
+          onBulla={onBulla}
+          onArchive={onArchive}
           compact
         />
       </div>
@@ -1826,7 +2373,7 @@ function FatumIndicator({ score }) {
   );
 }
 
-function ResultScreen({ reading, question, onShowClaves, onShowNoctem, onShowDuodecim, onShowBulla, onShowArchive }) {
+function ResultScreen({ reading, question, onShowClaves, onShowNoctem, onShowDuodecim, onShowBulla, onShowArchive, onShowFatum }) {
   const panels = [
     { type: "question", lines: [question || "Question silencieuse"] },
     ...reading.cards.map((item) => ({
@@ -1961,6 +2508,7 @@ function ResultScreen({ reading, question, onShowClaves, onShowNoctem, onShowDuo
                   onDuodecim={onShowDuodecim}
                   onBulla={onShowBulla}
                   onArchive={onShowArchive}
+                  onFatum={onShowFatum}
                 />
               </motion.div>
             ) : null}
@@ -2162,7 +2710,8 @@ export default function App() {
             ...card,
             position: positions[index].label,
             positionMeaning: positions[index].meaning
-          }))
+          })),
+          contextSecrets: getContextSecretsText()
         })
       });
 
@@ -2251,6 +2800,23 @@ export default function App() {
     </>
   );
 
+  if (stage === "fatum") {
+    return (
+      <FatumScreen
+        reading={reading || createFallbackReading(drawnCards, question)}
+        question={question}
+        onIterum={() => setStage("result")}
+        onClaves={() => setStage("claves")}
+        onNoctem={() => setStage("noctem")}
+        onVerbatim={() => downloadVerbatimPdf(reading || createFallbackReading(drawnCards, question), question)}
+        onDuodecim={() => setStage("duodecim")}
+        onBulla={() => setStage("bulla")}
+        onArchive={() => setStage("archives")}
+        onFatum={() => setStage("fatum")}
+      />
+    );
+  }
+
   if (stage === "archives") {
     return (
       <ArchivesScreen
@@ -2261,6 +2827,7 @@ export default function App() {
         onDuodecim={() => setStage("duodecim")}
         onBulla={() => setStage("bulla")}
         onArchive={() => setStage("archives")}
+        onFatum={() => setStage("fatum")}
       />
     );
   }
@@ -2276,6 +2843,7 @@ export default function App() {
         onDuodecim={() => setStage("duodecim")}
         onBulla={() => setStage("bulla")}
         onArchive={() => setStage("archives")}
+        onFatum={() => setStage("fatum")}
       />
     );
   }
@@ -2291,6 +2859,7 @@ export default function App() {
         onDuodecim={() => setStage("duodecim")}
         onBulla={() => setStage("bulla")}
         onArchive={() => setStage("archives")}
+        onFatum={() => setStage("fatum")}
       />
     );
   }
@@ -2320,6 +2889,7 @@ export default function App() {
         onVerbatim={() => downloadVerbatimPdf(reading || createFallbackReading(drawnCards, question), question)}
         onDuodecim={() => setStage("duodecim")}
         onArchive={() => setStage("archives")}
+        onFatum={() => setStage("fatum")}
       />
     );
   }
@@ -2340,6 +2910,7 @@ export default function App() {
           onShowDuodecim={() => setStage("duodecim")}
           onShowBulla={() => setStage("bulla")}
           onShowArchive={() => setStage("archives")}
+          onShowFatum={() => setStage("fatum")}
         />
       </>
     );
