@@ -1866,7 +1866,31 @@ function FatumScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
       animate={{ opacity: 1 }}
       transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
     >
-      <h1 className="mb-5 text-center text-3xl font-semibold tracking-[0.12em]">Fatum</h1>
+      <h1 className="mb-3 text-center text-3xl font-semibold tracking-[0.12em]">Fatum</h1>
+      <div className="sticky top-[max(0.75rem,env(safe-area-inset-top))] z-30 mb-5 flex justify-end px-1">
+        <div className="flex items-start gap-2">
+          <button
+            type="button"
+            className="select-none border border-white bg-white px-2 py-1 text-[7px] uppercase tracking-[0.13em] text-black active:scale-95"
+            onClick={() => {
+              if (users.length < 9) setCreating(true);
+            }}
+          >
+            Novus socius +
+          </button>
+
+          <div className="border border-white bg-black/82 p-2 text-white backdrop-blur-md">
+            <table className="text-[7px] leading-4">
+              <tbody>
+                <tr><td className="pr-2"><img src="/images/fatum/calvaria.png" alt="" className="h-3.5 w-3.5 object-contain" /></td><td>Calvaria</td><td className="pl-2">50</td></tr>
+                <tr><td className="pr-2"><img src="/images/fatum/manus.png" alt="" className="h-3.5 w-3.5 object-contain" /></td><td>Manus</td><td className="pl-2">100</td></tr>
+                <tr><td className="pr-2"><img src="/images/fatum/maleficium.png" alt="" className="h-3.5 w-3.5 object-contain" /></td><td>Maleficium</td><td className="pl-2">500</td></tr>
+                <tr><td className="pr-2"><img src="/images/fatum/oculus.png" alt="" className="h-3.5 w-3.5 object-contain" /></td><td>Oculus</td><td className="pl-2">1000</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
 
       {users.length ? (
         <div className="mx-auto grid max-w-[760px] grid-cols-1 gap-4 sm:grid-cols-2">
@@ -1985,17 +2009,6 @@ function FatumScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
         >
           Novus socius
         </button>
-      </div>
-
-      <div className="fixed bottom-[max(2.25rem,calc(env(safe-area-inset-bottom)+1.25rem))] right-4 z-30 border border-white bg-black/82 p-2 text-white backdrop-blur-md">
-        <table className="text-[8px] leading-5">
-          <tbody>
-            <tr><td className="pr-3"><img src="/images/fatum/calvaria.png" alt="" className="h-4 w-4 object-contain" /></td><td>Calvaria</td><td className="pl-3">50</td></tr>
-            <tr><td className="pr-3"><img src="/images/fatum/manus.png" alt="" className="h-4 w-4 object-contain" /></td><td>Manus</td><td className="pl-3">100</td></tr>
-            <tr><td className="pr-3"><img src="/images/fatum/maleficium.png" alt="" className="h-4 w-4 object-contain" /></td><td>Maleficium</td><td className="pl-3">500</td></tr>
-            <tr><td className="pr-3"><img src="/images/fatum/oculus.png" alt="" className="h-4 w-4 object-contain" /></td><td>Oculus</td><td className="pl-3">1000</td></tr>
-          </tbody>
-        </table>
       </div>
 
       <div className="fixed bottom-[max(5.6rem,calc(env(safe-area-inset-bottom)+4.4rem))] left-0 right-0 z-30">
