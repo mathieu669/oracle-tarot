@@ -212,7 +212,7 @@ function ActionButtons({
   compact = false
 }) {
   const buttonClass = [
-    "border border-current bg-transparent tracking-[0.16em] uppercase backdrop-blur-md active:scale-95",
+    "inline-flex min-w-[2.05rem] select-none items-center justify-center border border-current bg-transparent text-center tracking-[0.16em] uppercase backdrop-blur-md active:scale-95",
     compact ? "px-2 py-1.5 text-[8.5px]" : "px-2.5 py-2 text-[9px]"
   ].join(" ");
 
@@ -671,7 +671,7 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
                     vectorEffect="non-scaling-stroke"
                   />
                 </svg>
-                <span className="absolute inset-[18px] flex items-center justify-center text-center text-[7.5px] uppercase leading-[1.05] tracking-[0.08em]">
+                <span className="absolute inset-[18px] flex select-none items-center justify-center text-center text-[7.5px] uppercase leading-[1.05] tracking-[0.08em]">
                   {name}
                 </span>
               </button>
