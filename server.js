@@ -92,7 +92,7 @@ function contextSecretsToPromptText(secrets) {
 
 
 
-app.use(express.json({ limit: "12mb" }));
+app.use(express.json({ limit: "20mb" }));
 
 const readingSchema = {
   type: "object",
@@ -392,6 +392,14 @@ Générez aussi un score Fatum en points, entre 0 et 100 : il mesure la densité
 
 
 
+
+app.use(["/api/archives", "/api/fatum-users", "/api/memory-status"], (req, res, next) => {
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.set("Pragma", "no-cache");
+  res.set("Expires", "0");
+  next();
+});
+
 app.get("/api/memory-status", (req, res) => {
   res.json({
     dataDir: DATA_DIR,
@@ -446,6 +454,7 @@ app.post("/api/archives", (req, res) => {
     ].slice(0, 500);
 
     writeJsonArrayToServer(ARCHIVES_FILE, nextArchives, 500);
+    console.log("Archive saved.", { count: nextArchives.length, storage: ARCHIVES_FILE });
     res.json({ ok: true, archives: nextArchives });
   } catch (error) {
     console.error("Archive save error:", error);
@@ -540,6 +549,7 @@ app.post("/api/fatum-users", (req, res) => {
     ].slice(0, 9);
 
     writeJsonArrayToServer(FATUM_USERS_FILE, nextUsers, 9);
+    console.log("Fatum user saved.", { count: nextUsers.length, storage: FATUM_USERS_FILE });
     res.json({ ok: true, users: nextUsers });
   } catch (error) {
     console.error("Fatum user create error:", error);

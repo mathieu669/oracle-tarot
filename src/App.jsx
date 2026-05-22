@@ -927,8 +927,8 @@ function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
     }
   };
 
-  const saveTypedBulla = () => {
-    archiveBulla(textEntryValue);
+  const saveTypedBulla = async () => {
+    await archiveBulla(textEntryValue);
     setTextEntryValue("");
     setTextEntryOpen(false);
   };
@@ -1084,7 +1084,7 @@ function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
 const BULLA_ARCHIVE_KEY = "nox:bulla-archives-cache";
 
 async function fetchServerArchives() {
-  const response = await fetch("/api/archives");
+  const response = await fetch("/api/archives", { cache: "no-store" });
   const data = await response.json();
 
   if (!response.ok) throw new Error(data?.error || "Archives unavailable");
@@ -1171,6 +1171,7 @@ function ArchivesScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
   const [commentTarget, setCommentTarget] = useState(null);
   const [commentValue, setCommentValue] = useState("");
   const [burnTargetId, setBurnTargetId] = useState(null);
+  const [syncStatus, setSyncStatus] = useState("idle");
   const longPressTimerRef = useRef(null);
   const lastTapRef = useRef({ id: null, time: 0 });
 
@@ -1181,20 +1182,28 @@ function ArchivesScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
   };
 
   const updateArchive = async (id, patch) => {
+    setSyncStatus("syncing");
+
     try {
       const nextArchives = await updateServerArchive(id, patch);
       writeArchives(nextArchives);
+      setSyncStatus("ok");
     } catch {
       setArchives(readBullaArchives());
+      setSyncStatus("error");
     }
   };
 
   const deleteArchive = async (id) => {
+    setSyncStatus("syncing");
+
     try {
       const nextArchives = await deleteServerArchive(id);
       writeArchives(nextArchives);
+      setSyncStatus("ok");
     } catch {
       setArchives(readBullaArchives());
+      setSyncStatus("error");
     }
 
     setBurnTargetId(null);
@@ -1259,9 +1268,17 @@ function ArchivesScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
   };
 
   useEffect(() => {
+    setSyncStatus("syncing");
+
     fetchServerArchives()
-      .then(setArchives)
-      .catch(() => setArchives(readBullaArchives()));
+      .then((serverArchives) => {
+        setArchives(serverArchives);
+        setSyncStatus("ok");
+      })
+      .catch(() => {
+        setArchives(readBullaArchives());
+        setSyncStatus("error");
+      });
 
     const refreshArchives = () => {
       setArchives(readBullaArchives());
@@ -1284,7 +1301,14 @@ function ArchivesScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
       animate={{ opacity: 1 }}
       transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
     >
-      <h1 className="mb-5 text-center text-3xl font-semibold tracking-[0.12em]">Archivum</h1>
+      <h1 className="mb-2 text-center text-3xl font-semibold tracking-[0.12em]">Archivum</h1>
+      {syncStatus === "error" ? (
+        <p className="mb-4 text-center text-[9px] uppercase tracking-[0.18em] text-red-700">Memoria fracta.</p>
+      ) : syncStatus === "syncing" ? (
+        <p className="mb-4 text-center text-[9px] uppercase tracking-[0.18em] text-black/38">Memoria.</p>
+      ) : (
+        <p className="mb-4 text-center text-[9px] uppercase tracking-[0.18em] text-black/32">{archives.length} signa</p>
+      )}
 
       {archives.length ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -1560,7 +1584,7 @@ const FATUM_USERS_KEY = "nox:fatum-users-cache";
 const FATUM_ACTIVE_USER_KEY = "nox:fatum-active-user";
 
 async function fetchServerFatumUsers() {
-  const response = await fetch("/api/fatum-users");
+  const response = await fetch("/api/fatum-users", { cache: "no-store" });
   const data = await response.json();
 
   if (!response.ok) throw new Error(data?.error || "Fatum users unavailable");
@@ -1639,7 +1663,7 @@ function FatumIcon({ src, label, large = false }) {
       src={src}
       alt={label}
       title={label}
-      className={large ? "h-10 w-10 object-contain" : "h-5 w-5 object-contain"}
+      className={large ? "h-10 w-10 object-contain [filter:brightness(0)_invert(1)]" : "h-5 w-5 object-contain [filter:brightness(0)_invert(1)]"}
       draggable={false}
     />
   );
@@ -1674,6 +1698,7 @@ function FatumScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
   const [secretumVisible, setSecretumVisible] = useState(false);
   const [secretumActive, setSecretumActive] = useState(false);
   const [secretumStatus, setSecretumStatus] = useState("idle");
+  const [syncStatus, setSyncStatus] = useState("idle");
   const secretumRecognitionRef = useRef(null);
   const secretumTranscriptRef = useRef("");
   const secretumTimerRef = useRef(null);
@@ -1698,11 +1723,15 @@ function FatumScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
       credited: [currentOracleKey, ...credited].slice(0, 500)
     };
 
+    setSyncStatus("syncing");
+
     try {
       const nextUsers = await updateServerFatumUser(userId, patch);
       persistUsers(nextUsers);
+      setSyncStatus("ok");
     } catch {
       persistUsers(baseUsers);
+      setSyncStatus("error");
     }
   };
 
@@ -1727,9 +1756,17 @@ function FatumScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
   };
 
   useEffect(() => {
+    setSyncStatus("syncing");
+
     fetchServerFatumUsers()
-      .then(setUsers)
-      .catch(() => setUsers(readFatumUsers()));
+      .then((serverUsers) => {
+        setUsers(serverUsers);
+        setSyncStatus("ok");
+      })
+      .catch(() => {
+        setUsers(readFatumUsers());
+        setSyncStatus("error");
+      });
 
     const refresh = () => {
       setUsers(readFatumUsers());
@@ -1779,6 +1816,8 @@ function FatumScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
 
     if (!name || users.length >= 9) return;
 
+    setSyncStatus("syncing");
+
     try {
       const nextUsers = await createServerFatumUser(name);
       persistUsers(nextUsers);
@@ -1786,12 +1825,14 @@ function FatumScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
 
       setCreating(false);
       setNameValue("");
+      setSyncStatus("ok");
 
       if (createdUser?.id) {
         selectUser(createdUser.id);
       }
     } catch {
       setCreating(false);
+      setSyncStatus("error");
     }
   };
 
@@ -1934,7 +1975,14 @@ function FatumScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
       animate={{ opacity: 1 }}
       transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
     >
-      <h1 className="mb-3 text-center text-3xl font-semibold tracking-[0.12em]">Fatum</h1>
+      <h1 className="mb-1 text-center text-3xl font-semibold tracking-[0.12em]">Fatum</h1>
+      {syncStatus === "error" ? (
+        <p className="mb-3 text-center text-[9px] uppercase tracking-[0.18em] text-red-400">Memoria fracta.</p>
+      ) : syncStatus === "syncing" ? (
+        <p className="mb-3 text-center text-[9px] uppercase tracking-[0.18em] text-white/35">Memoria.</p>
+      ) : (
+        <p className="mb-3 text-center text-[9px] uppercase tracking-[0.18em] text-white/30">{users.length} socii</p>
+      )}
       <div className="sticky top-[max(0.75rem,env(safe-area-inset-top))] z-30 mb-5 flex justify-center px-1">
         <div className="flex h-[28px] items-center justify-center gap-2">
           <button
@@ -2075,7 +2123,7 @@ function FatumScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
         </motion.div>
       ) : null}
 
-      <div className="fixed bottom-[max(2.25rem,calc(env(safe-area-inset-bottom)+1.25rem))] left-0 right-0 z-30">
+      <div className="fixed bottom-[max(5.6rem,calc(env(safe-area-inset-bottom)+4.4rem))] left-0 right-0 z-30">
         <ActionButtons
           onIterum={onIterum}
           onClaves={onClaves}
