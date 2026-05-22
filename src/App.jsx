@@ -272,7 +272,7 @@ function ClavesScreen({ reading, question, onIterum, onNoctem, onVerbatim, onDuo
         </div>
       </div>
 
-      <div className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-0 right-0 z-30 text-black">
+      <div className="fixed bottom-[max(2.25rem,calc(env(safe-area-inset-bottom)+1.25rem))] left-0 right-0 z-30 text-black">
         <ActionButtons onIterum={onIterum} onNoctem={onNoctem} onVerbatim={onVerbatim} onDuodecim={onDuodecim} onBulla={onBulla} onArchive={onArchive} compact />
       </div>
     </motion.main>
@@ -329,7 +329,7 @@ function NoctemScreen({ reading, question, onIterum, onClaves, onVerbatim, onDuo
         ))}
       </div>
 
-      <div className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-0 right-0 z-30 text-white">
+      <div className="fixed bottom-[max(2.25rem,calc(env(safe-area-inset-bottom)+1.25rem))] left-0 right-0 z-30 text-white">
         <ActionButtons onIterum={onIterum} onClaves={onClaves} onVerbatim={onVerbatim} onDuodecim={onDuodecim} onBulla={onBulla} onArchive={onArchive} compact />
       </div>
 
@@ -706,36 +706,83 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
         </motion.div>
       ) : null}
 
-      <div className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-0 right-0 z-30">
+      <div className="fixed bottom-[max(2.25rem,calc(env(safe-area-inset-bottom)+1.25rem))] left-0 right-0 z-30">
         <ActionButtons onIterum={onIterum} onClaves={onClaves} onNoctem={onNoctem} onVerbatim={onVerbatim} onBulla={onBulla} onArchive={onArchive} compact />
       </div>
     </motion.main>
   );
 }
 
+
+function fileToArchivePhotoDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    if (!file) {
+      resolve("");
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onerror = () => reject(new Error("Image read error"));
+
+    reader.onload = () => {
+      const image = new Image();
+
+      image.onerror = () => reject(new Error("Image load error"));
+
+      image.onload = () => {
+        const maxSize = 1200;
+        const ratio = Math.min(1, maxSize / Math.max(image.width, image.height));
+        const width = Math.max(1, Math.round(image.width * ratio));
+        const height = Math.max(1, Math.round(image.height * ratio));
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+
+        const context = canvas.getContext("2d");
+        context.drawImage(image, 0, 0, width, height);
+
+        resolve(canvas.toDataURL("image/jpeg", 0.76));
+      };
+
+      image.src = reader.result;
+    };
+
+    reader.readAsDataURL(file);
+  });
+}
+
 function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, onArchive }) {
   const [micActive, setMicActive] = useState(false);
   const [status, setStatus] = useState("idle");
+  const [photoDataUrl, setPhotoDataUrl] = useState("");
+  const [photoStatus, setPhotoStatus] = useState("idle");
   const recognitionRef = useRef(null);
   const transcriptRef = useRef("");
   const finalizedRef = useRef(false);
+  const fileInputRef = useRef(null);
 
   const archiveBulla = (message) => {
     const trimmed = message.trim();
 
-    if (!trimmed) {
+    if (!trimmed && !photoDataUrl) {
       setStatus("empty");
       return;
     }
 
     saveBullaArchive({
-      message: trimmed,
+      message: trimmed || "Image sans légende.",
+      photoDataUrl,
       question: question || "",
       oracleSentence: reading?.oracleSentence || "",
-      action: reading?.action || ""
+      action: reading?.action || "",
+      fatum: getFatumScore(reading, question)
     });
 
     setStatus("archived");
+    setPhotoStatus("idle");
+    setPhotoDataUrl("");
   };
 
   const finalizeBulla = () => {
@@ -815,7 +862,7 @@ function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
     };
 
     recognition.onend = () => {
-      if (!finalizedRef.current && transcriptRef.current.trim()) {
+      if (!finalizedRef.current && (transcriptRef.current.trim() || photoDataUrl)) {
         finalizeBulla();
       } else if (!finalizedRef.current) {
         setMicActive(false);
@@ -847,6 +894,30 @@ function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
     }
   };
 
+  const selectPhoto = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handlePhotoChange = async (event) => {
+    const file = event.target.files?.[0];
+
+    if (!file) return;
+
+    setPhotoStatus("loading");
+
+    try {
+      const dataUrl = await fileToArchivePhotoDataUrl(file);
+      setPhotoDataUrl(dataUrl);
+      setPhotoStatus("ready");
+    } catch {
+      setPhotoStatus("error");
+    } finally {
+      event.target.value = "";
+    }
+  };
+
   useEffect(() => {
     return () => {
       if (recognitionRef.current) {
@@ -866,6 +937,13 @@ function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
     error: "fractum."
   }[status];
 
+  const photoText = {
+    idle: "",
+    loading: "imago.",
+    ready: "imago capta.",
+    error: "imago fracta."
+  }[photoStatus];
+
   return (
     <motion.main
       className="fixed inset-0 flex items-center justify-center overflow-hidden bg-black px-8 text-center text-white"
@@ -873,7 +951,7 @@ function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
       animate={{ opacity: 1 }}
       transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
     >
-      <div className="flex flex-col items-center justify-center gap-7">
+      <div className="flex flex-col items-center justify-center gap-5">
         <button
           type="button"
           aria-label="Bulla microphone"
@@ -884,6 +962,38 @@ function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
         >
           <MicrophoneIcon active={micActive} />
         </button>
+
+        <button
+          type="button"
+          aria-label="Ajouter une image"
+          onClick={selectPhoto}
+          className="flex h-12 w-12 select-none items-center justify-center border border-white/55 bg-transparent text-white active:scale-95"
+        >
+          <svg width="25" height="25" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+            <path d="M8 14H18L21 10H27L30 14H40V38H8V14Z" stroke="currentColor" strokeWidth="2.6" strokeLinejoin="round" />
+            <circle cx="24" cy="26" r="7" stroke="currentColor" strokeWidth="2.6" />
+          </svg>
+        </button>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handlePhotoChange}
+        />
+
+        {photoDataUrl ? (
+          <img
+            src={photoDataUrl}
+            alt=""
+            className="h-20 w-20 border border-white/30 object-cover"
+          />
+        ) : null}
+
+        {photoText ? (
+          <p className="text-[10px] uppercase tracking-[0.2em] text-white/42">{photoText}</p>
+        ) : null}
 
         {statusText ? (
           <motion.p
@@ -897,13 +1007,12 @@ function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
         ) : null}
       </div>
 
-      <div className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-0 right-0 z-30">
+      <div className="fixed bottom-[max(2.25rem,calc(env(safe-area-inset-bottom)+1.25rem))] left-0 right-0 z-30">
         <ActionButtons onIterum={onIterum} onClaves={onClaves} onNoctem={onNoctem} onVerbatim={onVerbatim} onDuodecim={onDuodecim} onArchive={onArchive} compact />
       </div>
     </motion.main>
   );
 }
-
 
 const BULLA_ARCHIVE_KEY = "nox:bulla-archives";
 
@@ -954,6 +1063,96 @@ function formatArchiveDate(value) {
 
 function ArchivesScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, onBulla }) {
   const [archives, setArchives] = useState(() => readBullaArchives());
+  const [reactionTarget, setReactionTarget] = useState(null);
+  const [commentTarget, setCommentTarget] = useState(null);
+  const [commentValue, setCommentValue] = useState("");
+  const [burnTargetId, setBurnTargetId] = useState(null);
+  const longPressTimerRef = useRef(null);
+  const lastTapRef = useRef({ id: null, time: 0 });
+
+  const writeArchives = (nextArchives) => {
+    window.localStorage.setItem(BULLA_ARCHIVE_KEY, JSON.stringify(nextArchives));
+    window.dispatchEvent(new CustomEvent("nox:bulla-archives-updated", { detail: nextArchives }));
+    setArchives(nextArchives);
+  };
+
+  const updateArchive = (id, updater) => {
+    const nextArchives = readBullaArchives().map((entry) =>
+      entry.id === id ? updater(entry) : entry
+    );
+
+    writeArchives(nextArchives);
+  };
+
+  const deleteArchive = (id) => {
+    const nextArchives = readBullaArchives().filter((entry) => entry.id !== id);
+    writeArchives(nextArchives);
+    setBurnTargetId(null);
+  };
+
+  const startArchivePress = (entry) => {
+    window.clearTimeout(longPressTimerRef.current);
+
+    longPressTimerRef.current = window.setTimeout(() => {
+      setReactionTarget(entry);
+      setCommentTarget(null);
+      setBurnTargetId(null);
+    }, 520);
+  };
+
+  const endArchivePress = (entry) => {
+    window.clearTimeout(longPressTimerRef.current);
+
+    const now = Date.now();
+
+    if (lastTapRef.current.id === entry.id && now - lastTapRef.current.time < 330) {
+      setBurnTargetId(entry.id);
+      setReactionTarget(null);
+      setCommentTarget(null);
+      lastTapRef.current = { id: null, time: 0 };
+      return;
+    }
+
+    lastTapRef.current = { id: entry.id, time: now };
+  };
+
+  const applyReaction = (emoji) => {
+    if (!reactionTarget) return;
+
+    updateArchive(reactionTarget.id, (entry) => ({
+      ...entry,
+      reaction: emoji
+    }));
+
+    setReactionTarget(null);
+  };
+
+  const openComment = () => {
+    if (!reactionTarget) return;
+
+    setCommentTarget(reactionTarget);
+    setCommentValue(reactionTarget.comment || "");
+    setReactionTarget(null);
+  };
+
+  const saveComment = () => {
+    if (!commentTarget) return;
+
+    const trimmed = commentValue.trim();
+    if (!trimmed) {
+      setCommentTarget(null);
+      setCommentValue("");
+      return;
+    }
+
+    updateArchive(commentTarget.id, (entry) => ({
+      ...entry,
+      comment: entry.comment || trimmed
+    }));
+
+    setCommentTarget(null);
+    setCommentValue("");
+  };
 
   useEffect(() => {
     const refreshArchives = () => {
@@ -964,6 +1163,7 @@ function ArchivesScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
     window.addEventListener("nox:bulla-archives-updated", refreshArchives);
 
     return () => {
+      window.clearTimeout(longPressTimerRef.current);
       window.removeEventListener("storage", refreshArchives);
       window.removeEventListener("nox:bulla-archives-updated", refreshArchives);
     };
@@ -971,7 +1171,7 @@ function ArchivesScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
 
   return (
     <motion.main
-      className="fixed inset-0 overflow-y-auto bg-white px-5 pb-28 pt-[max(1.5rem,env(safe-area-inset-top))] text-black"
+      className="fixed inset-0 overflow-y-auto bg-white px-5 pb-32 pt-[max(1.5rem,env(safe-area-inset-top))] text-black"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
@@ -980,16 +1180,98 @@ function ArchivesScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
 
       {archives.length ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {archives.map((entry) => (
-            <article key={entry.id} className="border border-black/18 p-3 text-left">
-              <p className="mb-2 text-[10px] uppercase tracking-[0.16em] text-black/46">
-                {formatArchiveDate(entry.createdAt)}
-              </p>
-              <p className="whitespace-pre-wrap text-[12px] leading-[1.45] text-black/88">
-                {entry.message}
-              </p>
-            </article>
-          ))}
+          {archives.map((entry) => {
+            const burning = burnTargetId === entry.id;
+            const fatum = Number.isFinite(Number(entry.fatum)) ? Number(entry.fatum) : null;
+
+            return (
+              <article
+                key={entry.id}
+                className={[
+                  "relative select-none p-3 text-left transition-colors duration-300",
+                  burning
+                    ? "border border-red-700 bg-red-700 text-white"
+                    : "border border-black/18 bg-white text-black"
+                ].join(" ")}
+                onPointerDown={() => startArchivePress(entry)}
+                onPointerUp={() => endArchivePress(entry)}
+                onPointerCancel={() => window.clearTimeout(longPressTimerRef.current)}
+                onPointerLeave={() => window.clearTimeout(longPressTimerRef.current)}
+                onContextMenu={(event) => {
+                  event.preventDefault();
+                  setReactionTarget(entry);
+                  setBurnTargetId(null);
+                }}
+              >
+                {burning ? (
+                  <div className="absolute inset-0 z-20 flex items-center justify-center gap-5 bg-red-700">
+                    <button
+                      type="button"
+                      className="select-none text-3xl active:scale-95"
+                      aria-label="Brûler l’archive"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        deleteArchive(entry.id);
+                      }}
+                    >
+                      🔥
+                    </button>
+                    <button
+                      type="button"
+                      className="select-none text-3xl active:scale-95"
+                      aria-label="Verrouiller l’archive"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setBurnTargetId(null);
+                      }}
+                    >
+                      🔒
+                    </button>
+                  </div>
+                ) : null}
+
+                <div className="mb-2 flex items-start justify-between gap-2">
+                  <p className={["text-[10px] uppercase tracking-[0.16em]", burning ? "text-white/80" : "text-black/46"].join(" ")}>
+                    {formatArchiveDate(entry.createdAt)}
+                  </p>
+                  {entry.reaction ? (
+                    <p className="text-base leading-none">{entry.reaction}</p>
+                  ) : null}
+                </div>
+
+                <div className="mb-3 border border-white/88 bg-black p-3 text-center text-white">
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-white/58">
+                    Fatum {fatum !== null ? `${fatum} pts` : "—"}
+                  </p>
+                  {entry.oracleSentence ? (
+                    <p className="mt-2 text-[12px] font-semibold leading-[1.35]">{entry.oracleSentence}</p>
+                  ) : null}
+                  {entry.action ? (
+                    <p className="mt-2 text-[11px] leading-[1.35] text-white/72">{entry.action}</p>
+                  ) : null}
+                </div>
+
+                <p className={["whitespace-pre-wrap text-[12px] leading-[1.45]", burning ? "text-white/88" : "text-black/88"].join(" ")}>
+                  {entry.message}
+                </p>
+
+                {entry.photoDataUrl ? (
+                  <img
+                    src={entry.photoDataUrl}
+                    alt=""
+                    className="mt-3 aspect-square w-full object-cover"
+                    loading="lazy"
+                  />
+                ) : null}
+
+                {entry.comment ? (
+                  <p className={["mt-3 border-t pt-2 text-[11px] italic leading-[1.4]", burning ? "border-white/22 text-white/70" : "border-black/12 text-black/58"].join(" ")}>
+                    {entry.comment}
+                  </p>
+                ) : null}
+              </article>
+            );
+          })}
         </div>
       ) : (
         <div className="flex min-h-[50vh] items-center justify-center text-center">
@@ -997,7 +1279,84 @@ function ArchivesScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
         </div>
       )}
 
-      <div className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-0 right-0 z-30 text-black">
+      {reactionTarget ? (
+        <motion.div
+          className="fixed inset-x-6 top-1/2 z-50 -translate-y-1/2 border border-black bg-white px-4 py-5 text-center shadow-2xl"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
+        >
+          <div className="flex items-center justify-center gap-3">
+            {["🖤", "🥀", "🦪", "🫠", "⚰️"].map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                className="select-none text-2xl active:scale-95"
+                onClick={() => applyReaction(emoji)}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+
+          {!reactionTarget.comment ? (
+            <button
+              type="button"
+              className="mt-5 border border-black px-4 py-2 text-[10px] uppercase tracking-[0.16em]"
+              onClick={openComment}
+            >
+              Commentarium
+            </button>
+          ) : null}
+
+          <button
+            type="button"
+            className="mt-4 block w-full text-[10px] uppercase tracking-[0.16em] text-black/45"
+            onClick={() => setReactionTarget(null)}
+          >
+            Claudere
+          </button>
+        </motion.div>
+      ) : null}
+
+      {commentTarget ? (
+        <motion.div
+          className="fixed inset-x-5 bottom-[max(5.5rem,calc(env(safe-area-inset-bottom)+5rem))] z-50 border border-black bg-white p-4 shadow-2xl"
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
+        >
+          <textarea
+            className="h-24 w-full resize-none border border-black/30 bg-white p-3 text-sm leading-5 outline-none"
+            value={commentValue}
+            onChange={(event) => setCommentValue(event.target.value)}
+            placeholder="Commentarium"
+            autoFocus
+          />
+
+          <div className="mt-3 flex justify-center gap-2">
+            <button
+              type="button"
+              className="border border-black px-4 py-2 text-[10px] uppercase tracking-[0.16em]"
+              onClick={saveComment}
+            >
+              Scribere
+            </button>
+            <button
+              type="button"
+              className="border border-black/35 px-4 py-2 text-[10px] uppercase tracking-[0.16em] text-black/55"
+              onClick={() => {
+                setCommentTarget(null);
+                setCommentValue("");
+              }}
+            >
+              Delere
+            </button>
+          </div>
+        </motion.div>
+      ) : null}
+
+      <div className="fixed bottom-[max(2.25rem,calc(env(safe-area-inset-bottom)+1.25rem))] left-0 right-0 z-30 text-black">
         <ActionButtons
           onIterum={onIterum}
           onClaves={onClaves}
@@ -1029,7 +1388,8 @@ function createFallbackReading(cards, question) {
     crossReading: `${cards[0].name}, ${cards[1].name} et ${cards[2].name} disent ceci : le même motif revient, mais il a changé de costume.`,
     synthesis: "La question ne demande pas une solution héroïque : elle demande de cesser d’appeler destin une vieille habitude bien entretenue.",
     oracleSentence: "Le signe frappe moins fort quand on arrête de lui servir à boire.",
-    action: "Sors marcher dix minutes sans regarder ton téléphone."
+    action: "Sors marcher dix minutes sans regarder ton téléphone.",
+    fatum: 57
   };
 }
 
@@ -1407,6 +1767,65 @@ function SwipeUpDrawScreen({ onDraw }) {
   );
 }
 
+
+function getFatumScore(reading, question = "") {
+  const raw = Number(reading?.fatum);
+
+  if (Number.isFinite(raw)) {
+    return Math.max(0, Math.min(100, Math.round(raw)));
+  }
+
+  const source = `${question} ${reading?.oracleSentence || ""} ${reading?.action || ""}`;
+  let hash = 0;
+
+  for (let index = 0; index < source.length; index += 1) {
+    hash = (hash * 31 + source.charCodeAt(index)) % 9973;
+  }
+
+  return 23 + (hash % 68);
+}
+
+function FatumIndicator({ score }) {
+  const radius = 21;
+  const circumference = 2 * Math.PI * radius;
+  const normalized = Math.max(0, Math.min(100, Number(score) || 0));
+  const offset = circumference * (1 - normalized / 100);
+
+  return (
+    <motion.div
+      className="pointer-events-none fixed left-1/2 top-[14vh] z-30 -translate-x-1/2 text-center text-white"
+      initial={{ opacity: 0, y: -6 }}
+      animate={{ opacity: 0.86, y: 0 }}
+      transition={{ duration: 1.2, ease: "easeInOut" }}
+    >
+      <svg width="54" height="54" viewBox="0 0 54 54" className="mx-auto">
+        <circle
+          cx="27"
+          cy="27"
+          r={radius}
+          fill="rgba(0,0,0,0.18)"
+          stroke="rgba(255,255,255,0.28)"
+          strokeWidth="1"
+        />
+        <circle
+          cx="27"
+          cy="27"
+          r={radius}
+          fill="none"
+          stroke="rgba(255,255,255,0.92)"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          transform="rotate(-90 27 27)"
+        />
+      </svg>
+      <p className="mt-1 text-[9px] uppercase tracking-[0.18em] text-white/74">Fatum</p>
+      <p className="text-[10px] tracking-[0.12em] text-white/88">{normalized} pts</p>
+    </motion.div>
+  );
+}
+
 function ResultScreen({ reading, question, onShowClaves, onShowNoctem, onShowDuodecim, onShowBulla, onShowArchive }) {
   const panels = [
     { type: "question", lines: [question || "Question silencieuse"] },
@@ -1426,6 +1845,7 @@ function ResultScreen({ reading, question, onShowClaves, onShowNoctem, onShowDuo
     }
   ];
 
+  const fatumScore = getFatumScore(reading, question);
   const [panelIndex, setPanelIndex] = useState(-1);
   const currentPanel = panelIndex >= 0 ? panels[panelIndex] : null;
   const isLastPanel = panelIndex === panels.length - 1;
@@ -1486,6 +1906,7 @@ function ResultScreen({ reading, question, onShowClaves, onShowNoctem, onShowDuo
       transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
     >
       <OracleVideoBackground />
+      <FatumIndicator score={fatumScore} />
 
       <div className="pointer-events-none fixed inset-0 bg-gradient-to-b from-black/0 via-black/10 to-black/70" />
 

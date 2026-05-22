@@ -18,7 +18,7 @@ app.use(express.json({ limit: "1mb" }));
 const readingSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["title", "cards", "crossReading", "synthesis", "oracleSentence", "action"],
+  required: ["title", "cards", "crossReading", "synthesis", "oracleSentence", "action", "fatum"],
   properties: {
     title: {
       type: "string",
@@ -58,6 +58,12 @@ const readingSchema = {
     action: {
       type: "string",
       description: "Action prescrite concrète, triviale, ferme, piquante, contemporaine, urbaine, terminée par un point. Elle doit matcher le contexte et peut aller vers le geste absurde, social ou domestique."
+    },
+    fatum: {
+      type: "integer",
+      minimum: 0,
+      maximum: 100,
+      description: "Score Fatum en points, de 0 à 100. Il indique le degré d’accomplissement, d’alignement ou de fatalité active du tirage. Ne pas exprimer en pourcentage."
     }
   }
 };
@@ -254,7 +260,8 @@ La lecture complète doit pouvoir être lue à voix haute en moins d’une minut
 Chaque interprétation de carte doit tenir en 20 à 28 mots.
 La lecture croisée et la synthèse doivent être courtes.
 La phrase-oracle doit être très mémorable, courte, et trancher nettement une direction.
-Après la phrase-oracle, générez aussi une action prescrite concrète, triviale, ferme, assez piquante, contemporaine et urbaine. Elle doit matcher la question, les cartes et le contexte privé. Elle se termine par un point. Exemples de tonalité : reprends un verre, achète un jeu au PMU, fume un saumon de plus, ouvre une huître, prends une douche froide, refais-toi l’intégrale de Breaking Bad, passe trois heures devant CNews sans cligner des yeux, fais une sieste, sors, change de look, arrête la pizza pendant une semaine. Ne copiez pas systématiquement ces exemples : inventez une action adaptée.
+Après la phrase-oracle, générez aussi une action prescrite concrète, triviale, ferme, assez piquante, contemporaine et urbaine. Elle doit matcher la question, les cartes et le contexte privé. Elle se termine par un point.
+Générez aussi un score Fatum en points, entre 0 et 100 : il mesure la densité du signe, l’alignement du tirage et la pression de nécessité. Ne l’exprimez jamais en pourcentage. Exemples de tonalité : reprends un verre, achète un jeu au PMU, fume un saumon de plus, ouvre une huître, prends une douche froide, refais-toi l’intégrale de Breaking Bad, passe trois heures devant CNews sans cligner des yeux, fais une sieste, sors, change de look, arrête la pizza pendant une semaine. Ne copiez pas systématiquement ces exemples : inventez une action adaptée.
       `,
       input: JSON.stringify(payload),
       text: {
