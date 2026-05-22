@@ -2075,7 +2075,7 @@ function FatumScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
         </motion.div>
       ) : null}
 
-      <div className="fixed bottom-[max(5.6rem,calc(env(safe-area-inset-bottom)+4.4rem))] left-0 right-0 z-30">
+      <div className="fixed bottom-[max(2.25rem,calc(env(safe-area-inset-bottom)+1.25rem))] left-0 right-0 z-30">
         <ActionButtons
           onIterum={onIterum}
           onClaves={onClaves}
