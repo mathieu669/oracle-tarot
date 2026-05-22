@@ -530,31 +530,68 @@ const DUODECIM_FACE_TRANSFORMS = [
   "rotateY(180deg) translateZ(132px)"
 ];
 
-function getDuodecimSentence(name, reading) {
-  const sign = reading?.oracleSentence || reading?.synthesis || "Le signe est là, et il ne négocie plus.";
+function getDuodecimFallbackSentence(name, reading, question) {
+  const q = question ? `À ta question — ${question} —` : "À ta question,";
+  const sign = reading?.oracleSentence || reading?.synthesis || "le signe refuse de rester décoratif.";
 
   const sentences = {
-    Jagger: `Jagger dirait : « Garde le rythme, jette le costume, et fais de ${sign.toLowerCase()} une entrée de scène. »`,
-    Freud: "Freud dirait : « Ce n’est pas la réponse qui vous inquiète, c’est le plaisir très ancien de ne pas l’entendre. »",
-    Marx: "Marx dirait : « Cherchez qui profite de votre hésitation ; le reste n’est que décoration bourgeoise. »",
-    Nietzsche: "Nietzsche dirait : « Choisissez ce qui vous agrandit, même si cela rend votre confort un peu malade. »",
-    Gainsbourg: "Gainsbourg dirait : « Faites le sale geste proprement, avec une cigarette imaginaire et une élégance vaguement coupable. »",
-    Kant: "Kant dirait : « Agissez comme si votre petite lâcheté devait devenir une loi universelle ; vous verrez, ça calme. »",
-    Cantona: "Cantona dirait : « Quand les mouettes doutent, le ballon, lui, sait déjà dans quelle lucarne finir. Frappez. »",
-    VDB: "VDB dirait : « Vous avez voulu un signe ; il est venu avec ses chaussures sales. Maintenant, ouvrez-lui. »",
-    Raël: "Raël dirait : « La solution vient peut-être de plus loin que prévu, mais elle exige tout de même un très bon peignoir. »",
-    Verges: "Vergès dirait : « Défendez l’indéfendable en vous, non pour l’absoudre, mais pour savoir enfin qui parle. »",
-    Houellebecq: "Houellebecq dirait : « Le monde ne s’améliorera pas, mais vous pouvez éviter de vous rendre plus médiocre que nécessaire. »",
-    Bowie: "Bowie dirait : « Changez de peau avant que la peau ne vous dénonce ; la nuit aime les métamorphoses nettes. »"
+    Jagger: `${q} Jagger répondrait : garde le mouvement, coupe ce qui pèse, et transforme « ${sign} » en entrée de scène.`,
+    Freud: `${q} Freud répondrait : le vrai sujet n’est pas la décision, mais le plaisir suspect que tu prends à la différer.`,
+    Marx: `${q} Marx répondrait : regarde qui encaisse ton hésitation ; si ce n’est pas toi, change le rapport de force.`,
+    Nietzsche: `${q} Nietzsche répondrait : choisis ce qui t’augmente, même si ton petit confort bourgeois te regarde avec effroi.`,
+    Gainsbourg: `${q} Gainsbourg répondrait : fais le geste sale avec une élégance propre, puis assume l’odeur de tabac froid.`,
+    Kant: `${q} Kant répondrait : agis comme si ton esquive devenait une loi universelle ; normalement, cela devrait te faire honte.`,
+    Cantona: `${q} Cantona répondrait : quand le stade se tait, le ballon sait encore où frapper. Vise la lucarne, pas l’excuse.`,
+    VDB: `${q} VDB répondrait : tu voulais un signe propre ; il arrive crotté, magnifique, et demande juste qu’on lui ouvre.`,
+    Raël: `${q} Raël répondrait : la réponse vient peut-être de très loin, mais elle exige surtout un peignoir net et une décision locale.`,
+    Verges: `${q} Vergès répondrait : défends l’indéfendable en toi, non pour l’absoudre, mais pour identifier le vrai coupable.`,
+    Houellebecq: `${q} Houellebecq répondrait : le monde restera décevant ; évite seulement d’ajouter ta propre médiocrité au désastre.`,
+    Bowie: `${q} Bowie répondrait : change de peau maintenant, avant que l’ancienne ne commence à parler à ta place.`
   };
 
-  return sentences[name] || sign;
+  return sentences[name] || `${q} ${sign}`;
 }
 
 function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbatim, onBulla }) {
   const [rotation, setRotation] = useState({ x: -18, y: 26 });
   const [selectedName, setSelectedName] = useState(null);
+  const [selectedSentence, setSelectedSentence] = useState("");
+  const [sentenceStatus, setSentenceStatus] = useState("idle");
   const dragRef = useRef(null);
+  const adviceRequestRef = useRef(0);
+
+  const requestDuodecimSentence = async (name) => {
+    const requestId = Date.now();
+    adviceRequestRef.current = requestId;
+
+    setSelectedName(name);
+    setSelectedSentence("");
+    setSentenceStatus("loading");
+
+    try {
+      const response = await fetch("/api/duodecim-advice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, question, reading })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.error || "Duodecim unavailable");
+      }
+
+      if (adviceRequestRef.current === requestId) {
+        setSelectedSentence(data.sentence || getDuodecimFallbackSentence(name, reading, question));
+        setSentenceStatus("ready");
+      }
+    } catch {
+      if (adviceRequestRef.current === requestId) {
+        setSelectedSentence(getDuodecimFallbackSentence(name, reading, question));
+        setSentenceStatus("ready");
+      }
+    }
+  };
 
   const startDrag = (event) => {
     event.preventDefault();
@@ -591,7 +628,7 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
     >
       <div className="flex h-full items-center justify-center [perspective:900px]">
         <div
-          className="relative h-[310px] w-[310px] touch-none"
+          className="relative h-[320px] w-[320px] touch-none"
           onPointerDown={startDrag}
           onPointerMove={moveDrag}
           onPointerUp={endDrag}
@@ -609,17 +646,32 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
               <button
                 key={name}
                 type="button"
-                className="absolute left-1/2 top-1/2 flex h-[104px] w-[104px] -translate-x-1/2 -translate-y-1/2 items-center justify-center border border-white/80 bg-transparent px-2 text-center text-[8px] uppercase leading-tight tracking-[0.10em] text-white shadow-[0_0_18px_rgba(255,255,255,0.06)]"
+                className="absolute left-1/2 top-1/2 h-[108px] w-[108px] -translate-x-1/2 -translate-y-1/2 bg-transparent text-white"
                 style={{
-                  clipPath: "polygon(50% 0%, 97% 35%, 79% 91%, 21% 91%, 3% 35%)",
-                  transform: DUODECIM_FACE_TRANSFORMS[index]
+                  transform: DUODECIM_FACE_TRANSFORMS[index],
+                  transformStyle: "preserve-3d"
                 }}
                 onClick={(event) => {
                   event.stopPropagation();
-                  setSelectedName(name);
+                  requestDuodecimSentence(name);
                 }}
               >
-                {name}
+                <svg
+                  viewBox="0 0 100 100"
+                  className="absolute inset-0 h-full w-full overflow-visible"
+                  aria-hidden="true"
+                >
+                  <polygon
+                    points="50,4 96,37 78,92 22,92 4,37"
+                    fill="none"
+                    stroke="rgba(255,255,255,0.92)"
+                    strokeWidth="1"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                </svg>
+                <span className="absolute inset-[18px] flex items-center justify-center text-center text-[7.5px] uppercase leading-[1.05] tracking-[0.08em]">
+                  {name}
+                </span>
               </button>
             ))}
           </div>
@@ -632,9 +684,23 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
           initial={{ opacity: 0, y: 20, filter: "blur(10px)" }}
           animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
           transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
-          onClick={() => setSelectedName(null)}
+          onClick={() => {
+            setSelectedName(null);
+            setSelectedSentence("");
+            setSentenceStatus("idle");
+          }}
         >
-          <p className="text-xl leading-8">{getDuodecimSentence(selectedName, reading)}</p>
+          {sentenceStatus === "loading" ? (
+            <motion.p
+              className="text-xl leading-8"
+              animate={{ opacity: [0.35, 1, 0.35] }}
+              transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+            >
+              Attends.
+            </motion.p>
+          ) : (
+            <p className="text-xl leading-8">{selectedSentence}</p>
+          )}
         </motion.div>
       ) : null}
 
@@ -646,6 +712,173 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
 }
 
 function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbatim, onDuodecim }) {
+  const [micActive, setMicActive] = useState(false);
+  const [status, setStatus] = useState("idle");
+  const recognitionRef = useRef(null);
+  const transcriptRef = useRef("");
+  const finalizedRef = useRef(false);
+
+  const sendBulla = async (message) => {
+    const trimmed = message.trim();
+
+    if (!trimmed) {
+      setStatus("empty");
+      return;
+    }
+
+    setStatus("sending");
+
+    try {
+      const response = await fetch("/api/bulla-message", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: trimmed,
+          question,
+          oracleSentence: reading?.oracleSentence || "",
+          action: reading?.action || ""
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error("Bulla send failed");
+      }
+
+      setStatus("sent");
+    } catch {
+      setStatus("error");
+    }
+  };
+
+  const finalizeBulla = () => {
+    if (finalizedRef.current) return;
+    finalizedRef.current = true;
+
+    setMicActive(false);
+
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort();
+      } catch {
+        // Ignore abort errors.
+      }
+    }
+
+    const message = transcriptRef.current || "";
+    recognitionRef.current = null;
+    sendBulla(message);
+  };
+
+  const startBullaRecording = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (micActive || status === "sending") return;
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      setStatus("error");
+      return;
+    }
+
+    transcriptRef.current = "";
+    finalizedRef.current = false;
+    setStatus("idle");
+
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort();
+      } catch {
+        // Ignore abort errors.
+      }
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "fr-FR";
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    recognition.onstart = () => {
+      setMicActive(true);
+    };
+
+    recognition.onresult = (speechEvent) => {
+      let finalText = "";
+      let interimText = "";
+
+      for (let i = 0; i < speechEvent.results.length; i += 1) {
+        const transcript = speechEvent.results[i][0].transcript;
+
+        if (speechEvent.results[i].isFinal) {
+          finalText += transcript;
+        } else {
+          interimText += transcript;
+        }
+      }
+
+      transcriptRef.current = `${finalText} ${interimText}`.trim();
+    };
+
+    recognition.onerror = () => {
+      setMicActive(false);
+      setStatus("error");
+      recognitionRef.current = null;
+    };
+
+    recognition.onend = () => {
+      if (!finalizedRef.current && transcriptRef.current.trim()) {
+        finalizeBulla();
+      } else if (!finalizedRef.current) {
+        setMicActive(false);
+        recognitionRef.current = null;
+      }
+    };
+
+    recognitionRef.current = recognition;
+
+    try {
+      recognition.start();
+    } catch {
+      setMicActive(false);
+      setStatus("error");
+      recognitionRef.current = null;
+    }
+  };
+
+  const stopBullaRecording = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (!micActive || !recognitionRef.current) return;
+
+    try {
+      recognitionRef.current.stop();
+    } catch {
+      finalizeBulla();
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch {
+          // Ignore abort errors.
+        }
+      }
+    };
+  }, []);
+
+  const statusText = {
+    idle: "",
+    empty: "vacua.",
+    sending: "mittitur.",
+    sent: "missum.",
+    error: "fractum."
+  }[status];
+
   return (
     <motion.main
       className="fixed inset-0 flex items-center justify-center overflow-hidden bg-black px-8 text-center text-white"
@@ -653,10 +886,28 @@ function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
       animate={{ opacity: 1 }}
       transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
     >
-      <div className="max-w-[520px] border border-white/45 px-7 py-9">
-        <p className="text-sm uppercase tracking-[0.22em] text-white/55">Bulla</p>
-        <p className="mt-5 text-3xl font-semibold leading-10">{reading?.oracleSentence}</p>
-        <p className="mt-5 text-xl leading-8 text-white/78">{reading?.action}</p>
+      <div className="flex flex-col items-center justify-center gap-7">
+        <button
+          type="button"
+          aria-label="Bulla microphone"
+          onPointerDown={startBullaRecording}
+          onPointerUp={stopBullaRecording}
+          onPointerCancel={stopBullaRecording}
+          className="touch-none"
+        >
+          <MicrophoneIcon active={micActive || status === "sending"} />
+        </button>
+
+        {statusText ? (
+          <motion.p
+            className="text-sm uppercase tracking-[0.22em] text-white/62"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: status === "sending" ? [0.35, 1, 0.35] : 1 }}
+            transition={{ duration: 2.2, repeat: status === "sending" ? Infinity : 0, ease: "easeInOut" }}
+          >
+            {statusText}
+          </motion.p>
+        ) : null}
       </div>
 
       <div className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-0 right-0 z-30">

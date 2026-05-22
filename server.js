@@ -1,4 +1,5 @@
 import express from "express";
+import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import OpenAI from "openai";
@@ -278,11 +279,194 @@ Après la phrase-oracle, générez aussi une action prescrite concrète, trivial
   }
 });
 
+
+
+app.post("/api/duodecim-advice", async (req, res) => {
+  try {
+    const client = getOpenAIClient();
+
+    if (!client) {
+      return res.status(500).json({ error: "OPENAI_API_KEY manquante." });
+    }
+
+    const { name, question, reading } = req.body || {};
+    const allowedNames = [
+      "Jagger",
+      "Freud",
+      "Marx",
+      "Nietzsche",
+      "Gainsbourg",
+      "Kant",
+      "Cantona",
+      "VDB",
+      "Raël",
+      "Verges",
+      "Houellebecq",
+      "Bowie"
+    ];
+
+    if (!allowedNames.includes(name)) {
+      return res.status(400).json({ error: "Nom Duodecim invalide." });
+    }
+
+    const response = await client.responses.create({
+      model: MODEL,
+      instructions: `
+Vous écrivez une seule phrase de conseil pour l’écran Duodecim de l’app Nox.
+
+La phrase répond directement à la question de l’utilisateur, à partir de l’oracle déjà généré.
+Elle doit changer à chaque oracle : ne produisez jamais une formule générique.
+Elle doit être concrète, tranchante, contemporaine, légèrement noire ou ironique.
+
+La phrase est attribuée à un nom : ${name}.
+Évoquez l’imaginaire public associé à ce nom, sa posture ou son univers intellectuel.
+Ne prétendez pas citer réellement la personne.
+N’imitez pas longuement un style littéraire vivant ; faites une évocation courte, libre, satirique et transformée.
+
+Format :
+- Une seule phrase.
+- 24 à 42 mots.
+- Commencer par : "${name} dirait :"
+- Pas de guillemets.
+- Pas de markdown.
+      `,
+      input: JSON.stringify({
+        name,
+        question: question || "Question silencieuse",
+        oracle: {
+          cards: reading?.cards || [],
+          crossReading: reading?.crossReading || "",
+          synthesis: reading?.synthesis || "",
+          oracleSentence: reading?.oracleSentence || "",
+          action: reading?.action || ""
+        }
+      })
+    });
+
+    const sentence = String(response.output_text || "").trim();
+
+    res.json({ sentence });
+  } catch (error) {
+    console.error("Duodecim advice error:", error);
+    res.status(500).json({ error: "Erreur pendant la génération Duodecim." });
+  }
+});
+
+
+app.post("/api/bulla-message", async (req, res) => {
+  try {
+    const { message, question, oracleSentence, action } = req.body || {};
+    const trimmed = String(message || "").trim();
+
+    if (!trimmed) {
+      return res.status(400).json({ error: "Message vide." });
+    }
+
+    const apiKey = process.env.RESEND_API_KEY;
+    const from = process.env.RESEND_FROM || "Nox <onboarding@resend.dev>";
+    const to = "mathieubaudouin.mail@gmail.com";
+
+    if (!apiKey) {
+      console.error("Bulla message not sent: RESEND_API_KEY missing.", { message: trimmed });
+      return res.status(500).json({ error: "RESEND_API_KEY manquante." });
+    }
+
+    const body = [
+      "Message Bulla",
+      "",
+      trimmed,
+      "",
+      "Question",
+      question || "",
+      "",
+      "Phrase-oracle",
+      oracleSentence || "",
+      "",
+      "Action",
+      action || ""
+    ].join("\n");
+
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        from,
+        to,
+        subject: "NOX — Bulla",
+        text: body
+      })
+    });
+
+    const resultText = await response.text();
+
+    if (!response.ok) {
+      console.error("Bulla email error:", response.status, resultText);
+      return res.status(500).json({ error: "Erreur envoi Bulla.", details: resultText });
+    }
+
+    console.log("Bulla email sent.", { bytes: trimmed.length });
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("Bulla message error:", error);
+    res.status(500).json({ error: "Erreur pendant l’envoi Bulla." });
+  }
+});
+
+
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "dist")));
 
+  app.get("/manifest.webmanifest", (req, res) => {
+    res.type("application/manifest+json");
+    res.send({
+      name: "Nox",
+      short_name: "Nox",
+      description: "Signes privés pour heures basses.",
+      start_url: "/",
+      display: "standalone",
+      background_color: "#050509",
+      theme_color: "#050509",
+      icons: [
+        {
+          src: "/images/nox-icon.png",
+          sizes: "1024x1024",
+          type: "image/png",
+          purpose: "any maskable"
+        }
+      ]
+    });
+  });
+
+  app.get("/apple-touch-icon.png", (req, res) => {
+    res.sendFile(path.join(__dirname, "dist", "images", "nox-icon.png"));
+  });
+
   app.get(/.*/, (req, res) => {
-    res.sendFile(path.join(__dirname, "dist", "index.html"));
+    const indexPath = path.join(__dirname, "dist", "index.html");
+
+    fs.readFile(indexPath, "utf8", (error, html) => {
+      if (error) {
+        return res.sendFile(indexPath);
+      }
+
+      const iconTags = `
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/images/nox-icon.png">
+<link rel="icon" type="image/png" href="/images/nox-icon.png">
+<meta name="apple-mobile-web-app-title" content="Nox">
+<meta name="application-name" content="Nox">
+<meta name="theme-color" content="#050509">
+`;
+
+      const output = html.includes("apple-touch-icon")
+        ? html
+        : html.replace("</head>", `${iconTags}</head>`);
+
+      res.type("html").send(output);
+    });
   });
 }
 

@@ -1,0 +1,17 @@
+{
+  "name": "Nox",
+  "short_name": "Nox",
+  "description": "Signes privés pour heures basses.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#050509",
+  "theme_color": "#050509",
+  "icons": [
+    {
+      "src": "/images/nox-icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
