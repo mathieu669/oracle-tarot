@@ -2463,54 +2463,16 @@ function AudioToggleButton({ enabled, onToggle }) {
 
 
 function SwipeUpDrawScreen({ onDraw }) {
-  const startYRef = useRef(null);
   const hasDrawnRef = useRef(false);
 
-  const resetSwipe = () => {
-    startYRef.current = null;
-    hasDrawnRef.current = false;
-  };
-
-  const startSwipe = (event) => {
+  const handleDrawClick = (event) => {
     event.preventDefault();
     event.stopPropagation();
 
-    if (event.currentTarget.setPointerCapture && event.pointerId !== undefined) {
-      try {
-        event.currentTarget.setPointerCapture(event.pointerId);
-      } catch {
-        // Ignore pointer capture errors.
-      }
-    }
+    if (hasDrawnRef.current) return;
 
-    startYRef.current = event.clientY;
-    hasDrawnRef.current = false;
-  };
-
-  const moveSwipe = (event) => {
-    if (startYRef.current === null || hasDrawnRef.current) return;
-
-    event.preventDefault();
-    event.stopPropagation();
-
-    const deltaY = startYRef.current - event.clientY;
-
-    if (deltaY >= SWIPE_UP_THRESHOLD) {
-      hasDrawnRef.current = true;
-      onDraw();
-    }
-  };
-
-  const endSwipe = (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    resetSwipe();
-  };
-
-  const cancelSwipe = (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    resetSwipe();
+    hasDrawnRef.current = true;
+    onDraw();
   };
 
   return (
@@ -2518,23 +2480,17 @@ function SwipeUpDrawScreen({ onDraw }) {
       <button
         type="button"
         aria-label="Tirer"
-        className="fixed inset-0 z-30 cursor-default touch-none select-none"
+        className="fixed inset-0 z-30 cursor-pointer touch-manipulation select-none"
         style={{
           WebkitUserSelect: "none",
           userSelect: "none",
-          WebkitTouchCallout: "none",
-          touchAction: "none"
+          WebkitTouchCallout: "none"
         }}
-        onPointerDown={startSwipe}
-        onPointerMove={moveSwipe}
-        onPointerUp={endSwipe}
-        onPointerCancel={cancelSwipe}
-        onPointerLeave={cancelSwipe}
+        onClick={handleDrawClick}
       />
     </Background>
   );
 }
-
 
 function getFatumScore(reading, question = "") {
   const raw = Number(reading?.fatum);
@@ -3109,6 +3065,11 @@ export default function App() {
     setStage(nextStage);
   };
 
+  const goDevHomeStage = (nextStage) => {
+    seedDebugReading();
+    setStage(nextStage);
+  };
+
   const jumpToOracleEnd = () => {
     const debugCards = deck.slice(0, DRAW_TARGET);
     const debugQuestion =
@@ -3340,32 +3301,43 @@ export default function App() {
     );
   }
 
-  return withFond(
-    <Background
-      onClick={() => {
-        if (debugMode) return;
-
-        if (audioEnabled) startBackgroundMusic(backgroundMusicRef.current);
-        setStage("microphone");
-      }}
-    >
-      <AudioToggleButton enabled={audioEnabled} onToggle={toggleAudio} />
-
-      {debugMode ? (
+  if (debugMode) {
+    return (
+      <main className="fixed inset-0 overflow-hidden bg-white text-black">
         <div className="flex h-full flex-col items-center justify-center px-6 text-center">
-          <button
-            type="button"
-            className="select-none border border-white bg-black/68 px-6 py-3 text-[12px] uppercase tracking-[0.2em] text-white backdrop-blur-md active:scale-95"
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              jumpToOracleEnd();
-            }}
-          >
-            Oracle
-          </button>
+          <p className="select-none text-[11px] uppercase tracking-[0.22em] text-black/42">Nox</p>
+          <h1 className="mt-3 select-none text-4xl font-semibold tracking-[0.08em]">Dev.</h1>
+          <p className="mt-5 max-w-[18rem] select-none text-sm leading-6 text-black/45">
+            Accès direct aux écrans post-oracle.
+          </p>
         </div>
-      ) : null}
+
+        <div className="fixed bottom-[max(2.25rem,calc(env(safe-area-inset-bottom)+1.25rem))] left-0 right-0 z-30 text-black">
+          <ActionButtons
+            onIterum={() => goDevHomeStage("result")}
+            onClaves={() => goDevHomeStage("claves")}
+            onNoctem={() => goDevHomeStage("noctem")}
+            onVerbatim={() => {
+              const { debugQuestion, debugReading } = seedDebugReading();
+              downloadVerbatimPdf(debugReading, debugQuestion);
+            }}
+            onDuodecim={() => goDevHomeStage("duodecim")}
+            onBulla={() => goDevHomeStage("bulla")}
+            onArchive={() => goDevHomeStage("archives")}
+            onFatum={() => goDevHomeStage("fatum")}
+            compact
+          />
+        </div>
+      </main>
+    );
+  }
+
+  return withFond(
+    <Background onClick={() => {
+      if (audioEnabled) startBackgroundMusic(backgroundMusicRef.current);
+      setStage("microphone");
+    }}>
+      <AudioToggleButton enabled={audioEnabled} onToggle={toggleAudio} />
     </Background>
   );
 }
