@@ -2740,6 +2740,79 @@ function ResultScreen({ reading, question, onShowClaves, onShowNoctem, onShowDuo
   );
 }
 
+
+function isDebugModeEnabled() {
+  if (typeof window === "undefined") return false;
+
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.has("debug") || params.has("fast");
+  const host = window.location.hostname;
+
+  const safeDevHost =
+    host.includes("-dev") ||
+    host.includes("localhost") ||
+    host === "127.0.0.1";
+
+  return requested && safeDevHost;
+}
+
+function DebugDock({
+  onResult,
+  onApi,
+  onFatum,
+  onArchivum,
+  onBulla,
+  onClaves,
+  onNoctem,
+  onDuodecim,
+  onReset
+}) {
+  const [open, setOpen] = useState(true);
+
+  return (
+    <div className="fixed left-3 top-[max(0.8rem,env(safe-area-inset-top))] z-[100] font-sans">
+      <button
+        type="button"
+        className="select-none border border-white bg-black px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-white"
+        onClick={(event) => {
+          event.stopPropagation();
+          setOpen((value) => !value);
+        }}
+      >
+        debug
+      </button>
+
+      {open ? (
+        <div className="mt-2 grid w-[132px] grid-cols-2 gap-1 border border-white bg-black/88 p-2 text-white shadow-2xl backdrop-blur-md">
+          {[
+            ["Result", onResult],
+            ["API", onApi],
+            ["Fatum", onFatum],
+            ["Archivum", onArchivum],
+            ["Bulla", onBulla],
+            ["Claves", onClaves],
+            ["Noctem", onNoctem],
+            ["Duodecim", onDuodecim],
+            ["Reset", onReset]
+          ].map(([label, action]) => (
+            <button
+              key={label}
+              type="button"
+              className="select-none border border-white/50 px-1 py-1 text-[8px] uppercase tracking-[0.08em] active:scale-95"
+              onClick={(event) => {
+                event.stopPropagation();
+                action();
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export default function App() {
   const backgroundMusicRef = useRef(null);
 
@@ -2760,6 +2833,7 @@ export default function App() {
   const [audio, setAudio] = useState(null);
   const [error, setError] = useState(null);
   const [revelationEnded, setRevelationEnded] = useState(false);
+  const debugMode = isDebugModeEnabled();
 
   const recognitionRef = useRef(null);
   const transcriptRef = useRef("");
@@ -3013,10 +3087,97 @@ export default function App() {
     setRevelationEnded(false);
   };
 
+  const seedDebugReading = () => {
+    const debugCards = deck.slice(0, DRAW_TARGET);
+    const debugQuestion =
+      question ||
+      "Question de test : dois-je rester dans le confort ou faire un vrai mouvement maintenant ?";
+    const debugReading = createFallbackReading(debugCards, debugQuestion);
+
+    setQuestion(debugQuestion);
+    setDrawnCards(debugCards);
+    setCurrentCard(null);
+    setReading(debugReading);
+    setError(null);
+    setRevelationEnded(true);
+
+    return { debugCards, debugQuestion, debugReading };
+  };
+
+  const goDebugStage = (nextStage) => {
+    seedDebugReading();
+    setStage(nextStage);
+  };
+
+  const jumpToOracleEnd = () => {
+    const debugCards = deck.slice(0, DRAW_TARGET);
+    const debugQuestion =
+      question ||
+      "Question de test : faut-il rester dans le confort ou faire un vrai mouvement maintenant ?";
+    const debugReading = createFallbackReading(debugCards, debugQuestion);
+
+    setQuestion(debugQuestion);
+    setDrawnCards(debugCards);
+    setCurrentCard(null);
+    setReading(debugReading);
+    setError(null);
+    setRevelationEnded(true);
+    setStage("result");
+  };
+
+  const generateDebugApiReading = async () => {
+    const { debugCards, debugQuestion } = seedDebugReading();
+
+    setError(null);
+
+    try {
+      const response = await fetch("/api/reading", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: debugQuestion,
+          cards: debugCards.map((card, index) => ({
+            ...card,
+            position: positions[index].label,
+            positionMeaning: positions[index].meaning
+          }))
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.error || "Erreur pendant la génération de la lecture.");
+      }
+
+      setReading(data.reading || createFallbackReading(debugCards, debugQuestion));
+    } catch (apiError) {
+      setError(apiError.message);
+      setReading(createFallbackReading(debugCards, debugQuestion));
+    }
+
+    setStage("result");
+  };
+
+  const debugDock = debugMode ? (
+    <DebugDock
+      onResult={jumpToOracleEnd}
+      onApi={generateDebugApiReading}
+      onFatum={() => goDebugStage("fatum")}
+      onArchivum={() => goDebugStage("archives")}
+      onBulla={() => goDebugStage("bulla")}
+      onClaves={() => goDebugStage("claves")}
+      onNoctem={() => goDebugStage("noctem")}
+      onDuodecim={() => goDebugStage("duodecim")}
+      onReset={restart}
+    />
+  ) : null;
+
   const withFond = (content) => (
     <>
       <PersistentFond />
       {content}
+      {debugDock}
     </>
   );
 
@@ -3180,11 +3341,31 @@ export default function App() {
   }
 
   return withFond(
-    <Background onClick={() => {
-      if (audioEnabled) startBackgroundMusic(backgroundMusicRef.current);
-      setStage("microphone");
-    }}>
+    <Background
+      onClick={() => {
+        if (debugMode) return;
+
+        if (audioEnabled) startBackgroundMusic(backgroundMusicRef.current);
+        setStage("microphone");
+      }}
+    >
       <AudioToggleButton enabled={audioEnabled} onToggle={toggleAudio} />
+
+      {debugMode ? (
+        <div className="flex h-full flex-col items-center justify-center px-6 text-center">
+          <button
+            type="button"
+            className="select-none border border-white bg-black/68 px-6 py-3 text-[12px] uppercase tracking-[0.2em] text-white backdrop-blur-md active:scale-95"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              jumpToOracleEnd();
+            }}
+          >
+            Oracle
+          </button>
+        </div>
+      ) : null}
     </Background>
   );
 }
