@@ -39,6 +39,348 @@ function preloadEssentialMedia() {
   const audio = new Audio("/audio/background.mp3?v=3");
   audio.preload = "auto";
 }
+
+function preloadHomeMedia() {
+  if (typeof window === "undefined") return Promise.resolve();
+
+  const videoSources = [
+    "/videos/cards/fond-graphique.mp4",
+    "/videos/revelation.mp4?v=10",
+    "/videos/oracle.mp4?v=5",
+    "/videos/oracle.mp4?v=6"
+  ];
+
+  const imageSources = [
+    "/images/revelation-final.png",
+    "/images/nox-icon.png",
+    "/images/ornament-separator.png",
+    "/images/fatum/calvaria.png",
+    "/images/fatum/manus.png",
+    "/images/fatum/maleficium.png",
+    "/images/fatum/oculus.png"
+  ];
+
+  const videoPromises = videoSources.map((source) =>
+    new Promise((resolve) => {
+      const video = document.createElement("video");
+      video.preload = "auto";
+      video.muted = true;
+      video.playsInline = true;
+      video.src = source;
+
+      const done = () => resolve();
+      video.addEventListener("canplaythrough", done, { once: true });
+      video.addEventListener("loadeddata", done, { once: true });
+      video.addEventListener("error", done, { once: true });
+      video.load();
+
+      window.setTimeout(done, 1800);
+    })
+  );
+
+  const imagePromises = imageSources.map((source) =>
+    new Promise((resolve) => {
+      const image = new Image();
+      image.onload = resolve;
+      image.onerror = resolve;
+      image.src = source;
+    })
+  );
+
+  const audioPromise = new Promise((resolve) => {
+    const audio = new Audio("/audio/background.mp3?v=3");
+    audio.preload = "auto";
+    audio.addEventListener("canplaythrough", resolve, { once: true });
+    audio.addEventListener("error", resolve, { once: true });
+    audio.load();
+    window.setTimeout(resolve, 1800);
+  });
+
+  return Promise.all([...videoPromises, ...imagePromises, audioPromise]);
+}
+
+const DEV_USERS = ["Mathieu", "Jonathan", "Jean-Philippe", "Rémi", "Brice", "Antoine", "Fred", "Johan"];
+const ROMAN_KEYS = ["I", "V", "X", "L", "C", "D", "M"];
+
+function DevLatinHome({ onStage, onVerbatim }) {
+  const [phase, setPhase] = useState("loading");
+  const [selectedUser, setSelectedUser] = useState("");
+  const [romanPass, setRomanPass] = useState("");
+  const [email, setEmail] = useState("");
+  const [notifications, setNotifications] = useState(true);
+  const [spaceLoading, setSpaceLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const minimum = new Promise((resolve) => window.setTimeout(resolve, 1350));
+
+    Promise.all([preloadHomeMedia(), minimum]).then(() => {
+      if (!cancelled) setPhase("users");
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const chooseUser = (userName) => {
+    setSelectedUser(userName);
+    setRomanPass("");
+    setEmail("");
+    setPhase("pass");
+  };
+
+  const addRoman = (symbol) => {
+    setRomanPass((value) => (value.length >= 8 ? value : `${value}${symbol}`));
+  };
+
+  const removeRoman = () => {
+    setRomanPass((value) => value.slice(0, -1));
+  };
+
+  const submitPass = () => {
+    if (romanPass.length < 5) return;
+    setPhase("email");
+  };
+
+  const submitEmail = () => {
+    const trimmed = email.trim();
+    if (!trimmed || !trimmed.includes("@")) return;
+
+    window.localStorage.setItem(
+      "nox:dev-user",
+      JSON.stringify({
+        name: selectedUser,
+        pass: romanPass,
+        email: trimmed,
+        notifications,
+        createdAt: new Date().toISOString()
+      })
+    );
+
+    setSpaceLoading(true);
+
+    window.setTimeout(() => {
+      setSpaceLoading(false);
+      setPhase("space");
+    }, 950);
+  };
+
+  const bottomNav = (
+    <div className="fixed bottom-[max(2.25rem,calc(env(safe-area-inset-bottom)+1.25rem))] left-0 right-0 z-30 text-black">
+      <ActionButtons
+        onIterum={() => onStage("result")}
+        onClaves={() => onStage("claves")}
+        onNoctem={() => onStage("noctem")}
+        onVerbatim={onVerbatim}
+        onDuodecim={() => onStage("duodecim")}
+        onBulla={() => onStage("bulla")}
+        onArchive={() => onStage("archives")}
+        onFatum={() => onStage("fatum")}
+        compact
+      />
+    </div>
+  );
+
+  return (
+    <main className="fixed inset-0 overflow-hidden bg-white text-black">
+      {phase === "loading" ? (
+        <motion.section
+          className="flex h-full flex-col items-center justify-center px-6 text-center"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 1.1, ease: "easeInOut" }}
+        >
+          <motion.h1
+            className="select-none text-5xl font-semibold tracking-[0.08em]"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1.25, ease: "easeInOut" }}
+          >
+            Nox.
+          </motion.h1>
+          <motion.p
+            className="mt-5 select-none text-[10px] uppercase tracking-[0.22em] text-black/40"
+            animate={{ opacity: [0.35, 0.85, 0.35] }}
+            transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+          >
+            Onerat.
+          </motion.p>
+        </motion.section>
+      ) : null}
+
+      {phase === "users" ? (
+        <motion.section
+          className="flex h-full flex-col items-center justify-center px-6 pb-24 text-center"
+          initial={{ opacity: 0, filter: "blur(12px)" }}
+          animate={{ opacity: 1, filter: "blur(0px)" }}
+          transition={{ duration: 1.1, ease: "easeInOut" }}
+        >
+          <p className="mb-7 select-none text-[10px] uppercase tracking-[0.22em] text-black/38">Socius.</p>
+          <div className="grid w-full max-w-[17rem] grid-cols-1 gap-2">
+            {DEV_USERS.map((userName) => (
+              <button
+                key={userName}
+                type="button"
+                className="select-none border border-black/28 bg-white px-4 py-2.5 text-sm tracking-[0.08em] active:bg-black active:text-white"
+                onClick={() => chooseUser(userName)}
+              >
+                {userName}
+              </button>
+            ))}
+          </div>
+        </motion.section>
+      ) : null}
+
+      {phase === "pass" ? (
+        <motion.section
+          className="flex h-full flex-col items-center justify-center px-6 pb-24 text-center"
+          initial={{ opacity: 0, filter: "blur(12px)" }}
+          animate={{ opacity: 1, filter: "blur(0px)" }}
+          transition={{ duration: 0.85, ease: "easeInOut" }}
+        >
+          <p className="select-none text-[10px] uppercase tracking-[0.22em] text-black/38">Signum.</p>
+          <h2 className="mt-3 select-none text-2xl font-semibold tracking-[0.08em]">{selectedUser}</h2>
+          <div className="mt-6 flex h-10 items-center justify-center gap-1.5">
+            {Array.from({ length: Math.max(8, romanPass.length) }).slice(0, 8).map((_, index) => (
+              <span
+                key={`roman-dot-${index}`}
+                className={[
+                  "flex h-7 w-7 items-center justify-center border text-[10px] tracking-[0.08em]",
+                  romanPass[index] ? "border-black bg-black text-white" : "border-black/18 text-transparent"
+                ].join(" ")}
+              >
+                {romanPass[index] || "·"}
+              </span>
+            ))}
+          </div>
+          <p className="mt-2 select-none text-[9px] uppercase tracking-[0.18em] text-black/35">V–VIII.</p>
+
+          <div className="mt-7 grid grid-cols-4 gap-2">
+            {ROMAN_KEYS.map((symbol) => (
+              <button
+                key={symbol}
+                type="button"
+                className="h-12 w-12 select-none border border-black bg-white text-lg tracking-[0.08em] active:bg-black active:text-white"
+                onClick={() => addRoman(symbol)}
+              >
+                {symbol}
+              </button>
+            ))}
+            <button
+              type="button"
+              className="h-12 w-12 select-none border border-black/35 bg-white text-xs uppercase tracking-[0.08em] text-black/52 active:bg-black active:text-white"
+              onClick={removeRoman}
+            >
+              Del.
+            </button>
+          </div>
+
+          <button
+            type="button"
+            className="mt-7 select-none border border-black bg-black px-5 py-2 text-[10px] uppercase tracking-[0.16em] text-white disabled:opacity-25"
+            disabled={romanPass.length < 5}
+            onClick={submitPass}
+          >
+            Valida.
+          </button>
+        </motion.section>
+      ) : null}
+
+      {phase === "email" ? (
+        <motion.section
+          className="flex h-full flex-col items-center justify-center px-6 pb-24 text-center"
+          initial={{ opacity: 0, filter: "blur(12px)" }}
+          animate={{ opacity: 1, filter: "blur(0px)" }}
+          transition={{ duration: 0.85, ease: "easeInOut" }}
+        >
+          <p className="select-none text-[10px] uppercase tracking-[0.22em] text-black/38">Epistula.</p>
+          <input
+            className="mt-6 w-full max-w-[18rem] border border-black bg-white px-4 py-3 text-center text-sm outline-none"
+            value={email}
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            placeholder="mail"
+            onChange={(event) => setEmail(event.target.value)}
+          />
+
+          <div className="mt-6 flex items-center justify-center gap-3">
+            <p className="select-none text-[10px] uppercase tracking-[0.18em] text-black/38">Nuntii?</p>
+            <button
+              type="button"
+              className={[
+                "select-none border px-3 py-1 text-[9px] uppercase tracking-[0.14em]",
+                notifications ? "border-black bg-black text-white" : "border-black/25 text-black/45"
+              ].join(" ")}
+              onClick={() => setNotifications(true)}
+            >
+              Ita.
+            </button>
+            <button
+              type="button"
+              className={[
+                "select-none border px-3 py-1 text-[9px] uppercase tracking-[0.14em]",
+                !notifications ? "border-black bg-black text-white" : "border-black/25 text-black/45"
+              ].join(" ")}
+              onClick={() => setNotifications(false)}
+            >
+              Non.
+            </button>
+          </div>
+
+          <p className="mt-5 max-w-[16rem] select-none text-[10px] leading-5 text-black/38">Signum mittetur.</p>
+
+          <button
+            type="button"
+            className="mt-7 select-none border border-black bg-black px-5 py-2 text-[10px] uppercase tracking-[0.16em] text-white disabled:opacity-25"
+            disabled={!email.trim().includes("@")}
+            onClick={submitEmail}
+          >
+            Scribere.
+          </button>
+        </motion.section>
+      ) : null}
+
+      {spaceLoading ? (
+        <motion.div
+          className="fixed inset-0 z-40 flex flex-col items-center justify-center bg-white text-center text-black"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.65, ease: "easeInOut" }}
+        >
+          <p className="select-none text-[10px] uppercase tracking-[0.22em] text-black/42">Onerat.</p>
+        </motion.div>
+      ) : null}
+
+      {phase === "space" ? (
+        <motion.section
+          className="flex h-full flex-col items-center justify-center px-6 pb-24 text-center"
+          initial={{ opacity: 0, filter: "blur(12px)" }}
+          animate={{ opacity: 1, filter: "blur(0px)" }}
+          transition={{ duration: 0.85, ease: "easeInOut" }}
+        >
+          <p className="select-none text-[10px] uppercase tracking-[0.22em] text-black/38">Intratum.</p>
+          <h2 className="mt-3 select-none text-3xl font-semibold tracking-[0.08em]">{selectedUser}</h2>
+          <div className="mt-8 grid w-full max-w-[18rem] grid-cols-2 gap-3">
+            <div className="border border-black/20 p-4">
+              <p className="text-[9px] uppercase tracking-[0.18em] text-black/38">Fatum.</p>
+              <p className="mt-2 text-2xl">{getFatumScore(createFallbackReading(deck.slice(0, DRAW_TARGET), selectedUser), selectedUser)}</p>
+            </div>
+            <div className="border border-black/20 p-4">
+              <p className="text-[9px] uppercase tracking-[0.18em] text-black/38">Archivum.</p>
+              <p className="mt-2 text-2xl">—</p>
+            </div>
+          </div>
+        </motion.section>
+      ) : null}
+
+      {bottomNav}
+    </main>
+  );
+}
+
 function PersistentFond() {
   return (
     <video
@@ -3303,32 +3645,13 @@ export default function App() {
 
   if (debugMode) {
     return (
-      <main className="fixed inset-0 overflow-hidden bg-white text-black">
-        <div className="flex h-full flex-col items-center justify-center px-6 text-center">
-          <p className="select-none text-[11px] uppercase tracking-[0.22em] text-black/42">Nox</p>
-          <h1 className="mt-3 select-none text-4xl font-semibold tracking-[0.08em]">Dev.</h1>
-          <p className="mt-5 max-w-[18rem] select-none text-sm leading-6 text-black/45">
-            Accès direct aux écrans post-oracle.
-          </p>
-        </div>
-
-        <div className="fixed bottom-[max(2.25rem,calc(env(safe-area-inset-bottom)+1.25rem))] left-0 right-0 z-30 text-black">
-          <ActionButtons
-            onIterum={() => goDevHomeStage("result")}
-            onClaves={() => goDevHomeStage("claves")}
-            onNoctem={() => goDevHomeStage("noctem")}
-            onVerbatim={() => {
-              const { debugQuestion, debugReading } = seedDebugReading();
-              downloadVerbatimPdf(debugReading, debugQuestion);
-            }}
-            onDuodecim={() => goDevHomeStage("duodecim")}
-            onBulla={() => goDevHomeStage("bulla")}
-            onArchive={() => goDevHomeStage("archives")}
-            onFatum={() => goDevHomeStage("fatum")}
-            compact
-          />
-        </div>
-      </main>
+      <DevLatinHome
+        onStage={goDevHomeStage}
+        onVerbatim={() => {
+          const { debugQuestion, debugReading } = seedDebugReading();
+          downloadVerbatimPdf(debugReading, debugQuestion);
+        }}
+      />
     );
   }
 
