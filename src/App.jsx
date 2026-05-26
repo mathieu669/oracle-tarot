@@ -3083,7 +3083,7 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
             <button
               key={`reel-${index}`}
               type="button"
-              className="relative overflow-hidden border-2 border-black bg-white active:scale-[0.985]"
+              className="relative overflow-hidden border-x border-b-2 border-t border-x-black border-b-black border-t-black/18 bg-white active:scale-[0.985]"
               onClick={() => {
                 if (card && hasDrawn && !spinning) setSelectedCard(card);
               }}
@@ -3130,7 +3130,7 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
       <div className="mx-auto mt-7 grid max-w-[430px] grid-cols-3 gap-3">
         <button
           type="button"
-          className="col-start-2 flex aspect-square w-full -translate-y-full select-none items-center justify-center bg-transparent text-black active:scale-95 disabled:opacity-25"
+          className="col-start-2 flex aspect-square w-full select-none items-center justify-center bg-transparent text-black active:scale-95 disabled:opacity-25"
           onClick={spin}
           disabled={spinning || hasDrawn}
           aria-label="Tirer"
@@ -3151,7 +3151,7 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
 
       {displayedReading ? (
         <motion.section
-          className="mx-auto mt-7 max-w-[430px] border border-black bg-white p-5 text-center"
+          className="mx-auto mt-7 max-w-[430px] bg-white p-5 text-center"
           initial={{ opacity: 0, y: 18, filter: "blur(8px)" }}
           animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
           transition={{ duration: 0.85, ease: "easeInOut" }}
