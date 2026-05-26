@@ -1196,28 +1196,24 @@ function fileToArchivePhotoDataUrl(file) {
 }
 
 function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, onArchive, onFatum }) {
-  const [micActive, setMicActive] = useState(false);
   const [status, setStatus] = useState("idle");
   const [photoDataUrl, setPhotoDataUrl] = useState("");
   const [photoStatus, setPhotoStatus] = useState("idle");
   const [textEntryOpen, setTextEntryOpen] = useState(false);
   const [textEntryValue, setTextEntryValue] = useState("");
-  const recognitionRef = useRef(null);
-  const transcriptRef = useRef("");
-  const finalizedRef = useRef(false);
   const fileInputRef = useRef(null);
 
-  const archiveBulla = async (message) => {
+  const archiveBulla = async (message = "") => {
     const trimmed = message.trim();
 
     if (!trimmed && !photoDataUrl) {
       setStatus("empty");
-      return;
+      return false;
     }
 
     try {
       await saveBullaArchive({
-        message: trimmed || "Image sans légende.",
+        message: trimmed,
         photoDataUrl,
         question: question || "",
         oracleSentence: reading?.oracleSentence || "",
@@ -1228,119 +1224,12 @@ function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
       setStatus("archived");
     } catch {
       setStatus("error");
-      return;
+      return false;
     }
+
     setPhotoStatus("idle");
     setPhotoDataUrl("");
-  };
-
-  const finalizeBulla = () => {
-    if (finalizedRef.current) return;
-    finalizedRef.current = true;
-
-    setMicActive(false);
-
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.abort();
-      } catch {
-        // Ignore abort errors.
-      }
-    }
-
-    const message = transcriptRef.current || "";
-    recognitionRef.current = null;
-    archiveBulla(message);
-  };
-
-  const startBullaRecording = (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-
-    if (micActive) return;
-
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
-      setStatus("error");
-      return;
-    }
-
-    transcriptRef.current = "";
-    finalizedRef.current = false;
-    setStatus("idle");
-
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.abort();
-      } catch {
-        // Ignore abort errors.
-      }
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = "fr-FR";
-    recognition.continuous = true;
-    recognition.interimResults = true;
-
-    recognition.onstart = () => {
-      setMicActive(true);
-    };
-
-    recognition.onresult = (speechEvent) => {
-      let finalText = "";
-      let interimText = "";
-
-      for (let i = 0; i < speechEvent.results.length; i += 1) {
-        const transcript = speechEvent.results[i][0].transcript;
-
-        if (speechEvent.results[i].isFinal) {
-          finalText += transcript;
-        } else {
-          interimText += transcript;
-        }
-      }
-
-      transcriptRef.current = `${finalText} ${interimText}`.trim();
-    };
-
-    recognition.onerror = () => {
-      setMicActive(false);
-      setStatus("error");
-      recognitionRef.current = null;
-    };
-
-    recognition.onend = () => {
-      if (!finalizedRef.current && (transcriptRef.current.trim() || photoDataUrl)) {
-        finalizeBulla();
-      } else if (!finalizedRef.current) {
-        setMicActive(false);
-        recognitionRef.current = null;
-      }
-    };
-
-    recognitionRef.current = recognition;
-
-    try {
-      recognition.start();
-    } catch {
-      setMicActive(false);
-      setStatus("error");
-      recognitionRef.current = null;
-    }
-  };
-
-  const stopBullaRecording = (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-
-    if (!micActive || !recognitionRef.current) return;
-
-    try {
-      recognitionRef.current.stop();
-    } catch {
-      finalizeBulla();
-    }
+    return true;
   };
 
   const selectPhoto = () => {
@@ -1368,22 +1257,17 @@ function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
   };
 
   const saveTypedBulla = async () => {
-    await archiveBulla(textEntryValue);
-    setTextEntryValue("");
-    setTextEntryOpen(false);
+    const archived = await archiveBulla(textEntryValue);
+
+    if (archived) {
+      setTextEntryValue("");
+      setTextEntryOpen(false);
+    }
   };
 
-  useEffect(() => {
-    return () => {
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.abort();
-        } catch {
-          // Ignore abort errors.
-        }
-      }
-    };
-  }, []);
+  const savePhotoOnlyBulla = async () => {
+    await archiveBulla("");
+  };
 
   const statusText = {
     idle: "",
@@ -1406,24 +1290,15 @@ function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
       animate={{ opacity: 1 }}
       transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
     >
+      <h1 className="fixed left-0 right-0 top-[max(3.9rem,calc(env(safe-area-inset-top)+3.2rem))] z-20 text-center text-3xl font-semibold tracking-[0.12em] text-white">Bulla.</h1>
+
       <div className="flex flex-col items-center justify-center gap-5">
         <div className="flex items-center justify-center gap-5">
           <button
             type="button"
-            aria-label="Bulla microphone"
-            onPointerDown={startBullaRecording}
-            onPointerUp={stopBullaRecording}
-            onPointerCancel={stopBullaRecording}
-            className="touch-none"
-          >
-            <MicrophoneIcon active={micActive} />
-          </button>
-
-          <button
-            type="button"
             aria-label="Écrire un message"
             onClick={() => setTextEntryOpen(true)}
-            className="flex h-12 w-12 select-none items-center justify-center rounded-full border border-white/55 bg-transparent text-white active:scale-95"
+            className="flex h-12 w-12 select-none items-center justify-center border border-white/55 bg-transparent text-white active:scale-95"
           >
             <svg width="23" height="23" viewBox="0 0 48 48" fill="none" aria-hidden="true">
               <path d="M12 13H36" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
@@ -1431,19 +1306,19 @@ function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
               <path d="M12 35H27" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
             </svg>
           </button>
-        </div>
 
-        <button
-          type="button"
-          aria-label="Ajouter une image"
-          onClick={selectPhoto}
-          className="flex h-12 w-12 select-none items-center justify-center border border-white/55 bg-transparent text-white active:scale-95"
-        >
-          <svg width="25" height="25" viewBox="0 0 48 48" fill="none" aria-hidden="true">
-            <path d="M8 14H18L21 10H27L30 14H40V38H8V14Z" stroke="currentColor" strokeWidth="2.6" strokeLinejoin="round" />
-            <circle cx="24" cy="26" r="7" stroke="currentColor" strokeWidth="2.6" />
-          </svg>
-        </button>
+          <button
+            type="button"
+            aria-label="Ajouter une image"
+            onClick={selectPhoto}
+            className="flex h-12 w-12 select-none items-center justify-center border border-white/55 bg-transparent text-white active:scale-95"
+          >
+            <svg width="25" height="25" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+              <path d="M8 14H18L21 10H27L30 14H40V38H8V14Z" stroke="currentColor" strokeWidth="2.6" strokeLinejoin="round" />
+              <circle cx="24" cy="26" r="7" stroke="currentColor" strokeWidth="2.6" />
+            </svg>
+          </button>
+        </div>
 
         <input
           ref={fileInputRef}
@@ -1454,11 +1329,21 @@ function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
         />
 
         {photoDataUrl ? (
-          <img
-            src={photoDataUrl}
-            alt=""
-            className="h-20 w-20 border border-white/30 object-cover"
-          />
+          <div className="flex flex-col items-center gap-3">
+            <img
+              src={photoDataUrl}
+              alt=""
+              className="h-20 w-20 border border-white/30 object-cover"
+            />
+
+            <button
+              type="button"
+              className="border border-white px-4 py-2 text-[10px] uppercase tracking-[0.16em] text-white"
+              onClick={savePhotoOnlyBulla}
+            >
+              Scribere.
+            </button>
+          </div>
         ) : null}
 
         {photoText ? (
