@@ -2932,7 +2932,7 @@ function makeReelCards(finalCard, offset = 0) {
 
   const reel = [];
 
-  for (let index = 0; index < 16; index += 1) {
+  for (let index = 0; index < 42; index += 1) {
     reel.push(shuffled[index % shuffled.length]);
   }
 
@@ -3037,7 +3037,7 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
     setLoadingReading(false);
     setReels(nextReels);
 
-    [1700, 2450, 3250].forEach((delay, index) => {
+    [5600, 6350, 7000].forEach((delay, index) => {
       window.setTimeout(() => {
         setReels((current) =>
           current.map((reel, reelIndex) =>
@@ -3051,7 +3051,7 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
       setFinalCards(picked);
       setSpinning(false);
       callReadingApi(picked);
-    }, 3550);
+    }, 7250);
   };
 
   const displayedReading = reading || (finalCards.length === 3 ? createFallbackReading(finalCards, question) : null);
@@ -3067,7 +3067,8 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
 
       <div className="mx-auto grid max-w-[430px] grid-cols-3 gap-3">
         {reels.map((reel, index) => {
-          const duration = [1.55, 2.25, 3.0][index];
+          const duration = [5.6, 6.35, 7.0][index];
+          const targetY = -((reel.target * 100) / reel.cards.length);
 
           return (
             <button
@@ -3081,15 +3082,21 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
             >
               <div className="aspect-[9/16] w-full overflow-hidden">
                 <motion.div
-                  animate={{ y: `${-reel.target * 100}%` }}
-                  transition={{ duration, ease: [0.16, 0.84, 0.28, 1] }}
+                  className="w-full"
+                  style={{ height: `${reel.cards.length * 100}%` }}
+                  animate={{ y: `${targetY}%` }}
+                  transition={{
+                    duration,
+                    ease: [0.08, 0.82, 0.18, 1]
+                  }}
                 >
                   {reel.cards.map((card, cardIndex) => (
                     <img
                       key={`${card.slug || card.name}-${cardIndex}`}
                       src={card.imageFace}
                       alt={card.name}
-                      className="aspect-[9/16] w-full object-cover"
+                      className="w-full object-cover"
+                      style={{ height: `${100 / reel.cards.length}%` }}
                       draggable={false}
                     />
                   ))}
