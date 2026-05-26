@@ -192,6 +192,7 @@ function DevLatinHome({ onStage, onVerbatim }) {
         onBulla={() => onStage("bulla")}
         onArchive={() => onStage("archives")}
         onFatum={() => onStage("fatum")}
+        active=""
         compact
       />
     </div>
@@ -567,12 +568,22 @@ function ActionButtons({
   onBulla,
   onArchive,
   onFatum,
+  active = "",
   compact = false
 }) {
   const [open, setOpen] = useState(false);
+  const [activeLabel, setActiveLabel] = useState(active);
 
-  const sectionClass = "mb-1.5 text-center text-[8px] uppercase tracking-[0.22em] text-black/36";
-  const itemClass = "block w-full select-none px-3 py-1 text-center text-[9px] uppercase tracking-[0.16em] text-black/82 active:bg-black active:text-white disabled:opacity-22";
+  useEffect(() => {
+    setActiveLabel(active);
+  }, [active]);
+
+  const sectionClass = "mb-1 border-b border-black/20 pb-1 text-center text-[9px] uppercase tracking-[0.16em] text-black/68";
+  const itemClass = (label) =>
+    [
+      "block w-full select-none px-3 py-1 text-center text-[9px] uppercase tracking-[0.16em] active:bg-black active:text-white disabled:opacity-22",
+      activeLabel === label ? "text-black" : "text-black/38"
+    ].join(" ");
 
   const groups = [
     {
@@ -613,7 +624,7 @@ function ActionButtons({
       <button
         type="button"
         aria-label="Menu"
-        className="flex h-10 w-10 select-none items-center justify-center bg-white/18 backdrop-blur-[2px] active:scale-95"
+        className="flex h-10 w-10 select-none items-center justify-center bg-transparent active:scale-95"
         onClick={(event) => {
           event.stopPropagation();
           setOpen((value) => !value);
@@ -631,17 +642,18 @@ function ActionButtons({
           onClick={(event) => event.stopPropagation()}
         >
           {groups.map((group) => (
-            <div key={group.title} className="mb-3 last:mb-0">
+            <div key={group.title} className="mb-6 last:mb-0">
               <p className={sectionClass}>{group.title}</p>
-              <div className="space-y-0.5">
+              <div className="mt-1 space-y-0.5">
                 {group.items.map(([label, action]) => (
                   <button
                     key={label}
                     type="button"
                     disabled={!action}
-                    className={itemClass}
+                    className={itemClass(label)}
                     onClick={() => {
                       if (!action) return;
+                      setActiveLabel(label);
                       setOpen(false);
                       action();
                     }}
@@ -694,7 +706,7 @@ function ClavesScreen({ reading, question, onIterum, onNoctem, onVerbatim, onDuo
       </div>
 
       <div className="fixed bottom-[max(2.25rem,calc(env(safe-area-inset-bottom)+1.25rem))] left-0 right-0 z-30 text-black">
-        <ActionButtons onIterum={onIterum} onNoctem={onNoctem} onVerbatim={onVerbatim} onDuodecim={onDuodecim} onBulla={onBulla} onArchive={onArchive} onFatum={onFatum} compact />
+        <ActionButtons onIterum={onIterum} onNoctem={onNoctem} onVerbatim={onVerbatim} onDuodecim={onDuodecim} onBulla={onBulla} onArchive={onArchive} onFatum={onFatum} active="Claves" compact />
       </div>
     </motion.main>
   );
@@ -751,7 +763,7 @@ function NoctemScreen({ reading, question, onIterum, onClaves, onVerbatim, onDuo
       </div>
 
       <div className="fixed bottom-[max(2.25rem,calc(env(safe-area-inset-bottom)+1.25rem))] left-0 right-0 z-30 text-white">
-        <ActionButtons onIterum={onIterum} onClaves={onClaves} onVerbatim={onVerbatim} onDuodecim={onDuodecim} onBulla={onBulla} onArchive={onArchive} onFatum={onFatum} compact />
+        <ActionButtons onIterum={onIterum} onClaves={onClaves} onVerbatim={onVerbatim} onDuodecim={onDuodecim} onBulla={onBulla} onArchive={onArchive} onFatum={onFatum} active="Noctem" compact />
       </div>
 
       {selectedCard ? (
@@ -1128,7 +1140,7 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
       ) : null}
 
       <div className="fixed bottom-[max(2.25rem,calc(env(safe-area-inset-bottom)+1.25rem))] left-0 right-0 z-30">
-        <ActionButtons onIterum={onIterum} onClaves={onClaves} onNoctem={onNoctem} onVerbatim={onVerbatim} onBulla={onBulla} onArchive={onArchive} onFatum={onFatum} compact />
+        <ActionButtons onIterum={onIterum} onClaves={onClaves} onNoctem={onNoctem} onVerbatim={onVerbatim} onBulla={onBulla} onArchive={onArchive} onFatum={onFatum} active="Duodecim" compact />
       </div>
     </motion.main>
   );
@@ -1494,7 +1506,7 @@ function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
       ) : null}
 
       <div className="fixed bottom-[max(2.25rem,calc(env(safe-area-inset-bottom)+1.25rem))] left-0 right-0 z-30">
-        <ActionButtons onIterum={onIterum} onClaves={onClaves} onNoctem={onNoctem} onVerbatim={onVerbatim} onDuodecim={onDuodecim} onArchive={onArchive} onFatum={onFatum} compact />
+        <ActionButtons onIterum={onIterum} onClaves={onClaves} onNoctem={onNoctem} onVerbatim={onVerbatim} onDuodecim={onDuodecim} onArchive={onArchive} onFatum={onFatum} active="Bulla" compact />
       </div>
     </motion.main>
   );
@@ -1928,6 +1940,7 @@ function ArchivesScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
           onDuodecim={onDuodecim}
           onBulla={onBulla}
           onFatum={onFatum}
+          active="Archivum"
           compact
         />
       </div>
@@ -2551,6 +2564,7 @@ function FatumScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
           onDuodecim={onDuodecim}
           onBulla={onBulla}
           onArchive={onArchive}
+          active="Fatum"
           compact
         />
       </div>
@@ -3156,6 +3170,7 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
         onBulla={onBulla}
         onArchive={onArchive}
         onFatum={onFatum}
+        active="Divinatio"
         compact
       />
 
@@ -3230,7 +3245,7 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
 
       {loadingReading ? (
         <motion.p
-          className="mt-5 text-center text-[10px] uppercase tracking-[0.22em] text-black/38"
+          className="mt-2 text-center text-[10px] uppercase tracking-[0.22em] text-black/38"
           animate={{ opacity: [0.35, 0.85, 0.35] }}
           transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
         >
@@ -3240,7 +3255,7 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
 
       {displayedReading ? (
         <motion.section
-          className="mx-auto mt-5 max-w-[430px] bg-white p-5 text-center"
+          className="mx-auto mt-2 max-w-[430px] bg-white p-5 text-center"
           initial={{ opacity: 0, y: 18, filter: "blur(8px)" }}
           animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
           transition={{ duration: 0.85, ease: "easeInOut" }}
