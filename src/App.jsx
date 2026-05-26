@@ -2893,6 +2893,16 @@ function FatumIndicator({ score }) {
 }
 
 
+function getCardStaticFront(card) {
+  return (
+    card?.imageBack ||
+    card?.backImage ||
+    card?.rectoImage ||
+    card?.frontImage ||
+    card?.imageFace
+  );
+}
+
 function DharmaWheelIcon() {
   return (
     <svg width="30" height="30" viewBox="0 0 64 64" fill="none" aria-hidden="true">
@@ -2951,6 +2961,7 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
     }));
   });
   const [spinning, setSpinning] = useState(false);
+  const [hasDrawn, setHasDrawn] = useState(false);
   const [finalCards, setFinalCards] = useState([]);
   const [reading, setReading] = useState(null);
   const [loadingReading, setLoadingReading] = useState(false);
@@ -3013,7 +3024,7 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
   };
 
   const spin = () => {
-    if (spinning) return;
+    if (spinning || hasDrawn) return;
 
     const picked = [];
     while (picked.length < 3) {
@@ -3031,6 +3042,7 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
       };
     });
 
+    setHasDrawn(true);
     setSpinning(true);
     setFinalCards([]);
     setReading(null);
@@ -3069,6 +3081,8 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
         {reels.map((reel, index) => {
           const duration = [5.6, 6.35, 7.0][index];
           const targetY = -((reel.target * 100) / reel.cards.length);
+          const card = finalCards[index] || reel.finalCard;
+          const showStaticFront = !hasDrawn && !spinning;
 
           return (
             <button
@@ -3076,43 +3090,54 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
               type="button"
               className="relative overflow-hidden border border-black/18 bg-white active:scale-[0.985]"
               onClick={() => {
-                const card = finalCards[index] || reel.finalCard;
-                if (card && !spinning) setSelectedCard(card);
+                if (card && hasDrawn && !spinning) setSelectedCard(card);
               }}
             >
-              <div className="aspect-[9/16] w-full overflow-hidden">
-                <motion.div
-                  className="w-full"
-                  style={{ height: `${reel.cards.length * 100}%` }}
-                  animate={{ y: `${targetY}%` }}
-                  transition={{
-                    duration,
-                    ease: [0.08, 0.82, 0.18, 1]
-                  }}
-                >
-                  {reel.cards.map((card, cardIndex) => (
-                    <img
-                      key={`${card.slug || card.name}-${cardIndex}`}
-                      src={card.imageFace}
-                      alt={card.name}
-                      className="w-full object-cover"
-                      style={{ height: `${100 / reel.cards.length}%` }}
-                      draggable={false}
-                    />
-                  ))}
-                </motion.div>
+              <div className="relative aspect-[9/16] w-full overflow-hidden">
+                {showStaticFront ? (
+                  <img
+                    src={getCardStaticFront(card)}
+                    alt={card.name}
+                    className="h-full w-full object-cover"
+                    draggable={false}
+                  />
+                ) : (
+                  <motion.div
+                    className="w-full"
+                    style={{ height: `${reel.cards.length * 100}%` }}
+                    animate={{ y: `${targetY}%` }}
+                    transition={{
+                      duration,
+                      ease: [0.08, 0.82, 0.18, 1]
+                    }}
+                  >
+                    {reel.cards.map((slotCard, cardIndex) => (
+                      <img
+                        key={`${slotCard.slug || slotCard.name}-${cardIndex}`}
+                        src={slotCard.imageFace}
+                        alt={slotCard.name}
+                        className="w-full object-cover"
+                        style={{ height: `${100 / reel.cards.length}%` }}
+                        draggable={false}
+                      />
+                    ))}
+                  </motion.div>
+                )}
+
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-[27%] bg-gradient-to-b from-white/55 via-white/18 to-transparent mix-blend-screen" />
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[31%] bg-gradient-to-t from-black/34 via-black/12 to-transparent" />
               </div>
             </button>
           );
         })}
       </div>
 
-      <div className="mt-7 flex justify-center">
+      <div className="mx-auto mt-7 grid max-w-[430px] grid-cols-3 gap-3">
         <button
           type="button"
-          className="flex h-12 min-w-[8rem] select-none items-center justify-center border border-black bg-white px-6 text-black active:bg-black active:text-white disabled:opacity-30"
+          className="col-start-2 flex aspect-square w-full select-none items-center justify-center border border-black bg-white text-black active:bg-black active:text-white disabled:opacity-25"
           onClick={spin}
-          disabled={spinning}
+          disabled={spinning || hasDrawn}
           aria-label="Tirer"
         >
           <DharmaWheelIcon />
