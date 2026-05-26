@@ -2895,11 +2895,11 @@ function FatumIndicator({ score }) {
 
 function getCardStaticFront(card) {
   return (
-    card?.imageBack ||
-    card?.backImage ||
+    card?.imageFace ||
     card?.rectoImage ||
     card?.frontImage ||
-    card?.imageFace
+    card?.imageBack ||
+    card?.backImage
   );
 }
 
