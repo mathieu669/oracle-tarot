@@ -376,7 +376,7 @@ function DevLatinHome({ onStage, onVerbatim }) {
         </motion.section>
       ) : null}
 
-      {bottomNav}
+      {phase !== "loading" && phase !== "users" ? bottomNav : null}
     </main>
   );
 }
@@ -556,8 +556,8 @@ function ActionButtons({
 }) {
   const [open, setOpen] = useState(false);
 
-  const sectionClass = "mb-2 text-center text-[8px] uppercase tracking-[0.22em] text-current/35";
-  const itemClass = "block w-full select-none px-3 py-1 text-center text-[9px] uppercase tracking-[0.16em] text-current/80 active:bg-current active:text-white disabled:opacity-22";
+  const sectionClass = "mb-1.5 text-center text-[8px] uppercase tracking-[0.22em] text-black/36";
+  const itemClass = "block w-full select-none px-3 py-1 text-center text-[9px] uppercase tracking-[0.16em] text-black/82 active:bg-black active:text-white disabled:opacity-22";
 
   const groups = [
     {
@@ -594,11 +594,11 @@ function ActionButtons({
   ];
 
   return (
-    <div className="relative flex flex-col items-center justify-center">
+    <div className="fixed left-1/2 top-[max(0.62rem,env(safe-area-inset-top))] z-[90] -translate-x-1/2">
       <button
         type="button"
         aria-label="Menu"
-        className="flex h-9 w-9 select-none items-center justify-center active:scale-95"
+        className="flex h-10 w-10 select-none items-center justify-center bg-white/18 backdrop-blur-[2px] active:scale-95"
         onClick={(event) => {
           event.stopPropagation();
           setOpen((value) => !value);
@@ -609,10 +609,7 @@ function ActionButtons({
 
       {open ? (
         <motion.div
-          className={[
-            "absolute left-1/2 top-11 z-50 w-[11.5rem] -translate-x-1/2 border bg-white/96 px-3 py-3 text-black shadow-2xl backdrop-blur-md",
-            compact ? "border-black/30" : "border-current/35"
-          ].join(" ")}
+          className="absolute left-1/2 top-12 z-[95] w-[11.5rem] -translate-x-1/2 border border-black/18 bg-white/84 px-3 py-3 text-black shadow-2xl backdrop-blur-md"
           initial={{ opacity: 0, y: -8, filter: "blur(8px)" }}
           animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
           transition={{ duration: 0.35, ease: "easeInOut" }}
@@ -3135,19 +3132,17 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
       animate={{ opacity: 1 }}
       transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
     >
-      <div className="mb-3 flex justify-center text-black">
-        <ActionButtons
-          onIterum={() => {}}
-          onClaves={onClaves}
-          onNoctem={onNoctem}
-          onVerbatim={onVerbatim}
-          onDuodecim={onDuodecim}
-          onBulla={onBulla}
-          onArchive={onArchive}
-          onFatum={onFatum}
-          compact
-        />
-      </div>
+      <ActionButtons
+        onIterum={() => {}}
+        onClaves={onClaves}
+        onNoctem={onNoctem}
+        onVerbatim={onVerbatim}
+        onDuodecim={onDuodecim}
+        onBulla={onBulla}
+        onArchive={onArchive}
+        onFatum={onFatum}
+        compact
+      />
 
       <h1 className="mb-6 text-center text-3xl font-semibold tracking-[0.12em]">Divinatio.</h1>
 
