@@ -2893,14 +2893,10 @@ function FatumIndicator({ score }) {
 }
 
 
-function getCardStaticFront(card) {
-  return (
-    card?.imageFace ||
-    card?.rectoImage ||
-    card?.frontImage ||
-    card?.imageBack ||
-    card?.backImage
-  );
+const DIVINATIO_DEFAULT_FACE = "/images/fond-graphique.jpg";
+
+function getCardStaticFront() {
+  return DIVINATIO_DEFAULT_FACE;
 }
 
 function DharmaWheelIcon() {
@@ -2988,9 +2984,8 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
     const activeQuestion = question || "Question silencieuse";
     const fallback = createFallbackReading(cards, activeQuestion);
 
-    setReading(fallback);
+    setReading(null);
     setLoadingReading(true);
-    onReadingReady?.(cards, fallback, activeQuestion);
 
     try {
       const response = await fetch("/api/reading", {
@@ -3066,7 +3061,7 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
     }, 7250);
   };
 
-  const displayedReading = reading || (finalCards.length === 3 ? createFallbackReading(finalCards, question) : null);
+  const displayedReading = reading;
 
   return (
     <motion.main
@@ -3096,7 +3091,7 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
               <div className="relative aspect-[9/16] w-full overflow-hidden">
                 {showStaticFront ? (
                   <img
-                    src={getCardStaticFront(card)}
+                    src={getCardStaticFront()}
                     alt={card.name}
                     className="h-full w-full object-cover"
                     draggable={false}
@@ -3150,7 +3145,7 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
           animate={{ opacity: [0.35, 0.85, 0.35] }}
           transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
         >
-          Onerat.
+          Oraculum.
         </motion.p>
       ) : null}
 
