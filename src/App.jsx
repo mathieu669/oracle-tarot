@@ -554,29 +554,94 @@ function ActionButtons({
   onFatum,
   compact = false
 }) {
-  const buttonClass = [
-    "inline-flex min-w-[1.35rem] select-none items-center justify-center border border-current bg-transparent text-center tracking-[0.13em] uppercase backdrop-blur-md active:scale-95",
-    compact ? "px-1 py-0.5 text-[6px]" : "px-1.5 py-1 text-[6px]"
-  ].join(" ");
+  const [open, setOpen] = useState(false);
 
-  const items = [
-    ["Divinatio", onIterum],
-    ["Claves", onClaves],
-    ["Noctem", onNoctem],
-    ["Verbatim", onVerbatim],
-    ["Duodecim", onDuodecim],
-    ["Bulla", onBulla],
-    ["Archivum", onArchive],
-    ["Fatum", onFatum]
-  ].filter(([, action]) => Boolean(action));
+  const sectionClass = "mb-2 text-center text-[8px] uppercase tracking-[0.22em] text-current/35";
+  const itemClass = "block w-full select-none px-3 py-1 text-center text-[9px] uppercase tracking-[0.16em] text-current/80 active:bg-current active:text-white disabled:opacity-22";
+
+  const groups = [
+    {
+      title: "Alea",
+      items: [
+        ["Divinatio", onIterum],
+        ["Labyrinthus", null],
+        ["Scalpo", null]
+      ]
+    },
+    {
+      title: "Oraculum",
+      items: [
+        ["Claves", onClaves],
+        ["Noctem", onNoctem],
+        ["Verbatim", onVerbatim],
+        ["Duodecim", onDuodecim]
+      ]
+    },
+    {
+      title: "Nexus",
+      items: [
+        ["Bulla", onBulla],
+        ["Archivum", onArchive]
+      ]
+    },
+    {
+      title: "Ratio",
+      items: [
+        ["Fatum", onFatum],
+        ["Spiritus", null]
+      ]
+    }
+  ];
 
   return (
-    <div className="flex flex-wrap items-center justify-center gap-1.5">
-      {items.map(([label, action]) => (
-        <button key={label} type="button" onClick={action} className={buttonClass}>
-          {label}
-        </button>
-      ))}
+    <div className="relative flex flex-col items-center justify-center">
+      <button
+        type="button"
+        aria-label="Menu"
+        className="flex h-9 w-9 select-none items-center justify-center active:scale-95"
+        onClick={(event) => {
+          event.stopPropagation();
+          setOpen((value) => !value);
+        }}
+      >
+        <img src="/images/main.png" alt="" className="h-7 w-7 object-contain" draggable={false} />
+      </button>
+
+      {open ? (
+        <motion.div
+          className={[
+            "absolute left-1/2 top-11 z-50 w-[11.5rem] -translate-x-1/2 border bg-white/96 px-3 py-3 text-black shadow-2xl backdrop-blur-md",
+            compact ? "border-black/30" : "border-current/35"
+          ].join(" ")}
+          initial={{ opacity: 0, y: -8, filter: "blur(8px)" }}
+          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+          transition={{ duration: 0.35, ease: "easeInOut" }}
+          onClick={(event) => event.stopPropagation()}
+        >
+          {groups.map((group) => (
+            <div key={group.title} className="mb-3 last:mb-0">
+              <p className={sectionClass}>{group.title}</p>
+              <div className="space-y-0.5">
+                {group.items.map(([label, action]) => (
+                  <button
+                    key={label}
+                    type="button"
+                    disabled={!action}
+                    className={itemClass}
+                    onClick={() => {
+                      if (!action) return;
+                      setOpen(false);
+                      action();
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </motion.div>
+      ) : null}
     </div>
   );
 }
@@ -3070,6 +3135,20 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
       animate={{ opacity: 1 }}
       transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
     >
+      <div className="mb-3 flex justify-center text-black">
+        <ActionButtons
+          onIterum={() => {}}
+          onClaves={onClaves}
+          onNoctem={onNoctem}
+          onVerbatim={onVerbatim}
+          onDuodecim={onDuodecim}
+          onBulla={onBulla}
+          onArchive={onArchive}
+          onFatum={onFatum}
+          compact
+        />
+      </div>
+
       <h1 className="mb-6 text-center text-3xl font-semibold tracking-[0.12em]">Divinatio.</h1>
 
       <div className="mx-auto grid max-w-[430px] grid-cols-3 gap-3">
@@ -3127,7 +3206,7 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
         })}
       </div>
 
-      <div className="mx-auto mt-7 grid max-w-[430px] grid-cols-3 gap-3">
+      <div className="mx-auto mt-5 grid max-w-[430px] grid-cols-3 gap-3">
         <button
           type="button"
           className="col-start-2 flex aspect-square w-full select-none items-center justify-center bg-transparent text-black active:scale-95 disabled:opacity-25"
@@ -3141,7 +3220,7 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
 
       {loadingReading ? (
         <motion.p
-          className="mt-6 text-center text-[10px] uppercase tracking-[0.22em] text-black/38"
+          className="mt-5 text-center text-[10px] uppercase tracking-[0.22em] text-black/38"
           animate={{ opacity: [0.35, 0.85, 0.35] }}
           transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
         >
@@ -3151,7 +3230,7 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
 
       {displayedReading ? (
         <motion.section
-          className="mx-auto mt-7 max-w-[430px] bg-white p-5 text-center"
+          className="mx-auto mt-5 max-w-[430px] bg-white p-5 text-center"
           initial={{ opacity: 0, y: 18, filter: "blur(8px)" }}
           animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
           transition={{ duration: 0.85, ease: "easeInOut" }}
@@ -3162,20 +3241,6 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
           <p className="mt-5 text-[10px] uppercase tracking-[0.18em] text-black/38">Fatum {getFatumScore(displayedReading, question)} pts</p>
         </motion.section>
       ) : null}
-
-      <div className="fixed bottom-[max(2.25rem,calc(env(safe-area-inset-bottom)+1.25rem))] left-0 right-0 z-30 text-black">
-        <ActionButtons
-          onIterum={() => {}}
-          onClaves={onClaves}
-          onNoctem={onNoctem}
-          onVerbatim={onVerbatim}
-          onDuodecim={onDuodecim}
-          onBulla={onBulla}
-          onArchive={onArchive}
-          onFatum={onFatum}
-          compact
-        />
-      </div>
 
       {selectedCard ? (
         <motion.div
