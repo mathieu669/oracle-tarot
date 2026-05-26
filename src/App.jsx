@@ -582,8 +582,14 @@ function ActionButtons({
   const itemClass = (label) =>
     [
       "block w-full select-none px-3 py-1 text-center text-[9px] uppercase tracking-[0.16em] active:bg-black active:text-white disabled:opacity-22",
-      activeLabel === label ? "text-black" : "text-black/38"
+      activeLabel === label ? "font-medium text-black opacity-100" : "text-black/38"
     ].join(" ");
+
+  const isWhiteHandScreen = activeLabel === "Fatum" || activeLabel === "Claves";
+  const handIconClass = [
+    "h-7 w-7 object-contain",
+    isWhiteHandScreen ? "[filter:brightness(0)_invert(1)]" : ""
+  ].join(" ");
 
   const groups = [
     {
@@ -630,12 +636,12 @@ function ActionButtons({
           setOpen((value) => !value);
         }}
       >
-        <img src="/images/main.png" alt="" className="h-7 w-7 object-contain mix-blend-difference [filter:brightness(0)_invert(1)]" draggable={false} />
+        <img src="/images/main.png" alt="" className={handIconClass} draggable={false} />
       </button>
 
       {open ? (
         <motion.div
-          className="absolute left-1/2 top-12 z-[95] w-[11.5rem] -translate-x-1/2 border border-black/18 bg-white/84 px-3 py-3 text-black shadow-2xl backdrop-blur-md"
+          className="absolute left-1/2 top-12 z-[95] w-[11.5rem] -translate-x-1/2 border border-black/18 bg-white px-3 py-3 text-black shadow-2xl backdrop-blur-md"
           initial={{ opacity: 0, y: -8, filter: "blur(8px)" }}
           animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
           transition={{ duration: 0.35, ease: "easeInOut" }}
