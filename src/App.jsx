@@ -169,7 +169,7 @@ function DevLatinHome({ onStage, onVerbatim }) {
   const bottomNav = (
     <div className="fixed bottom-[max(2.25rem,calc(env(safe-area-inset-bottom)+1.25rem))] left-0 right-0 z-30 text-black">
       <ActionButtons
-        onIterum={() => onStage("result")}
+        onIterum={() => onStage("divinatio")}
         onClaves={() => onStage("claves")}
         onNoctem={() => onStage("noctem")}
         onVerbatim={onVerbatim}
@@ -560,7 +560,7 @@ function ActionButtons({
   ].join(" ");
 
   const items = [
-    ["Iterum", onIterum],
+    ["Divinatio", onIterum],
     ["Claves", onClaves],
     ["Noctem", onNoctem],
     ["Verbatim", onVerbatim],
@@ -2892,6 +2892,286 @@ function FatumIndicator({ score }) {
   );
 }
 
+
+function DharmaWheelIcon() {
+  return (
+    <svg width="30" height="30" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+      <circle cx="32" cy="32" r="22" stroke="currentColor" strokeWidth="2.2" />
+      <circle cx="32" cy="32" r="7" stroke="currentColor" strokeWidth="2.2" />
+      <circle cx="32" cy="32" r="29" stroke="currentColor" strokeWidth="1.6" />
+      {Array.from({ length: 8 }).map((_, index) => {
+        const angle = (Math.PI * 2 * index) / 8;
+        const x1 = 32 + Math.cos(angle) * 9;
+        const y1 = 32 + Math.sin(angle) * 9;
+        const x2 = 32 + Math.cos(angle) * 28;
+        const y2 = 32 + Math.sin(angle) * 28;
+
+        return (
+          <line
+            key={`wheel-spoke-${index}`}
+            x1={x1}
+            y1={y1}
+            x2={x2}
+            y2={y2}
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+          />
+        );
+      })}
+    </svg>
+  );
+}
+
+function makeReelCards(finalCard, offset = 0) {
+  const pool = [...deck];
+  const shuffled = pool
+    .map((card, index) => ({ card, sort: Math.sin((index + 1) * (offset + 3.17)) }))
+    .sort((a, b) => a.sort - b.sort)
+    .map((item) => item.card);
+
+  const reel = [];
+
+  for (let index = 0; index < 16; index += 1) {
+    reel.push(shuffled[index % shuffled.length]);
+  }
+
+  reel.push(finalCard);
+  return reel;
+}
+
+function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerbatim, onDuodecim, onBulla, onArchive, onFatum }) {
+  const [reels, setReels] = useState(() => {
+    const initialCards = deck.slice(0, 3);
+    return initialCards.map((card, index) => ({
+      cards: makeReelCards(card, index),
+      target: 0,
+      finalCard: card,
+      stopped: false
+    }));
+  });
+  const [spinning, setSpinning] = useState(false);
+  const [finalCards, setFinalCards] = useState([]);
+  const [reading, setReading] = useState(null);
+  const [loadingReading, setLoadingReading] = useState(false);
+  const [selectedCard, setSelectedCard] = useState(null);
+  const closeVideoTimerRef = useRef(null);
+
+  const closeSelectedCard = () => {
+    window.clearTimeout(closeVideoTimerRef.current);
+    setSelectedCard(null);
+  };
+
+  useEffect(() => {
+    if (!selectedCard) return undefined;
+
+    window.clearTimeout(closeVideoTimerRef.current);
+    closeVideoTimerRef.current = window.setTimeout(() => {
+      setSelectedCard(null);
+    }, 6000);
+
+    return () => window.clearTimeout(closeVideoTimerRef.current);
+  }, [selectedCard]);
+
+  const callReadingApi = async (cards) => {
+    const activeQuestion = question || "Question silencieuse";
+    const fallback = createFallbackReading(cards, activeQuestion);
+
+    setReading(fallback);
+    setLoadingReading(true);
+    onReadingReady?.(cards, fallback, activeQuestion);
+
+    try {
+      const response = await fetch("/api/reading", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: activeQuestion,
+          cards: cards.map((card, index) => ({
+            ...card,
+            position: positions[index].label,
+            positionMeaning: positions[index].meaning
+          }))
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.error || "Erreur pendant la génération de la lecture.");
+      }
+
+      const apiReading = data.reading || fallback;
+      setReading(apiReading);
+      onReadingReady?.(cards, apiReading, activeQuestion);
+    } catch {
+      setReading(fallback);
+      onReadingReady?.(cards, fallback, activeQuestion);
+    } finally {
+      setLoadingReading(false);
+    }
+  };
+
+  const spin = () => {
+    if (spinning) return;
+
+    const picked = [];
+    while (picked.length < 3) {
+      const card = pickRandomCard(picked.map((item) => item.slug));
+      picked.push(card);
+    }
+
+    const nextReels = picked.map((card, index) => {
+      const cards = makeReelCards(card, index + Date.now());
+      return {
+        cards,
+        target: cards.length - 1,
+        finalCard: card,
+        stopped: false
+      };
+    });
+
+    setSpinning(true);
+    setFinalCards([]);
+    setReading(null);
+    setLoadingReading(false);
+    setReels(nextReels);
+
+    [1700, 2450, 3250].forEach((delay, index) => {
+      window.setTimeout(() => {
+        setReels((current) =>
+          current.map((reel, reelIndex) =>
+            reelIndex === index ? { ...reel, stopped: true } : reel
+          )
+        );
+      }, delay);
+    });
+
+    window.setTimeout(() => {
+      setFinalCards(picked);
+      setSpinning(false);
+      callReadingApi(picked);
+    }, 3550);
+  };
+
+  const displayedReading = reading || (finalCards.length === 3 ? createFallbackReading(finalCards, question) : null);
+
+  return (
+    <motion.main
+      className="fixed inset-0 overflow-y-auto bg-white px-4 pb-32 pt-[max(1.25rem,env(safe-area-inset-top))] text-black"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
+    >
+      <h1 className="mb-6 text-center text-3xl font-semibold tracking-[0.12em]">Divinatio.</h1>
+
+      <div className="mx-auto grid max-w-[430px] grid-cols-3 gap-3">
+        {reels.map((reel, index) => {
+          const duration = [1.55, 2.25, 3.0][index];
+
+          return (
+            <button
+              key={`reel-${index}`}
+              type="button"
+              className="relative overflow-hidden border border-black/18 bg-white active:scale-[0.985]"
+              onClick={() => {
+                const card = finalCards[index] || reel.finalCard;
+                if (card && !spinning) setSelectedCard(card);
+              }}
+            >
+              <div className="aspect-[9/16] w-full overflow-hidden">
+                <motion.div
+                  animate={{ y: `${-reel.target * 100}%` }}
+                  transition={{ duration, ease: [0.16, 0.84, 0.28, 1] }}
+                >
+                  {reel.cards.map((card, cardIndex) => (
+                    <img
+                      key={`${card.slug || card.name}-${cardIndex}`}
+                      src={card.imageFace}
+                      alt={card.name}
+                      className="aspect-[9/16] w-full object-cover"
+                      draggable={false}
+                    />
+                  ))}
+                </motion.div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-7 flex justify-center">
+        <button
+          type="button"
+          className="flex h-12 min-w-[8rem] select-none items-center justify-center border border-black bg-white px-6 text-black active:bg-black active:text-white disabled:opacity-30"
+          onClick={spin}
+          disabled={spinning}
+          aria-label="Tirer"
+        >
+          <DharmaWheelIcon />
+        </button>
+      </div>
+
+      {loadingReading ? (
+        <motion.p
+          className="mt-6 text-center text-[10px] uppercase tracking-[0.22em] text-black/38"
+          animate={{ opacity: [0.35, 0.85, 0.35] }}
+          transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+        >
+          Onerat.
+        </motion.p>
+      ) : null}
+
+      {displayedReading ? (
+        <motion.section
+          className="mx-auto mt-7 max-w-[430px] border border-black bg-white p-5 text-center"
+          initial={{ opacity: 0, y: 18, filter: "blur(8px)" }}
+          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+          transition={{ duration: 0.85, ease: "easeInOut" }}
+        >
+          <p className="text-[10px] uppercase tracking-[0.22em] text-black/38">Oraculum.</p>
+          <p className="mt-4 text-2xl font-semibold leading-8">{displayedReading.oracleSentence}</p>
+          <p className="mt-5 text-sm leading-6 text-black/68">{displayedReading.action}</p>
+          <p className="mt-5 text-[10px] uppercase tracking-[0.18em] text-black/38">Fatum {getFatumScore(displayedReading, question)} pts</p>
+        </motion.section>
+      ) : null}
+
+      <div className="fixed bottom-[max(2.25rem,calc(env(safe-area-inset-bottom)+1.25rem))] left-0 right-0 z-30 text-black">
+        <ActionButtons
+          onIterum={() => {}}
+          onClaves={onClaves}
+          onNoctem={onNoctem}
+          onVerbatim={onVerbatim}
+          onDuodecim={onDuodecim}
+          onBulla={onBulla}
+          onArchive={onArchive}
+          onFatum={onFatum}
+          compact
+        />
+      </div>
+
+      {selectedCard ? (
+        <motion.div
+          className="fixed inset-0 z-50 bg-black"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
+          onClick={closeSelectedCard}
+        >
+          <video
+            src={selectedCard.videoFace}
+            poster={selectedCard.imageFace}
+            className="h-full w-full object-cover"
+            autoPlay
+            muted
+            playsInline
+          />
+        </motion.div>
+      ) : null}
+    </motion.main>
+  );
+}
+
 function ResultScreen({ reading, question, onShowClaves, onShowNoctem, onShowDuodecim, onShowBulla, onShowArchive, onShowFatum }) {
   const panels = [
     { type: "question", lines: [question || "Question silencieuse"] },
@@ -3484,12 +3764,34 @@ export default function App() {
     </>
   );
 
+  if (stage === "divinatio") {
+    return (
+      <DivinatioScreen
+        question={question}
+        onReadingReady={(cards, nextReading, nextQuestion) => {
+          setQuestion(nextQuestion);
+          setDrawnCards(cards);
+          setReading(nextReading);
+          setError(null);
+          setRevelationEnded(true);
+        }}
+        onClaves={() => setStage("claves")}
+        onNoctem={() => setStage("noctem")}
+        onVerbatim={() => downloadVerbatimPdf(reading || createFallbackReading(drawnCards, question), question)}
+        onDuodecim={() => setStage("duodecim")}
+        onBulla={() => setStage("bulla")}
+        onArchive={() => setStage("archives")}
+        onFatum={() => setStage("fatum")}
+      />
+    );
+  }
+
   if (stage === "fatum") {
     return (
       <FatumScreen
         reading={reading || createFallbackReading(drawnCards, question)}
         question={question}
-        onIterum={() => setStage("result")}
+        onIterum={() => setStage("divinatio")}
         onClaves={() => setStage("claves")}
         onNoctem={() => setStage("noctem")}
         onVerbatim={() => downloadVerbatimPdf(reading || createFallbackReading(drawnCards, question), question)}
@@ -3504,7 +3806,7 @@ export default function App() {
   if (stage === "archives") {
     return (
       <ArchivesScreen
-        onIterum={() => setStage("result")}
+        onIterum={() => setStage("divinatio")}
         onClaves={() => setStage("claves")}
         onNoctem={() => setStage("noctem")}
         onVerbatim={() => downloadVerbatimPdf(reading || createFallbackReading(drawnCards, question), question)}
@@ -3521,7 +3823,7 @@ export default function App() {
       <ClavesScreen
         reading={reading || createFallbackReading(drawnCards, question)}
         question={question}
-        onIterum={() => setStage("result")}
+        onIterum={() => setStage("divinatio")}
         onNoctem={() => setStage("noctem")}
         onVerbatim={() => downloadVerbatimPdf(reading || createFallbackReading(drawnCards, question), question)}
         onDuodecim={() => setStage("duodecim")}
@@ -3537,7 +3839,7 @@ export default function App() {
       <NoctemScreen
         reading={reading || createFallbackReading(drawnCards, question)}
         question={question}
-        onIterum={() => setStage("result")}
+        onIterum={() => setStage("divinatio")}
         onClaves={() => setStage("claves")}
         onVerbatim={() => downloadVerbatimPdf(reading || createFallbackReading(drawnCards, question), question)}
         onDuodecim={() => setStage("duodecim")}
@@ -3553,7 +3855,7 @@ export default function App() {
       <DuodecimScreen
         reading={reading || createFallbackReading(drawnCards, question)}
         question={question}
-        onIterum={() => setStage("result")}
+        onIterum={() => setStage("divinatio")}
         onClaves={() => setStage("claves")}
         onNoctem={() => setStage("noctem")}
         onVerbatim={() => downloadVerbatimPdf(reading || createFallbackReading(drawnCards, question), question)}
@@ -3567,7 +3869,7 @@ export default function App() {
       <BullaScreen
         reading={reading || createFallbackReading(drawnCards, question)}
         question={question}
-        onIterum={() => setStage("result")}
+        onIterum={() => setStage("divinatio")}
         onClaves={() => setStage("claves")}
         onNoctem={() => setStage("noctem")}
         onVerbatim={() => downloadVerbatimPdf(reading || createFallbackReading(drawnCards, question), question)}
