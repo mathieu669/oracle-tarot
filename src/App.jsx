@@ -585,7 +585,8 @@ function ActionButtons({
       activeLabel === label ? "font-medium text-black opacity-100" : "text-black/38"
     ].join(" ");
 
-  const isWhiteHandScreen = activeLabel === "Fatum" || activeLabel === "Claves";
+  const whiteHandScreens = ["Noctem", "Duodecim", "Bulla", "Fatum"];
+  const isWhiteHandScreen = whiteHandScreens.includes(activeLabel);
   const handIconClass = [
     "h-7 w-7 object-contain",
     isWhiteHandScreen ? "[filter:brightness(0)_invert(1)]" : ""
@@ -750,6 +751,8 @@ function NoctemScreen({ reading, question, onIterum, onClaves, onVerbatim, onDuo
       animate={{ opacity: 1 }}
       transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
     >
+      <h1 className="mt-14 mb-6 text-center text-3xl font-semibold tracking-[0.12em] text-white">Noctem.</h1>
+
       <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
         {deck.map((card) => (
           <button
@@ -3193,7 +3196,7 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
             <button
               key={`reel-${index}`}
               type="button"
-              className="relative overflow-hidden border-x border-b-2 border-t border-x-black border-b-black border-t-black/18 bg-white active:scale-[0.985]"
+              className="relative overflow-hidden bg-white active:scale-[0.985]"
               onClick={() => {
                 if (card && hasDrawn && !spinning) setSelectedCard(card);
               }}
@@ -3229,8 +3232,6 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
                   </motion.div>
                 )}
 
-                <div className="pointer-events-none absolute inset-x-0 top-0 h-[27%] bg-gradient-to-b from-white/55 via-white/18 to-transparent mix-blend-screen" />
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[31%] bg-gradient-to-t from-black/34 via-black/12 to-transparent" />
               </div>
             </button>
           );
@@ -3251,7 +3252,7 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
 
       {loadingReading ? (
         <motion.p
-          className="mt-2 text-center text-[10px] uppercase tracking-[0.22em] text-black/38"
+          className="mt-1 text-center text-[10px] uppercase tracking-[0.22em] text-black/38"
           animate={{ opacity: [0.35, 0.85, 0.35] }}
           transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
         >
@@ -3261,7 +3262,7 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
 
       {displayedReading ? (
         <motion.section
-          className="mx-auto mt-2 max-w-[430px] bg-white p-5 text-center"
+          className="mx-auto mt-1 max-w-[430px] bg-white p-5 text-center"
           initial={{ opacity: 0, y: 18, filter: "blur(8px)" }}
           animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
           transition={{ duration: 0.85, ease: "easeInOut" }}
