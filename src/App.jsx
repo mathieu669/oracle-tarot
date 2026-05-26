@@ -109,6 +109,7 @@ function DevLatinHome({ onStage, onVerbatim }) {
   const [email, setEmail] = useState("");
   const [notifications, setNotifications] = useState(true);
   const [spaceLoading, setSpaceLoading] = useState(false);
+  const [spaceSummary, setSpaceSummary] = useState({ fatum: "—", archives: "—" });
 
   useEffect(() => {
     let cancelled = false;
@@ -159,11 +160,25 @@ function DevLatinHome({ onStage, onVerbatim }) {
     );
 
     setSpaceLoading(true);
+    setSpaceSummary({ fatum: "—", archives: "—" });
 
-    window.setTimeout(() => {
-      setSpaceLoading(false);
-      setPhase("space");
-    }, 950);
+    Promise.allSettled([fetchServerFatumUsers(), fetchServerArchives()])
+      .then(([fatumResult, archiveResult]) => {
+        const users = fatumResult.status === "fulfilled" ? fatumResult.value : readFatumUsers();
+        const archives = archiveResult.status === "fulfilled" ? archiveResult.value : readBullaArchives();
+        const matchedUser = users.find((user) => user.name?.toLowerCase() === selectedUser.toLowerCase());
+
+        setSpaceSummary({
+          fatum: Number.isFinite(Number(matchedUser?.score)) ? Math.round(Number(matchedUser.score)) : 0,
+          archives: Array.isArray(archives) ? archives.length : 0
+        });
+      })
+      .finally(() => {
+        window.setTimeout(() => {
+          setSpaceLoading(false);
+          setPhase("space");
+        }, 450);
+      });
   };
 
   const bottomNav = (
@@ -366,11 +381,11 @@ function DevLatinHome({ onStage, onVerbatim }) {
           <div className="mt-8 grid w-full max-w-[18rem] grid-cols-2 gap-3">
             <div className="border border-black/20 p-4">
               <p className="text-[9px] uppercase tracking-[0.18em] text-black/38">Fatum.</p>
-              <p className="mt-2 text-2xl">{getFatumScore(createFallbackReading(deck.slice(0, DRAW_TARGET), selectedUser), selectedUser)}</p>
+              <p className="mt-2 text-2xl">{spaceSummary.fatum}</p>
             </div>
             <div className="border border-black/20 p-4">
               <p className="text-[9px] uppercase tracking-[0.18em] text-black/38">Archivum.</p>
-              <p className="mt-2 text-2xl">—</p>
+              <p className="mt-2 text-2xl">{spaceSummary.archives}</p>
             </div>
           </div>
         </motion.section>
@@ -604,7 +619,7 @@ function ActionButtons({
           setOpen((value) => !value);
         }}
       >
-        <img src="/images/main.png" alt="" className="h-7 w-7 object-contain" draggable={false} />
+        <img src="/images/main.png" alt="" className="h-7 w-7 object-contain mix-blend-difference [filter:brightness(0)_invert(1)]" draggable={false} />
       </button>
 
       {open ? (
@@ -652,7 +667,7 @@ function ClavesScreen({ reading, question, onIterum, onNoctem, onVerbatim, onDuo
       transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
     >
       <div className="mx-auto max-w-[680px]">
-        <h1 className="mb-8 text-center text-4xl font-semibold tracking-[0.08em]">Claves</h1>
+        <h1 className="mt-14 mb-8 text-center text-4xl font-semibold tracking-[0.08em]">Claves</h1>
 
         <div className="space-y-8">
           {deck.map((card, index) => {
@@ -1705,7 +1720,7 @@ function ArchivesScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
       animate={{ opacity: 1 }}
       transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
     >
-      <h1 className="mb-2 text-center text-3xl font-semibold tracking-[0.12em]">Archivum</h1>
+      <h1 className="mt-14 mb-2 text-center text-3xl font-semibold tracking-[0.12em]">Archivum</h1>
       {syncStatus === "error" ? (
         <p className="mb-4 text-center text-[9px] uppercase tracking-[0.18em] text-red-700">Memoria fracta.</p>
       ) : syncStatus === "syncing" ? (
@@ -2379,7 +2394,7 @@ function FatumScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
       animate={{ opacity: 1 }}
       transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
     >
-      <h1 className="mb-1 text-center text-3xl font-semibold tracking-[0.12em]">Fatum</h1>
+      <h1 className="mt-14 mb-1 text-center text-3xl font-semibold tracking-[0.12em]">Fatum</h1>
       {syncStatus === "error" ? (
         <p className="mb-3 text-center text-[9px] uppercase tracking-[0.18em] text-red-400">Memoria fracta.</p>
       ) : syncStatus === "syncing" ? (
@@ -3144,7 +3159,7 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
         compact
       />
 
-      <h1 className="mb-6 text-center text-3xl font-semibold tracking-[0.12em]">Divinatio.</h1>
+      <h1 className="mt-14 mb-6 text-center text-3xl font-semibold tracking-[0.12em]">Divinatio.</h1>
 
       <div className="mx-auto grid max-w-[430px] grid-cols-3 gap-3">
         {reels.map((reel, index) => {
