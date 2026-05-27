@@ -3276,7 +3276,7 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
 
       {loadingReading ? (
         <motion.p
-          className="mt-1 text-center text-[10px] uppercase tracking-[0.22em] text-black/38"
+          className="-mt-2 text-center text-[10px] uppercase tracking-[0.22em] text-black/38"
           animate={{ opacity: [0.35, 0.85, 0.35] }}
           transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
         >
@@ -3286,7 +3286,7 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
 
       {displayedReading ? (
         <motion.section
-          className="mx-auto mt-1 max-w-[430px] bg-white p-5 text-center"
+          className="mx-auto -mt-2 max-w-[430px] bg-white px-5 pb-5 pt-2 text-center"
           initial={{ opacity: 0, y: 18, filter: "blur(8px)" }}
           animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
           transition={{ duration: 0.85, ease: "easeInOut" }}
