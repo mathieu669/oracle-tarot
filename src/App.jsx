@@ -2054,8 +2054,8 @@ function hasUnlimitedFatum(user, fallbackName = "") {
 }
 
 function formatFatumBalance(score, user, fallbackName = "") {
-  if (hasUnlimitedFatum(user, fallbackName)) return "∞ Fat.";
-  return `${Math.max(0, Math.floor(Number(score) || 0))} Fat.`;
+  if (hasUnlimitedFatum(user, fallbackName)) return "∞ Ft";
+  return `${Math.max(0, Math.floor(Number(score) || 0))} Ft`;
 }
 
 function formatFatumPoints(score, user, fallbackName = "") {
@@ -2216,7 +2216,7 @@ function FatumGlyphs({ score, invert = false }) {
 
 
 const SALVATIO_COST = 50;
-const SALVATIO_CARD_SRC = "/images/salvatio/salvatio-card.png?v=2";
+const SALVATIO_CARD_SRC = "/images/salvatio/salvatio-card.png?v=3";
 const SALVATIO_ANGUIS_SRC = "/images/salvatio/anguis-revealed.png?v=1";
 const SALVATIO_SKULL_SRC = "/images/fatum/calvaria.png";
 
@@ -2516,7 +2516,7 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
 
     if (!hasUnlimitedFatumBalance && score < SALVATIO_COST) {
       setStatus("error");
-      setMessage(`Solde insuffisant : ${score} Fat. disponibles, ${SALVATIO_COST} Fat. requis.`);
+      setMessage(`Solde insuffisant : ${score} Ft disponibles, ${SALVATIO_COST} Ft requis.`);
       return;
     }
 
@@ -2547,16 +2547,16 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
     setLucrumRevealed(true);
     setSettled(true);
     setStatus("syncing");
-    setMessage(`Lucrum révélé : ${lucrum} Fat.`);
+    setMessage(`Lucrum révélé : ${lucrum} Ft`);
 
     try {
       const currentUser = readFatumUsers().find((user) => user.id === activeUserId) || activeUser;
       await applyUserScore((Number(currentUser?.score) || 0) + lucrum);
       setStatus("ok");
-      setMessage(`Salvatio accomplie. Lucrum versé : ${lucrum} Fat.`);
+      setMessage(`Salvatio accomplie. Lucrum versé : ${lucrum} Ft`);
     } catch {
       setStatus("error");
-      setMessage(`Lucrum gagné (${lucrum} Fat.), mais le versement a échoué.`);
+      setMessage(`Lucrum gagné (${lucrum} Ft), mais le versement a échoué.`);
     }
   };
 
@@ -2609,7 +2609,7 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
       <section className="mx-auto max-w-[560px]">
         <div className="mb-3 px-1 text-center">
           <h1 className="text-2xl font-semibold uppercase tracking-[0.18em]">Salvatio</h1>
-          <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-white/52">Alea · 50 Fat. par tentative</p>
+          <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-white/52">Alea · 50 Ft par tentative</p>
           <p className="mt-2 text-[10px] uppercase tracking-[0.14em] text-white/62">
             {activeUser?.name || sessionName || "Session absente"} · <span className="text-white">{fatumBalanceLabel}</span>
           </p>
@@ -2655,7 +2655,7 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
           {lucrumUnlocked ? (
             <div className="absolute left-[8.8%] top-[84.8%] z-20 h-[8.3%] w-[27.8%] overflow-hidden rounded-[0.7rem] border border-white/24 bg-[#ece4d0] shadow-inner shadow-black/50">
               <div className="absolute inset-0 z-0 flex items-center justify-center bg-[#ece4d0] text-[clamp(0.7rem,3.2vw,1.1rem)] font-semibold uppercase tracking-[0.08em] text-black">
-                {lucrum} Fat.
+                {lucrum} Ft
               </div>
               {!lucrumRevealed ? (
                 <ScratchPatch
@@ -2673,7 +2673,7 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
 
         <div className="mt-4 min-h-[4.2rem] border border-white/18 bg-black/52 px-4 py-3 text-center shadow-xl">
           <p className="text-[10px] uppercase tracking-[0.18em] text-white/46">État</p>
-          <p className="mt-1 text-sm text-white/88">{message || "Cramez 50 Fat. pour ouvrir Salvatio."}</p>
+          <p className="mt-1 text-sm text-white/88">{message || "Cramez 50 Ft pour ouvrir Salvatio."}</p>
           {paid ? (
             <p className="mt-2 text-[10px] uppercase tracking-[0.16em] text-white/48">
               Anguis révélés : {revealedAnguis}/2{lucrumUnlocked ? " · Lucrum ouvert" : ""}
@@ -2712,7 +2712,7 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
             <p className="text-[10px] uppercase tracking-[0.2em] text-white/48">Paiement Fatum</p>
             <h2 className="mt-2 text-2xl font-semibold uppercase tracking-[0.14em]">Salvatio</h2>
             <p className="mt-4 flex flex-wrap items-center justify-center gap-1.5 text-sm leading-relaxed text-white/76">
-              <span>Cramer 50 Fat. pour jouer ? Trouvez deux signes</span>
+              <span>Cramer 50 Ft pour jouer ? Trouvez deux signes</span>
               <AnguisGlyph className="inline h-5 w-5 text-white" />
               <span>et remportez le Lucrum.</span>
             </p>
@@ -2736,7 +2736,7 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
                 onClick={paySalvatio}
                 disabled={busy || !activeUser || (!hasUnlimitedFatumBalance && score < SALVATIO_COST)}
               >
-                {busy ? "Paiement…" : "Payer 50 Fat."}
+                {busy ? "Paiement…" : "Payer 50 Ft"}
               </button>
             </div>
             {!sessionName ? (
