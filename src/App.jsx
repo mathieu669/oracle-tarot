@@ -2492,16 +2492,16 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
     setLucrumRevealed(true);
     setSettled(true);
     setStatus("syncing");
-    setMessage(`Lucrum 1 révélé : ${lucrum} Fat.`);
+    setMessage(`Lucrum révélé : ${lucrum} Fat.`);
 
     try {
       const currentUser = readFatumUsers().find((user) => user.id === activeUserId) || activeUser;
       await applyUserScore((Number(currentUser?.score) || 0) + lucrum);
       setStatus("ok");
-      setMessage(`Salvatio accomplie. Lucrum 1 versé : ${lucrum} Fat.`);
+      setMessage(`Salvatio accomplie. Lucrum versé : ${lucrum} Fat.`);
     } catch {
       setStatus("error");
-      setMessage(`Lucrum 1 gagné (${lucrum} Fat.), mais le versement a échoué.`);
+      setMessage(`Lucrum gagné (${lucrum} Fat.), mais le versement a échoué.`);
     }
   };
 
@@ -2516,7 +2516,7 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
     if (nextAnguis >= 2) {
       setLucrumUnlocked(true);
       setStatus("ok");
-      setMessage("Deux signes Anguis découverts. Grattez Lucrum 1.");
+      setMessage("Deux signes Anguis découverts. Grattez le Lucrum.");
       return;
     }
 
@@ -2562,6 +2562,15 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
 
         <div className="relative mx-auto aspect-square w-full overflow-hidden rounded-[1.25rem] shadow-2xl shadow-black/50">
           <img src={SALVATIO_CARD_SRC} alt="Carte Salvatio" className="absolute inset-0 h-full w-full select-none object-cover" draggable={false} />
+
+          <div className="pointer-events-none absolute left-[8.8%] top-[84.7%] z-[11] flex h-[7.6%] w-[28.3%] items-center justify-center rounded-[0.4rem] bg-[#11100d]/88 text-[clamp(0.7rem,3.2vw,1.2rem)] font-semibold uppercase tracking-[0.08em] text-white/88">
+            Lucrum
+          </div>
+          <div className="pointer-events-none absolute left-[42%] top-[84.3%] z-[11] flex h-[8.4%] w-[48%] items-center justify-start gap-[1.4%] rounded-[0.4rem] bg-[#11100d]/88 px-[2%] text-left text-[clamp(0.44rem,1.9vw,0.72rem)] font-semibold leading-[1.1] text-white/82">
+            <span>Trouvez deux signes</span>
+            <img src={SALVATIO_ANGUIS_SRC} alt="Anguis" className="h-[1.3em] w-[1.3em] object-contain [filter:brightness(0)_invert(1)]" draggable={false} />
+            <span>et remportez le Lucrum.</span>
+          </div>
 
           {SALVATIO_ZONES.map((zone, index) => {
             const revealedZone = revealed.includes(index);
@@ -2612,10 +2621,10 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
 
         <div className="mt-4 min-h-[4.2rem] border border-white/18 bg-black/52 px-4 py-3 text-center shadow-xl">
           <p className="text-[10px] uppercase tracking-[0.18em] text-white/46">État</p>
-          <p className="mt-1 text-sm text-white/88">{message || "Engagez 50 Fat. pour ouvrir Salvatio."}</p>
+          <p className="mt-1 text-sm text-white/88">{message || "Cramez 50 Fat. pour ouvrir Salvatio."}</p>
           {paid ? (
             <p className="mt-2 text-[10px] uppercase tracking-[0.16em] text-white/48">
-              Anguis révélés : {revealedAnguis}/2{lucrumUnlocked ? " · Lucrum 1 ouvert" : ""}
+              Anguis révélés : {revealedAnguis}/2{lucrumUnlocked ? " · Lucrum ouvert" : ""}
             </p>
           ) : null}
         </div>
@@ -2650,8 +2659,10 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
           >
             <p className="text-[10px] uppercase tracking-[0.2em] text-white/48">Paiement Fatum</p>
             <h2 className="mt-2 text-2xl font-semibold uppercase tracking-[0.14em]">Salvatio</h2>
-            <p className="mt-4 text-sm leading-relaxed text-white/76">
-              Dépenser 50 Fat. pour gratter la carte ? Deux signes Anguis ouvrent Lucrum 1.
+            <p className="mt-4 flex flex-wrap items-center justify-center gap-1.5 text-sm leading-relaxed text-white/76">
+              <span>Cramer 50 Fat. pour jouer ? Trouvez deux signes</span>
+              <img src={SALVATIO_ANGUIS_SRC} alt="Anguis" className="inline h-5 w-5 object-contain [filter:brightness(0)_invert(1)]" draggable={false} />
+              <span>et remportez le Lucrum.</span>
             </p>
             <div className="mt-4 border border-white/14 bg-white/[0.04] px-3 py-3 text-[11px] uppercase tracking-[0.14em] text-white/62">
               <p>{activeUser?.name || sessionName || "Session intratum absente"}</p>
