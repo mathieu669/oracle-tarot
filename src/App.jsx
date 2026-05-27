@@ -2216,7 +2216,7 @@ function FatumGlyphs({ score, invert = false }) {
 
 
 const SALVATIO_COST = 50;
-const SALVATIO_CARD_SRC = "/images/salvatio/salvatio-card.png?v=3";
+const SALVATIO_CARD_SRC = "/images/salvatio/salvatio-card.png?v=4";
 const SALVATIO_ANGUIS_SRC = "/images/salvatio/anguis-revealed.png?v=1";
 const SALVATIO_ANGUIS_POPUP_SRC = "/images/salvatio/anguis-popup.png?v=1";
 const SALVATIO_SKULL_SRC = "/images/fatum/calvaria.png";
@@ -2610,7 +2610,7 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
       <section className="mx-auto max-w-[560px]">
         <div className="mb-3 px-1 text-center">
           <h1 className="text-2xl font-semibold uppercase tracking-[0.18em]">Salvatio</h1>
-          <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-white/52">Alea · 50 Ft par tentative</p>
+          <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-white/52">Alea</p>
           <p className="mt-2 text-[10px] uppercase tracking-[0.14em] text-white/62">
             {activeUser?.name || sessionName || "Session absente"} · <span className="text-white">{fatumBalanceLabel}</span>
           </p>
