@@ -2113,34 +2113,37 @@ function decomposeFatum(score) {
   return { oculus, maleficium, manus, calvaria };
 }
 
-function FatumIcon({ src, label, large = false }) {
+function FatumIcon({ src, label, large = false, invert = false }) {
+  const sizeClass = large ? "h-10 w-10 object-contain" : "h-5 w-5 object-contain";
+  const colorClass = invert ? "[filter:brightness(0)_invert(1)]" : "";
+
   return (
     <img
       src={src}
       alt={label}
       title={label}
-      className={large ? "h-10 w-10 object-contain" : "h-5 w-5 object-contain"}
+      className={[sizeClass, colorClass].join(" ")}
       draggable={false}
     />
   );
 }
 
-function FatumGlyphs({ score }) {
+function FatumGlyphs({ score, invert = false }) {
   const parts = decomposeFatum(score);
 
   return (
     <div className="mt-2 flex min-h-[3rem] flex-wrap items-end justify-center gap-1.5">
       {Array.from({ length: parts.oculus }).map((_, index) => (
-        <FatumIcon key={`oculus-${index}`} src="/images/fatum/oculus.png" label="Oculus — 1000 pts" large />
+        <FatumIcon key={`oculus-${index}`} src="/images/fatum/oculus.png" label="Oculus — 1000 pts" large invert={invert} />
       ))}
       {Array.from({ length: parts.maleficium }).map((_, index) => (
-        <FatumIcon key={`maleficium-${index}`} src="/images/fatum/maleficium.png" label="Maleficium — 500 pts" />
+        <FatumIcon key={`maleficium-${index}`} src="/images/fatum/maleficium.png" label="Maleficium — 500 pts" invert={invert} />
       ))}
       {Array.from({ length: parts.manus }).map((_, index) => (
-        <FatumIcon key={`manus-${index}`} src="/images/fatum/manus.png" label="Manus — 100 pts" />
+        <FatumIcon key={`manus-${index}`} src="/images/fatum/manus.png" label="Manus — 100 pts" invert={invert} />
       ))}
       {Array.from({ length: parts.calvaria }).map((_, index) => (
-        <FatumIcon key={`calvaria-${index}`} src="/images/fatum/calvaria.png" label="Calvaria — 50 pts" />
+        <FatumIcon key={`calvaria-${index}`} src="/images/fatum/calvaria.png" label="Calvaria — 50 pts" invert={invert} />
       ))}
     </div>
   );
@@ -2161,6 +2164,7 @@ function FatumScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
   const currentScore = getFatumScore(reading, question);
   const currentOracleKey = getCurrentOracleKey(reading, question);
   const activeUser = users.find((user) => user.id === activeUserId);
+  const sortedUsers = [...users].sort((a, b) => (Number(b.score) || 0) - (Number(a.score) || 0));
 
   const persistUsers = (nextUsers) => {
     writeFatumUsers(nextUsers);
@@ -2262,9 +2266,14 @@ function FatumScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
   }, [activeUserId, users.length]);
 
   const selectUser = (id) => {
+    if (activeUserId && id !== activeUserId) return;
+
     setActiveUserId(id);
     window.localStorage.setItem(FATUM_ACTIVE_USER_KEY, id);
-    creditUser(id);
+
+    if (!activeUserId) {
+      creditUser(id);
+    }
   };
 
   const createUser = async () => {
@@ -2474,7 +2483,7 @@ function FatumScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
 
       {users.length ? (
         <div className="mx-auto grid max-w-[760px] grid-cols-1 gap-4 sm:grid-cols-2">
-          {users.map((user) => (
+          {sortedUsers.map((user) => (
             <button
               key={user.id}
               type="button"
@@ -2485,7 +2494,7 @@ function FatumScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
               onClick={() => selectUser(user.id)}
             >
               <p className="text-sm uppercase tracking-[0.2em]">{user.name}</p>
-              <FatumGlyphs score={user.score} />
+              <FatumGlyphs score={user.score} invert={user.id !== activeUserId} />
               <p className="mt-3 text-[11px] uppercase tracking-[0.16em] opacity-65">{user.score || 0} pts</p>
             </button>
           ))}
