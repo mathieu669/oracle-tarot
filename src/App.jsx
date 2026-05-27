@@ -2218,6 +2218,7 @@ function FatumGlyphs({ score, invert = false }) {
 const SALVATIO_COST = 50;
 const SALVATIO_CARD_SRC = "/images/salvatio/salvatio-card.png?v=3";
 const SALVATIO_ANGUIS_SRC = "/images/salvatio/anguis-revealed.png?v=1";
+const SALVATIO_ANGUIS_POPUP_SRC = "/images/salvatio/anguis-popup.png?v=1";
 const SALVATIO_SKULL_SRC = "/images/fatum/calvaria.png";
 
 const SALVATIO_ZONES = [
@@ -2713,7 +2714,12 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
             <h2 className="mt-2 text-2xl font-semibold uppercase tracking-[0.14em]">Salvatio</h2>
             <p className="mt-4 flex flex-wrap items-center justify-center gap-1.5 text-sm leading-relaxed text-white/76">
               <span>Cramer 50 Ft pour jouer ? Trouvez deux signes</span>
-              <AnguisGlyph className="inline h-5 w-5 text-white" />
+              <img
+                src={SALVATIO_ANGUIS_POPUP_SRC}
+                alt="Anguis"
+                className="inline h-6 w-6 object-contain"
+                draggable={false}
+              />
               <span>et remportez le Lucrum.</span>
             </p>
             <div className="mt-4 border border-white/14 bg-white/[0.04] px-3 py-3 text-[11px] uppercase tracking-[0.14em] text-white/62">
