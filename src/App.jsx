@@ -2217,7 +2217,7 @@ function FatumGlyphs({ score, invert = false }) {
 
 const SALVATIO_COST = 50;
 const SALVATIO_CARD_SRC = "/images/salvatio/salvatio-card.png?v=2";
-const SALVATIO_ANGUIS_SRC = "/images/salvatio/anguis.png?v=1";
+const SALVATIO_ANGUIS_SRC = "/images/salvatio/anguis-revealed.png?v=1";
 const SALVATIO_SKULL_SRC = "/images/fatum/calvaria.png";
 
 const SALVATIO_ZONES = [
@@ -2296,7 +2296,7 @@ function AnguisGlyph({ className = "", title = "Anguis" }) {
 
 function createSalvatioSymbols() {
   const roll = Math.random();
-  const anguisCount = roll < 0.32 ? 2 : roll < 0.66 ? 1 : 0;
+  const anguisCount = roll < 0.6 ? 2 : roll < 0.85 ? 1 : 0;
   return shuffleValues([
     ...Array.from({ length: anguisCount }, () => "anguis"),
     ...Array.from({ length: SALVATIO_ZONES.length - anguisCount }, () => "calvaria")
@@ -2632,7 +2632,12 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
               >
                 <div className="absolute inset-[12%] z-0 flex items-center justify-center rounded-full bg-[#ece4d0] shadow-inner shadow-black/40">
                   {symbol === "anguis" ? (
-                    <AnguisGlyph className="h-[62%] w-[62%] text-black transition duration-500" />
+                    <img
+                      src={SALVATIO_ANGUIS_SRC}
+                      alt={label}
+                      className="h-[68%] w-[68%] object-contain opacity-95 transition duration-500"
+                      draggable={false}
+                    />
                   ) : (
                     <img
                       src={SALVATIO_SKULL_SRC}
