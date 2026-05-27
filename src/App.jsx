@@ -3189,7 +3189,7 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
 
   return (
     <motion.main
-      className="fixed inset-0 overflow-y-auto bg-white px-4 pb-32 pt-[max(1.25rem,env(safe-area-inset-top))] text-black"
+      className="fixed inset-0 overflow-hidden bg-white px-4 pb-4 pt-[max(1.25rem,env(safe-area-inset-top))] text-black"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
@@ -3207,9 +3207,9 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
         compact
       />
 
-      <h1 className="mt-14 mb-6 text-center text-3xl font-semibold tracking-[0.12em]">Divinatio.</h1>
+      <h1 className={["text-center font-semibold tracking-[0.12em]", hasDrawn ? "mt-11 mb-3 text-2xl" : "mt-14 mb-6 text-3xl"].join(" ")}>Divinatio.</h1>
 
-      <div className="mx-auto grid max-w-[430px] grid-cols-3 gap-3">
+      <div className={["mx-auto grid grid-cols-3 gap-3", hasDrawn ? "max-w-[310px]" : "max-w-[430px]"].join(" ")}>
         {reels.map((reel, index) => {
           const duration = [5.6, 6.35, 7.0][index];
           const targetY = -((reel.target * 100) / reel.cards.length);
@@ -3262,7 +3262,7 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
         })}
       </div>
 
-      <div className="mx-auto mt-5 grid max-w-[430px] grid-cols-3 gap-3">
+      <div className={["mx-auto grid grid-cols-3 gap-3", hasDrawn ? "mt-3 max-w-[310px]" : "mt-5 max-w-[430px]"].join(" ")}>
         <button
           type="button"
           className="col-start-2 flex aspect-square w-full select-none items-center justify-center bg-transparent text-black active:scale-95 disabled:opacity-25"
@@ -3276,7 +3276,7 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
 
       {loadingReading ? (
         <motion.p
-          className="-mt-2 text-center text-[10px] uppercase tracking-[0.22em] text-black/38"
+          className="mt-1 text-center text-[10px] uppercase tracking-[0.22em] text-black/38"
           animate={{ opacity: [0.35, 0.85, 0.35] }}
           transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
         >
@@ -3286,15 +3286,15 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
 
       {displayedReading ? (
         <motion.section
-          className="mx-auto -mt-2 max-w-[430px] bg-white px-5 pb-5 pt-2 text-center"
+          className="mx-auto mt-0 max-w-[430px] bg-white px-4 pb-2 pt-0 text-center"
           initial={{ opacity: 0, y: 18, filter: "blur(8px)" }}
           animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
           transition={{ duration: 0.85, ease: "easeInOut" }}
         >
           <p className="text-[10px] uppercase tracking-[0.22em] text-black/38">Oraculum.</p>
-          <p className="mt-4 text-2xl font-semibold leading-8">{displayedReading.oracleSentence}</p>
-          <p className="mt-5 text-sm leading-6 text-black/68">{displayedReading.action}</p>
-          <p className="mt-5 text-[10px] uppercase tracking-[0.18em] text-black/38">Fatum {getFatumScore(displayedReading, question)} pts</p>
+          <p className="mt-2 text-2xl font-semibold leading-8">{displayedReading.oracleSentence}</p>
+          <p className="mt-3 text-sm leading-6 text-black/68">{displayedReading.action}</p>
+          <p className="mt-3 text-[10px] uppercase tracking-[0.18em] text-black/38">Fatum {getFatumScore(displayedReading, question)} pts</p>
         </motion.section>
       ) : null}
 
