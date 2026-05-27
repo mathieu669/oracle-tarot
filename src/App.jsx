@@ -244,6 +244,7 @@ function DevLatinHome({ onStage, onVerbatim }) {
         onBulla={() => onStage("bulla")}
         onArchive={() => onStage("archives")}
         onFatum={() => onStage("fatum")}
+        onSalvatio={() => onStage("salvatio")}
         active=""
         compact
       />
@@ -620,6 +621,7 @@ function ActionButtons({
   onBulla,
   onArchive,
   onFatum,
+  onSalvatio,
   active = "",
   compact = false
 }) {
@@ -644,18 +646,13 @@ function ActionButtons({
     isWhiteHandScreen ? "[filter:brightness(0)_invert(1)]" : ""
   ].join(" ");
 
-  const navigateTo = (nextStage) => {
-    if (typeof window === "undefined") return;
-    window.dispatchEvent(new CustomEvent("nox:navigate", { detail: nextStage }));
-  };
-
   const groups = [
     {
       title: "Alea",
       items: [
         ["Divinatio", onIterum],
         ["Labyrinthus", null],
-        ["Salvatio", () => navigateTo("salvatio")]
+        ["Salvatio", onSalvatio]
       ]
     },
     {
@@ -734,7 +731,7 @@ function ActionButtons({
   );
 }
 
-function ClavesScreen({ reading, question, onIterum, onNoctem, onVerbatim, onDuodecim, onBulla, onArchive, onFatum }) {
+function ClavesScreen({ reading, question, onIterum, onNoctem, onVerbatim, onDuodecim, onBulla, onArchive, onFatum, onSalvatio }) {
   return (
     <motion.main
       className="fixed inset-0 overflow-y-auto bg-white px-7 pb-28 pt-[max(2rem,env(safe-area-inset-top))] text-center text-black"
@@ -770,13 +767,13 @@ function ClavesScreen({ reading, question, onIterum, onNoctem, onVerbatim, onDuo
       </div>
 
       <div className="fixed bottom-[max(2.25rem,calc(env(safe-area-inset-bottom)+1.25rem))] left-0 right-0 z-30 text-black">
-        <ActionButtons onIterum={onIterum} onNoctem={onNoctem} onVerbatim={onVerbatim} onDuodecim={onDuodecim} onBulla={onBulla} onArchive={onArchive} onFatum={onFatum} active="Claves" compact />
+        <ActionButtons onIterum={onIterum} onNoctem={onNoctem} onVerbatim={onVerbatim} onDuodecim={onDuodecim} onBulla={onBulla} onArchive={onArchive} onFatum={onFatum} onSalvatio={onSalvatio} active="Claves" compact />
       </div>
     </motion.main>
   );
 }
 
-function NoctemScreen({ reading, question, onIterum, onClaves, onVerbatim, onDuodecim, onBulla, onArchive, onFatum }) {
+function NoctemScreen({ reading, question, onIterum, onClaves, onVerbatim, onDuodecim, onBulla, onArchive, onFatum, onSalvatio }) {
   const [selectedCard, setSelectedCard] = useState(null);
   const [isClosingCard, setIsClosingCard] = useState(false);
 
@@ -829,7 +826,7 @@ function NoctemScreen({ reading, question, onIterum, onClaves, onVerbatim, onDuo
       </div>
 
       <div className="fixed bottom-[max(2.25rem,calc(env(safe-area-inset-bottom)+1.25rem))] left-0 right-0 z-30 text-white">
-        <ActionButtons onIterum={onIterum} onClaves={onClaves} onVerbatim={onVerbatim} onDuodecim={onDuodecim} onBulla={onBulla} onArchive={onArchive} onFatum={onFatum} active="Noctem" compact />
+        <ActionButtons onIterum={onIterum} onClaves={onClaves} onVerbatim={onVerbatim} onDuodecim={onDuodecim} onBulla={onBulla} onArchive={onArchive} onFatum={onFatum} onSalvatio={onSalvatio} active="Noctem" compact />
       </div>
 
       {selectedCard ? (
@@ -1052,7 +1049,7 @@ function getDuodecimFallbackSentence(name, reading, question) {
   return sentences[name] || `${q} ${sign}`;
 }
 
-function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbatim, onBulla, onArchive, onFatum }) {
+function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbatim, onBulla, onArchive, onFatum, onSalvatio }) {
   const [rotations, setRotations] = useState([
     { x: -18, y: 26 },
     { x: 18, y: -24 }
@@ -1285,7 +1282,7 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
       ) : null}
 
       <div className="fixed bottom-[max(2.25rem,calc(env(safe-area-inset-bottom)+1.25rem))] left-0 right-0 z-30">
-        <ActionButtons onIterum={onIterum} onClaves={onClaves} onNoctem={onNoctem} onVerbatim={onVerbatim} onBulla={onBulla} onArchive={onArchive} onFatum={onFatum} active="Duodecim" compact />
+        <ActionButtons onIterum={onIterum} onClaves={onClaves} onNoctem={onNoctem} onVerbatim={onVerbatim} onBulla={onBulla} onArchive={onArchive} onFatum={onFatum} onSalvatio={onSalvatio} active="Duodecim" compact />
       </div>
     </motion.main>
   );
@@ -1330,7 +1327,7 @@ function fileToArchivePhotoDataUrl(file) {
   });
 }
 
-function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, onArchive, onFatum }) {
+function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, onArchive, onFatum, onSalvatio }) {
   const [status, setStatus] = useState("idle");
   const [photoDataUrl, setPhotoDataUrl] = useState("");
   const [photoStatus, setPhotoStatus] = useState("idle");
@@ -1535,7 +1532,7 @@ function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
       ) : null}
 
       <div className="fixed bottom-[max(2.25rem,calc(env(safe-area-inset-bottom)+1.25rem))] left-0 right-0 z-30">
-        <ActionButtons onIterum={onIterum} onClaves={onClaves} onNoctem={onNoctem} onVerbatim={onVerbatim} onDuodecim={onDuodecim} onArchive={onArchive} onFatum={onFatum} active="Bulla" compact />
+        <ActionButtons onIterum={onIterum} onClaves={onClaves} onNoctem={onNoctem} onVerbatim={onVerbatim} onDuodecim={onDuodecim} onArchive={onArchive} onFatum={onFatum} onSalvatio={onSalvatio} active="Bulla" compact />
       </div>
     </motion.main>
   );
@@ -1625,7 +1622,7 @@ function formatArchiveDate(value) {
   }
 }
 
-function ArchivesScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, onBulla, onFatum }) {
+function ArchivesScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, onBulla, onFatum, onSalvatio }) {
   const [archives, setArchives] = useState(() => readBullaArchives());
   const [reactionTarget, setReactionTarget] = useState(null);
   const [commentTarget, setCommentTarget] = useState(null);
@@ -1969,6 +1966,7 @@ function ArchivesScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
           onDuodecim={onDuodecim}
           onBulla={onBulla}
           onFatum={onFatum}
+          onSalvatio={onSalvatio}
           active="Archivum"
           compact
         />
@@ -2154,7 +2152,425 @@ function FatumGlyphs({ score, invert = false }) {
   );
 }
 
-function FatumScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, onBulla, onArchive }) {
+
+const SALVATIO_COST = 50;
+const SALVATIO_CARD_SRC = "/images/salvatio/salvatio-card.png?v=1";
+const SALVATIO_ANGUIS_SRC = "/images/salvatio/anguis.png?v=1";
+const SALVATIO_SKULL_SRC = "/images/fatum/calvaria.png";
+
+const SALVATIO_ZONES = [
+  { id: "sinistra-superior", x: 12.6, y: 49.1, size: 11.1 },
+  { id: "sinistra-inferior", x: 17.5, y: 66.1, size: 11.1 },
+  { id: "ima-sinistra", x: 31.8, y: 75.1, size: 11.1 },
+  { id: "ima-media", x: 50.1, y: 75.2, size: 11.1 },
+  { id: "ima-dextra", x: 68.3, y: 75.2, size: 11.1 },
+  { id: "dextra-inferior", x: 85.1, y: 66.1, size: 11.1 },
+  { id: "dextra-superior", x: 88.0, y: 49.1, size: 11.1 }
+];
+
+function pickWeightedLucrum() {
+  const options = [
+    { value: 0, weight: 42 },
+    { value: 10, weight: 28 },
+    { value: 30, weight: 17 },
+    { value: 50, weight: 9 },
+    { value: 100, weight: 3.6 },
+    { value: 1000, weight: 0.4 }
+  ];
+  const total = options.reduce((sum, option) => sum + option.weight, 0);
+  let cursor = Math.random() * total;
+
+  for (const option of options) {
+    cursor -= option.weight;
+    if (cursor <= 0) return option.value;
+  }
+
+  return 0;
+}
+
+function shuffleValues(values) {
+  const next = [...values];
+  for (let index = next.length - 1; index > 0; index -= 1) {
+    const target = Math.floor(Math.random() * (index + 1));
+    [next[index], next[target]] = [next[target], next[index]];
+  }
+  return next;
+}
+
+function createSalvatioSymbols() {
+  const roll = Math.random();
+  const anguisCount = roll < 0.16 ? 2 : roll < 0.5 ? 1 : 0;
+  return shuffleValues([
+    ...Array.from({ length: anguisCount }, () => "anguis"),
+    ...Array.from({ length: SALVATIO_ZONES.length - anguisCount }, () => "calvaria")
+  ]);
+}
+
+function ScratchPatch({ disabled, onReveal }) {
+  const canvasRef = useRef(null);
+  const drawingRef = useRef(false);
+  const revealedRef = useRef(false);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const size = 180;
+    const ratio = window.devicePixelRatio || 1;
+    canvas.width = size * ratio;
+    canvas.height = size * ratio;
+    canvas.style.width = "100%";
+    canvas.style.height = "100%";
+
+    const context = canvas.getContext("2d");
+    context.setTransform(ratio, 0, 0, ratio, 0, 0);
+
+    const gradient = context.createRadialGradient(size * 0.35, size * 0.25, size * 0.08, size * 0.5, size * 0.5, size * 0.7);
+    gradient.addColorStop(0, "rgba(232, 229, 216, 1)");
+    gradient.addColorStop(0.55, "rgba(177, 174, 164, 1)");
+    gradient.addColorStop(1, "rgba(112, 108, 101, 1)");
+
+    context.clearRect(0, 0, size, size);
+    context.fillStyle = gradient;
+    context.beginPath();
+    context.arc(size / 2, size / 2, size * 0.46, 0, Math.PI * 2);
+    context.fill();
+
+    context.globalAlpha = 0.28;
+    context.strokeStyle = "#f5f0df";
+    context.lineWidth = 1;
+    for (let line = 0; line < 20; line += 1) {
+      context.beginPath();
+      context.moveTo(20, 18 + line * 7);
+      context.lineTo(160, 6 + line * 8);
+      context.stroke();
+    }
+    context.globalAlpha = 1;
+  }, []);
+
+  const scratchAt = (event) => {
+    const canvas = canvasRef.current;
+    if (!canvas || disabled || revealedRef.current) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const clientX = event.clientX ?? event.touches?.[0]?.clientX;
+    const clientY = event.clientY ?? event.touches?.[0]?.clientY;
+    if (clientX === undefined || clientY === undefined) return;
+
+    const x = ((clientX - rect.left) / rect.width) * canvas.width;
+    const y = ((clientY - rect.top) / rect.height) * canvas.height;
+    const context = canvas.getContext("2d");
+
+    context.save();
+    context.globalCompositeOperation = "destination-out";
+    context.beginPath();
+    context.arc(x, y, canvas.width * 0.105, 0, Math.PI * 2);
+    context.fill();
+    context.restore();
+
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    let transparent = 0;
+    for (let index = 3; index < pixels.length; index += 4) {
+      if (pixels[index] < 12) transparent += 1;
+    }
+
+    if (transparent / (pixels.length / 4) > 0.36) {
+      revealedRef.current = true;
+      onReveal();
+    }
+  };
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="absolute inset-0 z-20 h-full w-full touch-none rounded-full"
+      onPointerDown={(event) => {
+        drawingRef.current = true;
+        scratchAt(event);
+      }}
+      onPointerMove={(event) => {
+        if (drawingRef.current) scratchAt(event);
+      }}
+      onPointerUp={() => {
+        drawingRef.current = false;
+      }}
+      onPointerCancel={() => {
+        drawingRef.current = false;
+      }}
+      onPointerLeave={() => {
+        drawingRef.current = false;
+      }}
+    />
+  );
+}
+
+function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, onBulla, onArchive, onFatum }) {
+  const [users, setUsers] = useState(() => readFatumUsers());
+  const [activeUserId, setActiveUserId] = useState(() => window.localStorage.getItem(FATUM_ACTIVE_USER_KEY) || "");
+  const [paymentOpen, setPaymentOpen] = useState(true);
+  const [paid, setPaid] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState("idle");
+  const [message, setMessage] = useState("");
+  const [symbols, setSymbols] = useState(() => createSalvatioSymbols());
+  const [revealed, setRevealed] = useState([]);
+  const [lucrum, setLucrum] = useState(() => pickWeightedLucrum());
+  const [settled, setSettled] = useState(false);
+
+  const activeUser = users.find((user) => user.id === activeUserId);
+  const score = Number(activeUser?.score) || 0;
+  const revealedAnguis = revealed.filter((index) => symbols[index] === "anguis").length;
+
+  const refreshUsers = () => {
+    const nextUsers = readFatumUsers();
+    setUsers(nextUsers);
+    setActiveUserId(window.localStorage.getItem(FATUM_ACTIVE_USER_KEY) || "");
+  };
+
+  useEffect(() => {
+    fetchServerFatumUsers()
+      .then((nextUsers) => setUsers(nextUsers))
+      .catch(() => setUsers(readFatumUsers()));
+
+    window.addEventListener("nox:fatum-users-updated", refreshUsers);
+    return () => window.removeEventListener("nox:fatum-users-updated", refreshUsers);
+  }, []);
+
+  const applyUserScore = async (nextScore) => {
+    const nextUsers = await updateServerFatumUser(activeUser.id, {
+      score: Math.max(0, Math.floor(Number(nextScore) || 0)),
+      credited: Array.isArray(activeUser.credited) ? activeUser.credited : [],
+      secretumUnlockedLevel: Number(activeUser.secretumUnlockedLevel) || 0
+    });
+    setUsers(nextUsers);
+    return nextUsers.find((user) => user.id === activeUser.id);
+  };
+
+  const paySalvatio = async () => {
+    if (!activeUser) {
+      setStatus("error");
+      setMessage("Aucun profil Fatum actif. Ouvrez d’abord Fatum et sélectionnez un socius.");
+      return;
+    }
+
+    if (score < SALVATIO_COST) {
+      setStatus("error");
+      setMessage(`Solde insuffisant : ${score} Fat. disponibles, ${SALVATIO_COST} Fat. requis.`);
+      return;
+    }
+
+    setBusy(true);
+    setStatus("syncing");
+    setMessage("Paiement en cours.");
+
+    try {
+      await applyUserScore(score - SALVATIO_COST);
+      setSymbols(createSalvatioSymbols());
+      setRevealed([]);
+      setLucrum(pickWeightedLucrum());
+      setSettled(false);
+      setPaid(true);
+      setPaymentOpen(false);
+      setStatus("ok");
+      setMessage("Paiement accepté. Salvatio est ouverte.");
+    } catch {
+      setStatus("error");
+      setMessage("Paiement impossible. Le solde Fatum n’a pas été modifié.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const revealZone = async (index) => {
+    if (!paid || settled || revealed.includes(index)) return;
+
+    const nextRevealed = [...revealed, index];
+    setRevealed(nextRevealed);
+
+    const nextAnguis = nextRevealed.filter((entry) => symbols[entry] === "anguis").length;
+
+    if (nextAnguis >= 2) {
+      setSettled(true);
+      setStatus("syncing");
+      setMessage(`Deux signes Anguis découverts. Lucrum 1 : ${lucrum} Fat.`);
+
+      try {
+        await applyUserScore((Number(activeUser?.score) || 0) + lucrum);
+        setStatus("ok");
+        setMessage(`Salvatio accomplie. Lucrum 1 versé : ${lucrum} Fat.`);
+      } catch {
+        setStatus("error");
+        setMessage(`Lucrum 1 gagné (${lucrum} Fat.), mais le versement a échoué.`);
+      }
+      return;
+    }
+
+    const remaining = SALVATIO_ZONES.length - nextRevealed.length;
+    const possibleAnguis = symbols.filter((symbol, symbolIndex) => !nextRevealed.includes(symbolIndex) && symbol === "anguis").length;
+
+    if (remaining === 0 || nextAnguis + possibleAnguis < 2) {
+      setSettled(true);
+      setStatus("lost");
+      setMessage("Aucun Lucrum : deux signes Anguis n’ont pas été découverts.");
+    }
+  };
+
+  const resetPayment = () => {
+    setPaid(false);
+    setPaymentOpen(true);
+    setRevealed([]);
+    setSymbols(createSalvatioSymbols());
+    setLucrum(pickWeightedLucrum());
+    setSettled(false);
+    setStatus("idle");
+    setMessage("");
+  };
+
+  return (
+    <main className="min-h-screen bg-[#080807] px-4 pb-28 pt-[max(4.75rem,env(safe-area-inset-top))] text-white">
+      <ActionButtons
+        onIterum={onIterum}
+        onClaves={onClaves}
+        onNoctem={onNoctem}
+        onVerbatim={onVerbatim}
+        onDuodecim={onDuodecim}
+        onBulla={onBulla}
+        onArchive={onArchive}
+        onFatum={onFatum}
+        onSalvatio={() => {}}
+        active="Salvatio"
+        compact
+      />
+
+      <section className="mx-auto max-w-[560px]">
+        <div className="mb-3 flex items-end justify-between gap-3 px-1">
+          <div>
+            <h1 className="text-2xl font-semibold uppercase tracking-[0.18em]">Salvatio</h1>
+            <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-white/52">Alea · 50 Fat. par tentative</p>
+          </div>
+          <div className="text-right text-[10px] uppercase tracking-[0.14em] text-white/62">
+            <p>{activeUser?.name || "Aucun socius"}</p>
+            <p className="text-white">{score} Fat.</p>
+          </div>
+        </div>
+
+        <div className="relative mx-auto aspect-square w-full overflow-hidden rounded-[1.25rem] shadow-2xl shadow-black/50">
+          <img src={SALVATIO_CARD_SRC} alt="Carte Salvatio" className="absolute inset-0 h-full w-full select-none object-cover" draggable={false} />
+
+          {SALVATIO_ZONES.map((zone, index) => {
+            const revealedZone = revealed.includes(index);
+            const symbol = symbols[index];
+            const icon = symbol === "anguis" ? SALVATIO_ANGUIS_SRC : SALVATIO_SKULL_SRC;
+            const label = symbol === "anguis" ? "Anguis" : "Calvaria";
+
+            return (
+              <div
+                key={zone.id}
+                className="absolute z-10 -translate-x-1/2 -translate-y-1/2"
+                style={{ left: `${zone.x}%`, top: `${zone.y}%`, width: `${zone.size}%`, height: `${zone.size}%` }}
+              >
+                <div className="absolute inset-[12%] z-0 flex items-center justify-center rounded-full bg-[#ece4d0] shadow-inner shadow-black/40">
+                  <img
+                    src={icon}
+                    alt={label}
+                    className={[
+                      "h-[62%] w-[62%] object-contain transition duration-500",
+                      symbol === "anguis" ? "" : "opacity-92 [filter:brightness(0)]"
+                    ].join(" ")}
+                    draggable={false}
+                  />
+                </div>
+                {!revealedZone ? <ScratchPatch disabled={!paid || settled} onReveal={() => revealZone(index)} /> : null}
+              </div>
+            );
+          })}
+
+          {!paid ? <div className="absolute inset-0 z-30 bg-black/24 backdrop-blur-[1px]" /> : null}
+        </div>
+
+        <div className="mt-4 min-h-[4.2rem] border border-white/18 bg-black/52 px-4 py-3 text-center shadow-xl">
+          <p className="text-[10px] uppercase tracking-[0.18em] text-white/46">État</p>
+          <p className="mt-1 text-sm text-white/88">{message || "Engagez 50 Fat. pour ouvrir Salvatio."}</p>
+          {paid ? (
+            <p className="mt-2 text-[10px] uppercase tracking-[0.16em] text-white/48">
+              Anguis révélés : {revealedAnguis}/2
+            </p>
+          ) : null}
+        </div>
+
+        <div className="mt-4 flex justify-center gap-3">
+          <button
+            type="button"
+            className="border border-white/30 px-4 py-2 text-[10px] uppercase tracking-[0.16em] text-white active:scale-95 disabled:opacity-35"
+            onClick={() => setPaymentOpen(true)}
+            disabled={paid || busy}
+          >
+            Jouer
+          </button>
+          <button
+            type="button"
+            className="border border-white/18 px-4 py-2 text-[10px] uppercase tracking-[0.16em] text-white/68 active:scale-95 disabled:opacity-35"
+            onClick={resetPayment}
+            disabled={busy}
+          >
+            Nouvelle tentative
+          </button>
+        </div>
+      </section>
+
+      {paymentOpen && !paid ? (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/68 px-5 backdrop-blur-sm">
+          <motion.div
+            className="w-full max-w-[360px] border border-white/28 bg-[#0b0a09] px-5 py-5 text-center text-white shadow-2xl"
+            initial={{ opacity: 0, y: 18, filter: "blur(8px)" }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+          >
+            <p className="text-[10px] uppercase tracking-[0.2em] text-white/48">Paiement Fatum</p>
+            <h2 className="mt-2 text-2xl font-semibold uppercase tracking-[0.14em]">Salvatio</h2>
+            <p className="mt-4 text-sm leading-relaxed text-white/76">
+              Dépenser 50 Fat. pour gratter la carte ? Deux signes Anguis déclenchent le Lucrum 1.
+            </p>
+            <div className="mt-4 border border-white/14 bg-white/[0.04] px-3 py-3 text-[11px] uppercase tracking-[0.14em] text-white/62">
+              <p>{activeUser?.name || "Aucun socius actif"}</p>
+              <p className="mt-1 text-white">Solde : {score} Fat.</p>
+            </div>
+            {status === "error" && message ? <p className="mt-3 text-xs text-white/72">{message}</p> : null}
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                className="border border-white/22 px-3 py-2 text-[10px] uppercase tracking-[0.16em] text-white/62 active:scale-95 disabled:opacity-35"
+                onClick={() => setPaymentOpen(false)}
+                disabled={busy}
+              >
+                Refuser
+              </button>
+              <button
+                type="button"
+                className="border border-white bg-white px-3 py-2 text-[10px] uppercase tracking-[0.16em] text-black active:scale-95 disabled:opacity-35"
+                onClick={paySalvatio}
+                disabled={busy || !activeUser || score < SALVATIO_COST}
+              >
+                {busy ? "Paiement…" : "Payer 50 Fat."}
+              </button>
+            </div>
+            {!activeUser ? (
+              <button
+                type="button"
+                className="mt-4 text-[10px] uppercase tracking-[0.16em] text-white/52 underline underline-offset-4"
+                onClick={onFatum}
+              >
+                Sélectionner un socius dans Fatum
+              </button>
+            ) : null}
+          </motion.div>
+        </div>
+      ) : null}
+    </main>
+  );
+}
+
+function FatumScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, onBulla, onArchive, onSalvatio }) {
   const [users, setUsers] = useState(() => readFatumUsers());
   const [activeUserId, setActiveUserId] = useState(() => window.localStorage.getItem(FATUM_ACTIVE_USER_KEY) || "");
   const [creating, setCreating] = useState(false);
@@ -2602,306 +3018,11 @@ function FatumScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
           onDuodecim={onDuodecim}
           onBulla={onBulla}
           onArchive={onArchive}
+          onFatum={() => {}}
+          onSalvatio={onSalvatio}
           active="Fatum"
           compact
         />
-      </div>
-    </motion.main>
-  );
-}
-
-
-const SALVATIO_COST = 50;
-const SALVATIO_LUCRUM_LABEL = "Lucrum 1";
-const SALVATIO_SPOTS = [
-  { id: "sinistra-1", x: 14.2, y: 51.3, size: 12.8, symbol: "calvaria", label: "Calvaria", icon: "/images/fatum/calvaria.png" },
-  { id: "sinistra-2", x: 16.6, y: 67.0, size: 12.6, symbol: "anguis", label: "Anguis", icon: "/images/salvatio/anguis.png" },
-  { id: "ima-1", x: 33.7, y: 77.0, size: 12.8, symbol: "manus", label: "Manus", icon: "/images/fatum/manus.png" },
-  { id: "ima-2", x: 51.0, y: 78.0, size: 12.8, symbol: "oculus", label: "Oculus", icon: "/images/fatum/oculus.png" },
-  { id: "ima-3", x: 69.4, y: 77.5, size: 12.8, symbol: "anguis", label: "Anguis", icon: "/images/salvatio/anguis.png" },
-  { id: "dextra-1", x: 84.8, y: 68.0, size: 12.6, symbol: "maleficium", label: "Maleficium", icon: "/images/fatum/maleficium.png" },
-  { id: "dextra-2", x: 87.1, y: 52.0, size: 12.8, symbol: "calvaria", label: "Calvaria", icon: "/images/fatum/calvaria.png" }
-];
-
-function SalvatioScratchSpot({ spot, disabled, revealed, onReveal }) {
-  const canvasRef = useRef(null);
-  const isDrawingRef = useRef(false);
-  const revealedRef = useRef(false);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ratio = window.devicePixelRatio || 1;
-    const size = 180;
-    canvas.width = size * ratio;
-    canvas.height = size * ratio;
-    canvas.style.width = "100%";
-    canvas.style.height = "100%";
-
-    const context = canvas.getContext("2d");
-    context.setTransform(ratio, 0, 0, ratio, 0, 0);
-    context.clearRect(0, 0, size, size);
-    context.save();
-    context.beginPath();
-    context.arc(size / 2, size / 2, size * 0.43, 0, Math.PI * 2);
-    context.clip();
-    context.fillStyle = "#bcb6aa";
-    context.fillRect(0, 0, size, size);
-
-    for (let index = 0; index < 420; index += 1) {
-      const x = Math.random() * size;
-      const y = Math.random() * size;
-      const alpha = 0.06 + Math.random() * 0.12;
-      context.fillStyle = Math.random() > 0.5 ? `rgba(255,255,255,${alpha})` : `rgba(0,0,0,${alpha})`;
-      context.fillRect(x, y, 1 + Math.random() * 2.4, 1 + Math.random() * 2.4);
-    }
-
-    context.strokeStyle = "rgba(255,255,255,0.72)";
-    context.lineWidth = 3;
-    context.stroke();
-    context.restore();
-    revealedRef.current = false;
-  }, [spot.id]);
-
-  useEffect(() => {
-    if (!revealed) return;
-
-    const canvas = canvasRef.current;
-    const context = canvas?.getContext("2d");
-    if (!canvas || !context) return;
-
-    context.clearRect(0, 0, canvas.width, canvas.height);
-    revealedRef.current = true;
-  }, [revealed]);
-
-  const scratchAt = (event) => {
-    if (disabled || revealedRef.current) return;
-
-    const canvas = canvasRef.current;
-    const context = canvas?.getContext("2d");
-    if (!canvas || !context) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const x = ((event.clientX - rect.left) / rect.width) * canvas.width;
-    const y = ((event.clientY - rect.top) / rect.height) * canvas.height;
-    const radius = canvas.width * 0.09;
-
-    context.globalCompositeOperation = "destination-out";
-    context.beginPath();
-    context.arc(x, y, radius, 0, Math.PI * 2);
-    context.fill();
-    context.globalCompositeOperation = "source-over";
-
-    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
-    let transparent = 0;
-    for (let index = 3; index < pixels.length; index += 4) {
-      if (pixels[index] < 20) transparent += 1;
-    }
-
-    if (transparent / (pixels.length / 4) > 0.56) {
-      revealedRef.current = true;
-      context.clearRect(0, 0, canvas.width, canvas.height);
-      onReveal(spot.id);
-    }
-  };
-
-  return (
-    <canvas
-      ref={canvasRef}
-      aria-label={`Zone à gratter ${spot.label}`}
-      className={["absolute z-20 rounded-full", disabled ? "cursor-not-allowed opacity-80" : "cursor-crosshair touch-none"].join(" ")}
-      style={{
-        left: `${spot.x}%`,
-        top: `${spot.y}%`,
-        width: `${spot.size}%`,
-        height: `${spot.size}%`,
-        transform: "translate(-50%, -50%)"
-      }}
-      onPointerDown={(event) => {
-        isDrawingRef.current = true;
-        event.currentTarget.setPointerCapture?.(event.pointerId);
-        scratchAt(event);
-      }}
-      onPointerMove={(event) => {
-        if (isDrawingRef.current) scratchAt(event);
-      }}
-      onPointerUp={() => {
-        isDrawingRef.current = false;
-      }}
-      onPointerCancel={() => {
-        isDrawingRef.current = false;
-      }}
-    />
-  );
-}
-
-function SalvatioHiddenSymbol({ spot, revealed }) {
-  return (
-    <div
-      className={["absolute z-10 flex items-center justify-center rounded-full bg-white/85 shadow-[inset_0_0_14px_rgba(0,0,0,0.28)] transition-opacity duration-500", revealed ? "opacity-100" : "opacity-0"].join(" ")}
-      style={{
-        left: `${spot.x}%`,
-        top: `${spot.y}%`,
-        width: `${spot.size * 0.72}%`,
-        height: `${spot.size * 0.72}%`,
-        transform: "translate(-50%, -50%)"
-      }}
-    >
-      <img src={spot.icon} alt={spot.label} className="h-[62%] w-[62%] object-contain" draggable={false} />
-    </div>
-  );
-}
-
-function SalvatioScreen({ onIterum, onFatum }) {
-  const [users, setUsers] = useState(() => readFatumUsers());
-  const [activeUserId, setActiveUserId] = useState(() => window.localStorage.getItem(FATUM_ACTIVE_USER_KEY) || "");
-  const [revealedIds, setRevealedIds] = useState([]);
-  const [hasPaid, setHasPaid] = useState(false);
-  const [status, setStatus] = useState("idle");
-  const [message, setMessage] = useState("Sélectionnez un socius dans Fatum, puis engagez 50 Fat.");
-
-  const activeUser = users.find((user) => user.id === activeUserId);
-  const revealedSpots = SALVATIO_SPOTS.filter((spot) => revealedIds.includes(spot.id));
-  const anguisCount = revealedSpots.filter((spot) => spot.symbol === "anguis").length;
-  const isWon = anguisCount >= 2;
-
-  const refreshUsers = () => {
-    const cachedUsers = readFatumUsers();
-    setUsers(cachedUsers);
-    setActiveUserId(window.localStorage.getItem(FATUM_ACTIVE_USER_KEY) || "");
-  };
-
-  useEffect(() => {
-    fetchServerFatumUsers()
-      .then((serverUsers) => setUsers(serverUsers))
-      .catch(() => setUsers(readFatumUsers()));
-
-    window.addEventListener("storage", refreshUsers);
-    window.addEventListener("nox:fatum-users-updated", refreshUsers);
-
-    return () => {
-      window.removeEventListener("storage", refreshUsers);
-      window.removeEventListener("nox:fatum-users-updated", refreshUsers);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!hasPaid) return;
-
-    if (isWon) {
-      setStatus("won");
-      setMessage("Salvatio accomplie : deux signes Anguis découverts. Lucrum 1 remporté.");
-    } else if (revealedIds.length >= SALVATIO_SPOTS.length) {
-      setStatus("lost");
-      setMessage("Aucun salut cette fois. Les signes restent muets.");
-    } else {
-      setMessage(`${anguisCount}/2 Anguis découverts.`);
-    }
-  }, [anguisCount, hasPaid, isWon, revealedIds.length]);
-
-  const startSalvatio = async () => {
-    if (!activeUser) {
-      setStatus("error");
-      setMessage("Aucun socius actif. Ouvrez Fatum et choisissez un utilisateur.");
-      return;
-    }
-
-    const currentScore = Number(activeUser.score) || 0;
-    if (currentScore < SALVATIO_COST) {
-      setStatus("error");
-      setMessage(`Fatum insuffisant : ${currentScore} Fat. disponibles, ${SALVATIO_COST} Fat. requis.`);
-      return;
-    }
-
-    setStatus("syncing");
-    setMessage("Débit du Fatum en cours.");
-
-    try {
-      const nextUsers = await updateServerFatumUser(activeUser.id, {
-        score: currentScore - SALVATIO_COST
-      });
-      setUsers(nextUsers);
-      setRevealedIds([]);
-      setHasPaid(true);
-      setStatus("playing");
-      setMessage("Grattez les cercles. Découvrez deux Anguis pour remporter le Lucrum 1.");
-    } catch {
-      setStatus("error");
-      setMessage("Impossible de débiter le Fatum. Vérifiez la connexion au serveur.");
-    }
-  };
-
-  const resetLocalTicket = () => {
-    setRevealedIds([]);
-    setHasPaid(false);
-    setStatus("idle");
-    setMessage("Sélectionnez un socius dans Fatum, puis engagez 50 Fat.");
-  };
-
-  return (
-    <motion.main
-      className="relative min-h-screen overflow-hidden bg-[#060504] px-3 pb-[7.25rem] pt-[max(3.7rem,calc(env(safe-area-inset-top)+3rem))] text-white"
-      initial={{ opacity: 0, filter: "blur(10px)" }}
-      animate={{ opacity: 1, filter: "blur(0px)" }}
-      transition={{ duration: 0.65, ease: "easeInOut" }}
-    >
-      <div className="mx-auto flex w-full max-w-[560px] flex-col items-center">
-        <div className="mb-3 text-center">
-          <p className="text-[10px] uppercase tracking-[0.22em] text-white/52">Alea</p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-[0.12em]">Salvatio</h1>
-          <p className="mt-1 text-xs text-white/58">Coût : 50 Fat.</p>
-        </div>
-
-        <div className="relative w-full max-w-[540px] select-none overflow-hidden shadow-2xl">
-          <img src="/images/salvatio/salvatio-card.png?v=1" alt="Carte Salvatio" className="relative z-0 w-full" draggable={false} />
-
-          {SALVATIO_SPOTS.map((spot) => (
-            <SalvatioHiddenSymbol key={`symbol-${spot.id}`} spot={spot} revealed={revealedIds.includes(spot.id)} />
-          ))}
-
-          {SALVATIO_SPOTS.map((spot) => (
-            <SalvatioScratchSpot
-              key={`scratch-${spot.id}-${hasPaid ? "paid" : "idle"}`}
-              spot={spot}
-              disabled={!hasPaid || status === "won" || status === "lost"}
-              revealed={revealedIds.includes(spot.id)}
-              onReveal={(spotId) => {
-                setRevealedIds((ids) => (ids.includes(spotId) ? ids : [...ids, spotId]));
-              }}
-            />
-          ))}
-        </div>
-
-        <div className="mt-4 w-full max-w-[540px] border border-white/18 bg-white/8 px-4 py-3 text-center backdrop-blur-md">
-          <p className="text-[10px] uppercase tracking-[0.2em] text-white/52">
-            {activeUser ? `${activeUser.name} · ${Math.round(Number(activeUser.score) || 0)} Fat.` : "Aucun socius actif"}
-          </p>
-          <p className="mt-2 text-sm leading-snug text-white/82">{message}</p>
-
-          <div className="mt-4 flex items-center justify-center gap-2">
-            <button
-              type="button"
-              className="border border-white bg-white px-4 py-2 text-[10px] uppercase tracking-[0.16em] text-black disabled:opacity-35"
-              disabled={status === "syncing" || hasPaid}
-              onClick={startSalvatio}
-            >
-              {status === "syncing" ? "Patientez" : "Engager 50 Fat."}
-            </button>
-            <button
-              type="button"
-              className="border border-white/40 px-4 py-2 text-[10px] uppercase tracking-[0.16em] text-white/74 disabled:opacity-35"
-              disabled={!hasPaid}
-              onClick={resetLocalTicket}
-            >
-              Réinitialiser
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="fixed bottom-[max(5.6rem,calc(env(safe-area-inset-bottom)+4.4rem))] left-0 right-0 z-30">
-        <ActionButtons onIterum={onIterum} onFatum={onFatum} active="Salvatio" compact />
       </div>
     </motion.main>
   );
@@ -3372,7 +3493,7 @@ function makeReelCards(finalCard, offset = 0) {
   return reel;
 }
 
-function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerbatim, onDuodecim, onBulla, onArchive, onFatum }) {
+function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerbatim, onDuodecim, onBulla, onArchive, onFatum, onSalvatio }) {
   const [reels, setReels] = useState(() => {
     const initialCards = deck.slice(0, 3);
     return initialCards.map((card, index) => ({
@@ -3505,6 +3626,7 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
         onBulla={onBulla}
         onArchive={onArchive}
         onFatum={onFatum}
+        onSalvatio={onSalvatio}
         active="Divinatio"
         compact
       />
@@ -3622,7 +3744,7 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
   );
 }
 
-function ResultScreen({ reading, question, onShowClaves, onShowNoctem, onShowDuodecim, onShowBulla, onShowArchive, onShowFatum }) {
+function ResultScreen({ reading, question, onShowClaves, onShowNoctem, onShowDuodecim, onShowBulla, onShowArchive, onShowFatum, onShowSalvatio }) {
   const panels = [
     { type: "question", lines: [question || "Question silencieuse"] },
     ...reading.cards.map((item) => ({
@@ -3758,6 +3880,7 @@ function ResultScreen({ reading, question, onShowClaves, onShowNoctem, onShowDuo
                   onBulla={onShowBulla}
                   onArchive={onShowArchive}
                   onFatum={onShowFatum}
+                  onSalvatio={onShowSalvatio}
                 />
               </motion.div>
             ) : null}
@@ -3872,17 +3995,6 @@ export default function App() {
 
   useEffect(() => {
     preloadEssentialMedia();
-  }, []);
-
-  useEffect(() => {
-    const navigate = (event) => {
-      const nextStage = event.detail;
-      const allowedStages = new Set(["divinatio", "salvatio", "fatum", "archives", "claves", "noctem", "duodecim", "bulla", "home"]);
-      if (allowedStages.has(nextStage)) setStage(nextStage);
-    };
-
-    window.addEventListener("nox:navigate", navigate);
-    return () => window.removeEventListener("nox:navigate", navigate);
   }, []);
 
   const SpeechRecognition =
@@ -4246,6 +4358,23 @@ export default function App() {
         onBulla={() => setStage("bulla")}
         onArchive={() => setStage("archives")}
         onFatum={() => setStage("fatum")}
+        onSalvatio={() => setStage("salvatio")}
+      />
+    );
+  }
+
+  if (stage === "salvatio") {
+    return (
+      <SalvatioScreen
+        onIterum={() => setStage("divinatio")}
+        onClaves={() => setStage("claves")}
+        onNoctem={() => setStage("noctem")}
+        onVerbatim={() => downloadVerbatimPdf(reading || createFallbackReading(drawnCards, question), question)}
+        onDuodecim={() => setStage("duodecim")}
+        onBulla={() => setStage("bulla")}
+        onArchive={() => setStage("archives")}
+        onFatum={() => setStage("fatum")}
+        onSalvatio={() => setStage("salvatio")}
       />
     );
   }
@@ -4263,15 +4392,7 @@ export default function App() {
         onBulla={() => setStage("bulla")}
         onArchive={() => setStage("archives")}
         onFatum={() => setStage("fatum")}
-      />
-    );
-  }
-
-  if (stage === "salvatio") {
-    return (
-      <SalvatioScreen
-        onIterum={() => setStage("divinatio")}
-        onFatum={() => setStage("fatum")}
+        onSalvatio={() => setStage("salvatio")}
       />
     );
   }
@@ -4287,6 +4408,7 @@ export default function App() {
         onBulla={() => setStage("bulla")}
         onArchive={() => setStage("archives")}
         onFatum={() => setStage("fatum")}
+        onSalvatio={() => setStage("salvatio")}
       />
     );
   }
@@ -4303,6 +4425,7 @@ export default function App() {
         onBulla={() => setStage("bulla")}
         onArchive={() => setStage("archives")}
         onFatum={() => setStage("fatum")}
+        onSalvatio={() => setStage("salvatio")}
       />
     );
   }
@@ -4319,6 +4442,7 @@ export default function App() {
         onBulla={() => setStage("bulla")}
         onArchive={() => setStage("archives")}
         onFatum={() => setStage("fatum")}
+        onSalvatio={() => setStage("salvatio")}
       />
     );
   }
@@ -4333,6 +4457,8 @@ export default function App() {
         onNoctem={() => setStage("noctem")}
         onVerbatim={() => downloadVerbatimPdf(reading || createFallbackReading(drawnCards, question), question)}
         onBulla={() => setStage("bulla")}
+        onFatum={() => setStage("fatum")}
+        onSalvatio={() => setStage("salvatio")}
       />
     );
   }
@@ -4349,6 +4475,7 @@ export default function App() {
         onDuodecim={() => setStage("duodecim")}
         onArchive={() => setStage("archives")}
         onFatum={() => setStage("fatum")}
+        onSalvatio={() => setStage("salvatio")}
       />
     );
   }
@@ -4370,6 +4497,7 @@ export default function App() {
           onShowBulla={() => setStage("bulla")}
           onShowArchive={() => setStage("archives")}
           onShowFatum={() => setStage("fatum")}
+          onShowSalvatio={() => setStage("salvatio")}
         />
       </>
     );
