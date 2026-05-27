@@ -174,6 +174,10 @@ function DevLatinHome({ onStage, onVerbatim }) {
         const archives = archiveResult.status === "fulfilled" ? archiveResult.value : readBullaArchives();
         const matchedUser = users.find((user) => user.name?.toLowerCase() === selectedUser.toLowerCase());
 
+        if (matchedUser?.id) {
+          window.localStorage.setItem(FATUM_ACTIVE_USER_KEY, matchedUser.id);
+        }
+
         setSpaceSummary({
           fatum: Number.isFinite(Number(matchedUser?.score)) ? Math.round(Number(matchedUser.score)) : 0,
           archives: Array.isArray(archives) ? archives.length : 0
@@ -2041,6 +2045,48 @@ function shouldOfferSecretum(user) {
 
 const FATUM_USERS_KEY = "nox:fatum-users-cache";
 const FATUM_ACTIVE_USER_KEY = "nox:fatum-active-user";
+const NOX_DEV_USER_KEY = "nox:dev-user";
+
+function readNoxSessionUser() {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = window.localStorage.getItem(NOX_DEV_USER_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return parsed?.name ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function findFatumUserByName(users, name) {
+  const normalizedName = normalizeCardLabel(name || "");
+  if (!normalizedName) return null;
+
+  return users.find((user) => normalizeCardLabel(user.name || "") === normalizedName) || null;
+}
+
+async function ensureSessionFatumUser(baseUsers = readFatumUsers()) {
+  const sessionUser = readNoxSessionUser();
+  const sessionName = sessionUser?.name || "";
+
+  if (!sessionName) return { user: null, users: baseUsers, sessionName: "" };
+
+  const matchedUser = findFatumUserByName(baseUsers, sessionName);
+  if (matchedUser) {
+    window.localStorage.setItem(FATUM_ACTIVE_USER_KEY, matchedUser.id);
+    return { user: matchedUser, users: baseUsers, sessionName };
+  }
+
+  const nextUsers = await createServerFatumUser(sessionName);
+  const createdUser = findFatumUserByName(nextUsers, sessionName) || nextUsers[nextUsers.length - 1] || null;
+
+  if (createdUser?.id) {
+    window.localStorage.setItem(FATUM_ACTIVE_USER_KEY, createdUser.id);
+  }
+
+  return { user: createdUser, users: nextUsers, sessionName };
+}
 
 async function fetchServerFatumUsers() {
   const response = await fetch("/api/fatum-users", { cache: "no-store" });
@@ -2206,7 +2252,7 @@ function createSalvatioSymbols() {
   ]);
 }
 
-function ScratchPatch({ disabled, onReveal }) {
+function ScratchPatch({ disabled, resetSignal = 0, className = "", onReveal }) {
   const canvasRef = useRef(null);
   const drawingRef = useRef(false);
   const revealedRef = useRef(false);
@@ -2224,6 +2270,7 @@ function ScratchPatch({ disabled, onReveal }) {
 
     const context = canvas.getContext("2d");
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
+    revealedRef.current = false;
 
     const gradient = context.createRadialGradient(size * 0.35, size * 0.25, size * 0.08, size * 0.5, size * 0.5, size * 0.7);
     gradient.addColorStop(0, "rgba(232, 229, 216, 1)");
@@ -2246,25 +2293,27 @@ function ScratchPatch({ disabled, onReveal }) {
       context.stroke();
     }
     context.globalAlpha = 1;
-  }, []);
+  }, [resetSignal]);
 
   const scratchAt = (event) => {
     const canvas = canvasRef.current;
     if (!canvas || disabled || revealedRef.current) return;
 
+    event.preventDefault();
     const rect = canvas.getBoundingClientRect();
     const clientX = event.clientX ?? event.touches?.[0]?.clientX;
     const clientY = event.clientY ?? event.touches?.[0]?.clientY;
     if (clientX === undefined || clientY === undefined) return;
 
-    const x = ((clientX - rect.left) / rect.width) * canvas.width;
-    const y = ((clientY - rect.top) / rect.height) * canvas.height;
+    const size = 180;
+    const x = ((clientX - rect.left) / rect.width) * size;
+    const y = ((clientY - rect.top) / rect.height) * size;
     const context = canvas.getContext("2d");
 
     context.save();
     context.globalCompositeOperation = "destination-out";
     context.beginPath();
-    context.arc(x, y, canvas.width * 0.105, 0, Math.PI * 2);
+    context.arc(x, y, size * 0.17, 0, Math.PI * 2);
     context.fill();
     context.restore();
 
@@ -2274,7 +2323,7 @@ function ScratchPatch({ disabled, onReveal }) {
       if (pixels[index] < 12) transparent += 1;
     }
 
-    if (transparent / (pixels.length / 4) > 0.36) {
+    if (transparent / (pixels.length / 4) > 0.24) {
       revealedRef.current = true;
       onReveal();
     }
@@ -2283,16 +2332,18 @@ function ScratchPatch({ disabled, onReveal }) {
   return (
     <canvas
       ref={canvasRef}
-      className="absolute inset-0 z-20 h-full w-full touch-none rounded-full"
+      className={["absolute inset-0 z-20 h-full w-full touch-none rounded-full", className].join(" ")}
       onPointerDown={(event) => {
+        event.currentTarget.setPointerCapture?.(event.pointerId);
         drawingRef.current = true;
         scratchAt(event);
       }}
       onPointerMove={(event) => {
         if (drawingRef.current) scratchAt(event);
       }}
-      onPointerUp={() => {
+      onPointerUp={(event) => {
         drawingRef.current = false;
+        event.currentTarget.releasePointerCapture?.(event.pointerId);
       }}
       onPointerCancel={() => {
         drawingRef.current = false;
@@ -2307,6 +2358,7 @@ function ScratchPatch({ disabled, onReveal }) {
 function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, onBulla, onArchive, onFatum }) {
   const [users, setUsers] = useState(() => readFatumUsers());
   const [activeUserId, setActiveUserId] = useState(() => window.localStorage.getItem(FATUM_ACTIVE_USER_KEY) || "");
+  const [sessionName, setSessionName] = useState(() => readNoxSessionUser()?.name || "");
   const [paymentOpen, setPaymentOpen] = useState(true);
   const [paid, setPaid] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -2315,7 +2367,10 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
   const [symbols, setSymbols] = useState(() => createSalvatioSymbols());
   const [revealed, setRevealed] = useState([]);
   const [lucrum, setLucrum] = useState(() => pickWeightedLucrum());
+  const [lucrumUnlocked, setLucrumUnlocked] = useState(false);
+  const [lucrumRevealed, setLucrumRevealed] = useState(false);
   const [settled, setSettled] = useState(false);
+  const [scratchReset, setScratchReset] = useState(0);
 
   const activeUser = users.find((user) => user.id === activeUserId);
   const score = Number(activeUser?.score) || 0;
@@ -2325,31 +2380,81 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
     const nextUsers = readFatumUsers();
     setUsers(nextUsers);
     setActiveUserId(window.localStorage.getItem(FATUM_ACTIVE_USER_KEY) || "");
+    setSessionName(readNoxSessionUser()?.name || "");
   };
 
   useEffect(() => {
-    fetchServerFatumUsers()
-      .then((nextUsers) => setUsers(nextUsers))
-      .catch(() => setUsers(readFatumUsers()));
+    let cancelled = false;
 
+    const boot = async () => {
+      const currentSessionName = readNoxSessionUser()?.name || "";
+      setSessionName(currentSessionName);
+
+      if (!currentSessionName) {
+        setUsers(readFatumUsers());
+        setActiveUserId("");
+        setStatus("error");
+        setMessage("Session intratum absente. Revenez à l’entrée de Nox.");
+        return;
+      }
+
+      try {
+        const serverUsers = await fetchServerFatumUsers();
+        const ensured = await ensureSessionFatumUser(serverUsers);
+        if (cancelled) return;
+        setUsers(ensured.users);
+        setActiveUserId(ensured.user?.id || "");
+      } catch {
+        const cachedUsers = readFatumUsers();
+        const cachedUser = findFatumUserByName(cachedUsers, currentSessionName);
+        if (cachedUser?.id) window.localStorage.setItem(FATUM_ACTIVE_USER_KEY, cachedUser.id);
+        if (cancelled) return;
+        setUsers(cachedUsers);
+        setActiveUserId(cachedUser?.id || "");
+      }
+    };
+
+    boot();
     window.addEventListener("nox:fatum-users-updated", refreshUsers);
-    return () => window.removeEventListener("nox:fatum-users-updated", refreshUsers);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("nox:fatum-users-updated", refreshUsers);
+    };
   }, []);
 
   const applyUserScore = async (nextScore) => {
-    const nextUsers = await updateServerFatumUser(activeUser.id, {
+    const currentUser = readFatumUsers().find((user) => user.id === activeUserId) || activeUser;
+    if (!currentUser?.id) throw new Error("No active Fatum user");
+
+    const nextUsers = await updateServerFatumUser(currentUser.id, {
       score: Math.max(0, Math.floor(Number(nextScore) || 0)),
-      credited: Array.isArray(activeUser.credited) ? activeUser.credited : [],
-      secretumUnlockedLevel: Number(activeUser.secretumUnlockedLevel) || 0
+      credited: Array.isArray(currentUser.credited) ? currentUser.credited : [],
+      secretumUnlockedLevel: Number(currentUser.secretumUnlockedLevel) || 0
     });
     setUsers(nextUsers);
-    return nextUsers.find((user) => user.id === activeUser.id);
+    return nextUsers.find((user) => user.id === currentUser.id);
+  };
+
+  const resetPlayState = () => {
+    setSymbols(createSalvatioSymbols());
+    setRevealed([]);
+    setLucrum(pickWeightedLucrum());
+    setLucrumUnlocked(false);
+    setLucrumRevealed(false);
+    setSettled(false);
+    setScratchReset((value) => value + 1);
   };
 
   const paySalvatio = async () => {
+    if (!sessionName) {
+      setStatus("error");
+      setMessage("Session intratum absente. Revenez à l’entrée de Nox.");
+      return;
+    }
+
     if (!activeUser) {
       setStatus("error");
-      setMessage("Aucun profil Fatum actif. Ouvrez d’abord Fatum et sélectionnez un socius.");
+      setMessage("Profil Fatum introuvable pour cette session.");
       return;
     }
 
@@ -2365,10 +2470,7 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
 
     try {
       await applyUserScore(score - SALVATIO_COST);
-      setSymbols(createSalvatioSymbols());
-      setRevealed([]);
-      setLucrum(pickWeightedLucrum());
-      setSettled(false);
+      resetPlayState();
       setPaid(true);
       setPaymentOpen(false);
       setStatus("ok");
@@ -2381,7 +2483,26 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
     }
   };
 
-  const revealZone = async (index) => {
+  const revealLucrum = async () => {
+    if (!lucrumUnlocked || lucrumRevealed || !activeUser) return;
+
+    setLucrumRevealed(true);
+    setSettled(true);
+    setStatus("syncing");
+    setMessage(`Lucrum 1 révélé : ${lucrum} Fat.`);
+
+    try {
+      const currentUser = readFatumUsers().find((user) => user.id === activeUserId) || activeUser;
+      await applyUserScore((Number(currentUser?.score) || 0) + lucrum);
+      setStatus("ok");
+      setMessage(`Salvatio accomplie. Lucrum 1 versé : ${lucrum} Fat.`);
+    } catch {
+      setStatus("error");
+      setMessage(`Lucrum 1 gagné (${lucrum} Fat.), mais le versement a échoué.`);
+    }
+  };
+
+  const revealZone = (index) => {
     if (!paid || settled || revealed.includes(index)) return;
 
     const nextRevealed = [...revealed, index];
@@ -2390,18 +2511,9 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
     const nextAnguis = nextRevealed.filter((entry) => symbols[entry] === "anguis").length;
 
     if (nextAnguis >= 2) {
-      setSettled(true);
-      setStatus("syncing");
-      setMessage(`Deux signes Anguis découverts. Lucrum 1 : ${lucrum} Fat.`);
-
-      try {
-        await applyUserScore((Number(activeUser?.score) || 0) + lucrum);
-        setStatus("ok");
-        setMessage(`Salvatio accomplie. Lucrum 1 versé : ${lucrum} Fat.`);
-      } catch {
-        setStatus("error");
-        setMessage(`Lucrum 1 gagné (${lucrum} Fat.), mais le versement a échoué.`);
-      }
+      setLucrumUnlocked(true);
+      setStatus("ok");
+      setMessage("Deux signes Anguis découverts. Grattez Lucrum 1.");
       return;
     }
 
@@ -2418,10 +2530,7 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
   const resetPayment = () => {
     setPaid(false);
     setPaymentOpen(true);
-    setRevealed([]);
-    setSymbols(createSalvatioSymbols());
-    setLucrum(pickWeightedLucrum());
-    setSettled(false);
+    resetPlayState();
     setStatus("idle");
     setMessage("");
   };
@@ -2443,15 +2552,12 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
       />
 
       <section className="mx-auto max-w-[560px]">
-        <div className="mb-3 flex items-end justify-between gap-3 px-1">
-          <div>
-            <h1 className="text-2xl font-semibold uppercase tracking-[0.18em]">Salvatio</h1>
-            <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-white/52">Alea · 50 Fat. par tentative</p>
-          </div>
-          <div className="text-right text-[10px] uppercase tracking-[0.14em] text-white/62">
-            <p>{activeUser?.name || "Aucun socius"}</p>
-            <p className="text-white">{score} Fat.</p>
-          </div>
+        <div className="mb-3 px-1 text-center">
+          <h1 className="text-2xl font-semibold uppercase tracking-[0.18em]">Salvatio</h1>
+          <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-white/52">Alea · 50 Fat. par tentative</p>
+          <p className="mt-2 text-[10px] uppercase tracking-[0.14em] text-white/62">
+            {activeUser?.name || sessionName || "Session absente"} · <span className="text-white">{score} Fat.</span>
+          </p>
         </div>
 
         <div className="relative mx-auto aspect-square w-full overflow-hidden rounded-[1.25rem] shadow-2xl shadow-black/50">
@@ -2480,10 +2586,26 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
                     draggable={false}
                   />
                 </div>
-                {!revealedZone ? <ScratchPatch disabled={!paid || settled} onReveal={() => revealZone(index)} /> : null}
+                {!revealedZone ? <ScratchPatch disabled={!paid || settled || lucrumUnlocked} resetSignal={scratchReset} onReveal={() => revealZone(index)} /> : null}
               </div>
             );
           })}
+
+          {lucrumUnlocked ? (
+            <div className="absolute left-[8.8%] top-[84.8%] z-20 h-[8.3%] w-[27.8%] overflow-hidden rounded-[0.7rem] border border-white/24 bg-[#ece4d0] shadow-inner shadow-black/50">
+              <div className="absolute inset-0 z-0 flex items-center justify-center bg-[#ece4d0] text-[clamp(0.7rem,3.2vw,1.1rem)] font-semibold uppercase tracking-[0.08em] text-black">
+                {lucrum} Fat.
+              </div>
+              {!lucrumRevealed ? (
+                <ScratchPatch
+                  disabled={!lucrumUnlocked || lucrumRevealed}
+                  resetSignal={scratchReset}
+                  className="rounded-[0.7rem]"
+                  onReveal={revealLucrum}
+                />
+              ) : null}
+            </div>
+          ) : null}
 
           {!paid ? <div className="absolute inset-0 z-30 bg-black/24 backdrop-blur-[1px]" /> : null}
         </div>
@@ -2493,7 +2615,7 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
           <p className="mt-1 text-sm text-white/88">{message || "Engagez 50 Fat. pour ouvrir Salvatio."}</p>
           {paid ? (
             <p className="mt-2 text-[10px] uppercase tracking-[0.16em] text-white/48">
-              Anguis révélés : {revealedAnguis}/2
+              Anguis révélés : {revealedAnguis}/2{lucrumUnlocked ? " · Lucrum 1 ouvert" : ""}
             </p>
           ) : null}
         </div>
@@ -2529,10 +2651,10 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
             <p className="text-[10px] uppercase tracking-[0.2em] text-white/48">Paiement Fatum</p>
             <h2 className="mt-2 text-2xl font-semibold uppercase tracking-[0.14em]">Salvatio</h2>
             <p className="mt-4 text-sm leading-relaxed text-white/76">
-              Dépenser 50 Fat. pour gratter la carte ? Deux signes Anguis déclenchent le Lucrum 1.
+              Dépenser 50 Fat. pour gratter la carte ? Deux signes Anguis ouvrent Lucrum 1.
             </p>
             <div className="mt-4 border border-white/14 bg-white/[0.04] px-3 py-3 text-[11px] uppercase tracking-[0.14em] text-white/62">
-              <p>{activeUser?.name || "Aucun socius actif"}</p>
+              <p>{activeUser?.name || sessionName || "Session intratum absente"}</p>
               <p className="mt-1 text-white">Solde : {score} Fat.</p>
             </div>
             {status === "error" && message ? <p className="mt-3 text-xs text-white/72">{message}</p> : null}
@@ -2554,13 +2676,13 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
                 {busy ? "Paiement…" : "Payer 50 Fat."}
               </button>
             </div>
-            {!activeUser ? (
+            {!sessionName ? (
               <button
                 type="button"
                 className="mt-4 text-[10px] uppercase tracking-[0.16em] text-white/52 underline underline-offset-4"
-                onClick={onFatum}
+                onClick={onIterum}
               >
-                Sélectionner un socius dans Fatum
+                Revenir à Intratum
               </button>
             ) : null}
           </motion.div>
