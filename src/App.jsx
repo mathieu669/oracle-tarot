@@ -2259,9 +2259,44 @@ function shuffleValues(values) {
   return next;
 }
 
+function AnguisGlyph({ className = "", title = "Anguis" }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 64 64"
+      role="img"
+      aria-label={title}
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M35.8 8.4c-9.7 1.3-17.4 8.9-17.7 18.1-.2 7.3 5 11.7 12.8 11.3l8.6-.5c5.1-.3 8.3 2.1 8.1 6.3-.2 5.3-5.8 9.7-13.6 10.5-7.2.8-13.4-1.4-17.4-5.8"
+        stroke="currentColor"
+        strokeWidth="5.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M35.8 8.4c7.9-1 13.9 2.8 14.5 8.7.6 5.7-3.9 10.6-11.3 11.7l-8.8 1.2c-5.6.8-8.8 3.7-8.4 7.6.5 4.6 5.9 7.1 13.2 6.2"
+        stroke="currentColor"
+        strokeWidth="5.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M47.9 12.7l6.2-3.9M48.8 19.1l7.2 2.7"
+        stroke="currentColor"
+        strokeWidth="4.4"
+        strokeLinecap="round"
+      />
+      <circle cx="40.4" cy="14.9" r="1.8" fill="currentColor" />
+    </svg>
+  );
+}
+
 function createSalvatioSymbols() {
   const roll = Math.random();
-  const anguisCount = roll < 0.16 ? 2 : roll < 0.5 ? 1 : 0;
+  const anguisCount = roll < 0.32 ? 2 : roll < 0.66 ? 1 : 0;
   return shuffleValues([
     ...Array.from({ length: anguisCount }, () => "anguis"),
     ...Array.from({ length: SALVATIO_ZONES.length - anguisCount }, () => "calvaria")
@@ -2588,14 +2623,13 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
           </div>
           <div className="pointer-events-none absolute left-[42%] top-[84.3%] z-[11] flex h-[8.4%] w-[48%] items-center justify-start gap-[1.4%] rounded-[0.4rem] bg-[#11100d]/88 px-[2%] text-left text-[clamp(0.44rem,1.9vw,0.72rem)] font-semibold leading-[1.1] text-white/82">
             <span>Trouvez deux signes</span>
-            <img src={SALVATIO_ANGUIS_SRC} alt="Anguis" className="h-[1.3em] w-[1.3em] object-contain [filter:brightness(0)_invert(1)]" draggable={false} />
+            <AnguisGlyph className="h-[1.3em] w-[1.3em] text-white" />
             <span>et remportez le Lucrum.</span>
           </div>
 
           {SALVATIO_ZONES.map((zone, index) => {
             const revealedZone = revealed.includes(index);
             const symbol = symbols[index];
-            const icon = symbol === "anguis" ? SALVATIO_ANGUIS_SRC : SALVATIO_SKULL_SRC;
             const label = symbol === "anguis" ? "Anguis" : "Calvaria";
 
             return (
@@ -2605,15 +2639,16 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
                 style={{ left: `${zone.x}%`, top: `${zone.y}%`, width: `${zone.size}%`, height: `${zone.size}%` }}
               >
                 <div className="absolute inset-[12%] z-0 flex items-center justify-center rounded-full bg-[#ece4d0] shadow-inner shadow-black/40">
-                  <img
-                    src={icon}
-                    alt={label}
-                    className={[
-                      "h-[62%] w-[62%] object-contain transition duration-500",
-                      symbol === "anguis" ? "" : "opacity-92 [filter:brightness(0)]"
-                    ].join(" ")}
-                    draggable={false}
-                  />
+                  {symbol === "anguis" ? (
+                    <AnguisGlyph className="h-[62%] w-[62%] text-black transition duration-500" />
+                  ) : (
+                    <img
+                      src={SALVATIO_SKULL_SRC}
+                      alt={label}
+                      className="h-[62%] w-[62%] object-contain opacity-92 transition duration-500 [filter:brightness(0)]"
+                      draggable={false}
+                    />
+                  )}
                 </div>
                 {!revealedZone ? <ScratchPatch disabled={!paid || settled} resetSignal={scratchReset} onReveal={() => revealZone(index)} /> : null}
               </div>
@@ -2681,7 +2716,7 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
             <h2 className="mt-2 text-2xl font-semibold uppercase tracking-[0.14em]">Salvatio</h2>
             <p className="mt-4 flex flex-wrap items-center justify-center gap-1.5 text-sm leading-relaxed text-white/76">
               <span>Cramer 50 Fat. pour jouer ? Trouvez deux signes</span>
-              <img src={SALVATIO_ANGUIS_SRC} alt="Anguis" className="inline h-5 w-5 object-contain [filter:brightness(0)_invert(1)]" draggable={false} />
+              <AnguisGlyph className="inline h-5 w-5 text-white" />
               <span>et remportez le Lucrum.</span>
             </p>
             <div className="mt-4 border border-white/14 bg-white/[0.04] px-3 py-3 text-[11px] uppercase tracking-[0.14em] text-white/62">
