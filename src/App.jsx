@@ -2205,13 +2205,13 @@ const SALVATIO_ANGUIS_SRC = "/images/salvatio/anguis.png?v=1";
 const SALVATIO_SKULL_SRC = "/images/fatum/calvaria.png";
 
 const SALVATIO_ZONES = [
-  { id: "sinistra-superior", x: 12.6, y: 49.1, size: 11.1 },
-  { id: "sinistra-inferior", x: 17.5, y: 66.1, size: 11.1 },
-  { id: "ima-sinistra", x: 31.8, y: 75.1, size: 11.1 },
-  { id: "ima-media", x: 50.1, y: 75.2, size: 11.1 },
-  { id: "ima-dextra", x: 68.3, y: 75.2, size: 11.1 },
-  { id: "dextra-inferior", x: 85.1, y: 66.1, size: 11.1 },
-  { id: "dextra-superior", x: 88.0, y: 49.1, size: 11.1 }
+  { id: "sinistra-superior", x: 15.2, y: 51.4, size: 11.8 },
+  { id: "sinistra-inferior", x: 18.8, y: 65.0, size: 11.8 },
+  { id: "ima-sinistra", x: 31.0, y: 73.5, size: 11.8 },
+  { id: "ima-media", x: 50.0, y: 73.6, size: 11.8 },
+  { id: "ima-dextra", x: 69.2, y: 73.5, size: 11.8 },
+  { id: "dextra-inferior", x: 83.6, y: 65.0, size: 11.8 },
+  { id: "dextra-superior", x: 86.0, y: 51.4, size: 11.8 }
 ];
 
 function pickWeightedLucrum() {
@@ -2313,17 +2313,20 @@ function ScratchPatch({ disabled, resetSignal = 0, className = "", onReveal }) {
     context.save();
     context.globalCompositeOperation = "destination-out";
     context.beginPath();
-    context.arc(x, y, size * 0.17, 0, Math.PI * 2);
+    context.arc(x, y, size * 0.23, 0, Math.PI * 2);
     context.fill();
     context.restore();
 
     const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    let covered = 0;
     let transparent = 0;
     for (let index = 3; index < pixels.length; index += 4) {
+      if (pixels[index] > 0) covered += 1;
       if (pixels[index] < 12) transparent += 1;
     }
 
-    if (transparent / (pixels.length / 4) > 0.24) {
+    const totalScratchSurface = covered + transparent;
+    if (totalScratchSurface > 0 && transparent / totalScratchSurface > 0.38) {
       revealedRef.current = true;
       onReveal();
     }
@@ -2517,10 +2520,7 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
       return;
     }
 
-    const remaining = SALVATIO_ZONES.length - nextRevealed.length;
-    const possibleAnguis = symbols.filter((symbol, symbolIndex) => !nextRevealed.includes(symbolIndex) && symbol === "anguis").length;
-
-    if (remaining === 0 || nextAnguis + possibleAnguis < 2) {
+    if (nextRevealed.length === SALVATIO_ZONES.length) {
       setSettled(true);
       setStatus("lost");
       setMessage("Aucun Lucrum : deux signes Anguis n’ont pas été découverts.");
@@ -2586,7 +2586,7 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
                     draggable={false}
                   />
                 </div>
-                {!revealedZone ? <ScratchPatch disabled={!paid || settled || lucrumUnlocked} resetSignal={scratchReset} onReveal={() => revealZone(index)} /> : null}
+                {!revealedZone ? <ScratchPatch disabled={!paid || settled} resetSignal={scratchReset} onReveal={() => revealZone(index)} /> : null}
               </div>
             );
           })}
