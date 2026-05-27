@@ -1056,7 +1056,57 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
   const [selectedSentence, setSelectedSentence] = useState("");
   const [sentenceStatus, setSentenceStatus] = useState("idle");
   const dragRef = useRef(null);
+  const rotationsRef = useRef(rotations);
+  const velocityRef = useRef([
+    { x: 0.015, y: 0.028 },
+    { x: -0.018, y: 0.024 }
+  ]);
+  const animationRef = useRef(null);
+  const lastFrameRef = useRef(0);
   const adviceRequestRef = useRef(0);
+
+  useEffect(() => {
+    rotationsRef.current = rotations;
+  }, [rotations]);
+
+  useEffect(() => {
+    const tick = (time) => {
+      const last = lastFrameRef.current || time;
+      const delta = Math.min(48, time - last);
+      lastFrameRef.current = time;
+
+      if (!dragRef.current) {
+        setRotations((current) => {
+          const next = current.map((rotation, index) => {
+            const baseX = index === 0 ? 0.012 : -0.014;
+            const baseY = index === 0 ? 0.026 : 0.022;
+            const velocity = velocityRef.current[index];
+
+            velocity.x *= 0.965;
+            velocity.y *= 0.965;
+
+            return {
+              x: rotation.x + (baseX + velocity.x) * delta,
+              y: rotation.y + (baseY + velocity.y) * delta
+            };
+          });
+
+          rotationsRef.current = next;
+          return next;
+        });
+      }
+
+      animationRef.current = window.requestAnimationFrame(tick);
+    };
+
+    animationRef.current = window.requestAnimationFrame(tick);
+
+    return () => {
+      if (animationRef.current) {
+        window.cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, []);
 
   const requestDuodecimSentence = async (name) => {
     const requestId = Date.now();
@@ -1093,11 +1143,23 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
 
   const startDrag = (event, diceIndex) => {
     event.preventDefault();
+
+    if (event.currentTarget.setPointerCapture && event.pointerId !== undefined) {
+      try {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      } catch {
+        // Ignore pointer capture errors.
+      }
+    }
+
     dragRef.current = {
       diceIndex,
       x: event.clientX,
       y: event.clientY,
-      rotation: rotations[diceIndex]
+      lastX: event.clientX,
+      lastY: event.clientY,
+      lastTime: event.timeStamp || performance.now(),
+      rotation: rotationsRef.current[diceIndex]
     };
   };
 
@@ -1105,24 +1167,40 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
     if (!dragRef.current) return;
     event.preventDefault();
 
+    const now = event.timeStamp || performance.now();
     const deltaX = event.clientX - dragRef.current.x;
     const deltaY = event.clientY - dragRef.current.y;
+    const frameMs = Math.max(12, now - dragRef.current.lastTime);
+    const frameDeltaX = event.clientX - dragRef.current.lastX;
+    const frameDeltaY = event.clientY - dragRef.current.lastY;
+    const diceIndex = dragRef.current.diceIndex;
 
-    setRotations((current) =>
-      current.map((rotation, index) =>
-        index === dragRef.current.diceIndex
-          ? {
-              x: dragRef.current.rotation.x - deltaY * 0.42,
-              y: dragRef.current.rotation.y + deltaX * 0.42
-            }
-          : rotation
-      )
-    );
+    velocityRef.current[diceIndex] = {
+      x: (-frameDeltaY * 0.030) / frameMs,
+      y: (frameDeltaX * 0.030) / frameMs
+    };
+
+    const nextRotation = {
+      x: dragRef.current.rotation.x - deltaY * 0.42,
+      y: dragRef.current.rotation.y + deltaX * 0.42
+    };
+
+    setRotations((current) => {
+      const next = current.map((rotation, index) => (index === diceIndex ? nextRotation : rotation));
+      rotationsRef.current = next;
+      return next;
+    });
+
+    dragRef.current.lastX = event.clientX;
+    dragRef.current.lastY = event.clientY;
+    dragRef.current.lastTime = now;
   };
 
   const endDrag = () => {
     dragRef.current = null;
   };
+
+  const diceOffsetClass = (diceIndex) => (diceIndex === 0 ? "-translate-x-[62px]" : "translate-x-[62px]");
 
   return (
     <motion.main
@@ -1133,11 +1211,11 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
     >
       <h1 className="mt-14 text-center text-3xl font-semibold tracking-[0.12em] text-white">Duodecim.</h1>
 
-      <div className="flex h-[calc(100%-5rem)] items-center justify-center gap-8 px-6 [perspective:900px]">
+      <div className="flex h-[calc(100%-5rem)] flex-col items-center justify-center gap-6 px-6 [perspective:900px]">
         {DUODECIM_DICE.map((names, diceIndex) => (
           <div
             key={`duodecim-die-${diceIndex}`}
-            className="relative h-[124px] w-[124px] touch-none"
+            className={`relative h-[124px] w-[124px] touch-none ${diceOffsetClass(diceIndex)}`}
             onPointerDown={(event) => startDrag(event, diceIndex)}
             onPointerMove={moveDrag}
             onPointerUp={endDrag}
@@ -1148,7 +1226,7 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
               className="absolute inset-0 [transform-style:preserve-3d]"
               style={{
                 transform: `rotateX(${rotations[diceIndex].x}deg) rotateY(${rotations[diceIndex].y}deg)`,
-                transition: dragRef.current ? "none" : "transform 0.35s ease-out"
+                transition: dragRef.current ? "none" : "transform 0.08s linear"
               }}
             >
               {names.map((name, faceIndex) => (
@@ -1160,7 +1238,9 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
                     transform: DICE_FACE_TRANSFORMS[faceIndex],
                     transformStyle: "preserve-3d"
                   }}
-                  onClick={(event) => {
+                  onClick={(event) => event.stopPropagation()}
+                  onDoubleClick={(event) => {
+                    event.preventDefault();
                     event.stopPropagation();
                     requestDuodecimSentence(name);
                   }}
