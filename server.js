@@ -146,6 +146,7 @@ function mapArchiveFromDb(row) {
     action: row.action || "",
     fatum: Number.isFinite(Number(row.fatum)) ? Number(row.fatum) : null,
     reaction: row.reaction || "",
+    reactions: Array.isArray(row.reactions) ? row.reactions : [],
     comments: Array.isArray(row.comments) ? row.comments : []
   };
 }
@@ -218,6 +219,7 @@ async function insertArchive(entry) {
         action: entry.action || "",
         fatum: Number.isFinite(Number(entry.fatum)) ? Number(entry.fatum) : null,
         reaction: "",
+        reactions: [],
         comments: []
       })
     });
@@ -248,18 +250,20 @@ async function insertArchive(entry) {
 
 async function updateArchive(id, patch) {
   if (isSupabaseEnabled()) {
-    const currentRows = await supabaseRequest(`nox_archives?select=comments&id=eq.${encodeURIComponent(id)}&limit=1`);
+    const currentRows = await supabaseRequest(`nox_archives?select=comments,reactions&id=eq.${encodeURIComponent(id)}&limit=1`);
     const current = currentRows?.[0] || {};
     const updatePayload = {};
 
     if (typeof patch.reaction === "string") {
+      const reactions = Array.isArray(current.reactions) ? current.reactions : [];
       updatePayload.reaction = patch.reaction;
+      updatePayload.reactions = [...reactions, patch.reaction];
     }
 
     if (typeof patch.comment === "string") {
       const comments = Array.isArray(current.comments) ? current.comments : [];
-      if (comments.length < 9 && patch.comment.trim()) {
-        updatePayload.comments = [...comments, patch.comment.trim()].slice(0, 9);
+      if (patch.comment.trim()) {
+        updatePayload.comments = [...comments, patch.comment.trim()];
       }
     }
 
@@ -282,7 +286,14 @@ async function updateArchive(id, patch) {
     const nextEntry = { ...entry };
 
     if (typeof patch.reaction === "string") {
+      const reactions = Array.isArray(nextEntry.reactions)
+        ? nextEntry.reactions
+        : nextEntry.reaction
+          ? [nextEntry.reaction]
+          : [];
+
       nextEntry.reaction = patch.reaction;
+      nextEntry.reactions = [...reactions, patch.reaction];
     }
 
     if (typeof patch.comment === "string") {
@@ -292,8 +303,8 @@ async function updateArchive(id, patch) {
           ? [nextEntry.comment]
           : [];
 
-      if (comments.length < 9 && patch.comment.trim()) {
-        nextEntry.comments = [...comments, patch.comment.trim()].slice(0, 9);
+      if (patch.comment.trim()) {
+        nextEntry.comments = [...comments, patch.comment.trim()];
         delete nextEntry.comment;
       }
     }

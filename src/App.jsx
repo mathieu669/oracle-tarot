@@ -110,6 +110,7 @@ function DevLatinHome({ onStage, onVerbatim }) {
   const [notifications, setNotifications] = useState(true);
   const [spaceLoading, setSpaceLoading] = useState(false);
   const [spaceSummary, setSpaceSummary] = useState({ fatum: "—", archives: "—" });
+  const [isRegisteredUser, setIsRegisteredUser] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -124,41 +125,46 @@ function DevLatinHome({ onStage, onVerbatim }) {
     };
   }, []);
 
-  const chooseUser = (userName) => {
-    setSelectedUser(userName);
-    setRomanPass("");
-    setEmail("");
-    setPhase("pass");
+  const readDevUsers = () => {
+    try {
+      const raw = window.localStorage.getItem("nox:dev-users");
+      const parsed = raw ? JSON.parse(raw) : {};
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      return {};
+    }
   };
 
-  const addRoman = (symbol) => {
-    setRomanPass((value) => (value.length >= 8 ? value : `${value}${symbol}`));
+  const readDevUser = (userName) => {
+    const users = readDevUsers();
+    const registered = users[userName];
+
+    if (registered) return registered;
+
+    try {
+      const legacyRaw = window.localStorage.getItem("nox:dev-user");
+      const legacy = legacyRaw ? JSON.parse(legacyRaw) : null;
+
+      if (legacy?.name === userName) return legacy;
+    } catch {
+      // Ignore legacy parsing.
+    }
+
+    return null;
   };
 
-  const removeRoman = () => {
-    setRomanPass((value) => value.slice(0, -1));
+  const writeDevUser = (entry) => {
+    const users = readDevUsers();
+    const nextUsers = {
+      ...users,
+      [entry.name]: entry
+    };
+
+    window.localStorage.setItem("nox:dev-users", JSON.stringify(nextUsers));
+    window.localStorage.setItem("nox:dev-user", JSON.stringify(entry));
   };
 
-  const submitPass = () => {
-    if (romanPass.length < 5) return;
-    setPhase("email");
-  };
-
-  const submitEmail = () => {
-    const trimmed = email.trim();
-    if (!trimmed || !trimmed.includes("@")) return;
-
-    window.localStorage.setItem(
-      "nox:dev-user",
-      JSON.stringify({
-        name: selectedUser,
-        pass: romanPass,
-        email: trimmed,
-        notifications,
-        createdAt: new Date().toISOString()
-      })
-    );
-
+  const loadUserSpace = () => {
     setSpaceLoading(true);
     setSpaceSummary({ fatum: "—", archives: "—" });
 
@@ -179,6 +185,52 @@ function DevLatinHome({ onStage, onVerbatim }) {
           setPhase("space");
         }, 450);
       });
+  };
+
+  const chooseUser = (userName) => {
+    const registered = readDevUser(userName);
+
+    setSelectedUser(userName);
+    setRomanPass("");
+    setEmail("");
+    setIsRegisteredUser(Boolean(registered));
+    setNotifications(registered?.notifications ?? true);
+    setPhase("pass");
+  };
+
+  const addRoman = (symbol) => {
+    setRomanPass((value) => (value.length >= 8 ? value : `${value}${symbol}`));
+  };
+
+  const removeRoman = () => {
+    setRomanPass((value) => value.slice(0, -1));
+  };
+
+  const submitPass = () => {
+    if (romanPass.length < 5) return;
+
+    if (isRegisteredUser) {
+      loadUserSpace();
+      return;
+    }
+
+    setPhase("email");
+  };
+
+  const submitEmail = () => {
+    const trimmed = email.trim();
+    if (!trimmed || !trimmed.includes("@")) return;
+
+    writeDevUser({
+      name: selectedUser,
+      pass: romanPass,
+      email: trimmed,
+      notifications,
+      createdAt: new Date().toISOString()
+    });
+
+    setIsRegisteredUser(true);
+    loadUserSpace();
   };
 
   const bottomNav = (
@@ -959,19 +1011,18 @@ const DUODECIM_NAMES = [
   "Bowie"
 ];
 
-const DUODECIM_FACE_TRANSFORMS = [
-  "translateZ(132px)",
-  "rotateY(0deg) rotateX(63deg) translateZ(132px)",
-  "rotateY(72deg) rotateX(63deg) translateZ(132px)",
-  "rotateY(144deg) rotateX(63deg) translateZ(132px)",
-  "rotateY(216deg) rotateX(63deg) translateZ(132px)",
-  "rotateY(288deg) rotateX(63deg) translateZ(132px)",
-  "rotateY(36deg) rotateX(-63deg) translateZ(132px)",
-  "rotateY(108deg) rotateX(-63deg) translateZ(132px)",
-  "rotateY(180deg) rotateX(-63deg) translateZ(132px)",
-  "rotateY(252deg) rotateX(-63deg) translateZ(132px)",
-  "rotateY(324deg) rotateX(-63deg) translateZ(132px)",
-  "rotateY(180deg) translateZ(132px)"
+const DUODECIM_DICE = [
+  DUODECIM_NAMES.slice(0, 6),
+  DUODECIM_NAMES.slice(6, 12)
+];
+
+const DICE_FACE_TRANSFORMS = [
+  "translateZ(62px)",
+  "rotateY(180deg) translateZ(62px)",
+  "rotateY(90deg) translateZ(62px)",
+  "rotateY(-90deg) translateZ(62px)",
+  "rotateX(90deg) translateZ(62px)",
+  "rotateX(-90deg) translateZ(62px)"
 ];
 
 function getDuodecimFallbackSentence(name, reading, question) {
@@ -997,7 +1048,10 @@ function getDuodecimFallbackSentence(name, reading, question) {
 }
 
 function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbatim, onBulla, onArchive, onFatum }) {
-  const [rotation, setRotation] = useState({ x: -18, y: 26 });
+  const [rotations, setRotations] = useState([
+    { x: -18, y: 26 },
+    { x: 18, y: -24 }
+  ]);
   const [selectedName, setSelectedName] = useState(null);
   const [selectedSentence, setSelectedSentence] = useState("");
   const [sentenceStatus, setSentenceStatus] = useState("idle");
@@ -1037,12 +1091,13 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
     }
   };
 
-  const startDrag = (event) => {
+  const startDrag = (event, diceIndex) => {
     event.preventDefault();
     dragRef.current = {
+      diceIndex,
       x: event.clientX,
       y: event.clientY,
-      rotation
+      rotation: rotations[diceIndex]
     };
   };
 
@@ -1053,10 +1108,16 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
     const deltaX = event.clientX - dragRef.current.x;
     const deltaY = event.clientY - dragRef.current.y;
 
-    setRotation({
-      x: dragRef.current.rotation.x - deltaY * 0.35,
-      y: dragRef.current.rotation.y + deltaX * 0.35
-    });
+    setRotations((current) =>
+      current.map((rotation, index) =>
+        index === dragRef.current.diceIndex
+          ? {
+              x: dragRef.current.rotation.x - deltaY * 0.42,
+              y: dragRef.current.rotation.y + deltaX * 0.42
+            }
+          : rotation
+      )
+    );
   };
 
   const endDrag = () => {
@@ -1070,56 +1131,46 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
       animate={{ opacity: 1 }}
       transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
     >
-      <div className="flex h-full items-center justify-center [perspective:900px]">
-        <div
-          className="relative h-[320px] w-[320px] touch-none"
-          onPointerDown={startDrag}
-          onPointerMove={moveDrag}
-          onPointerUp={endDrag}
-          onPointerCancel={endDrag}
-          onPointerLeave={endDrag}
-        >
+      <h1 className="mt-14 text-center text-3xl font-semibold tracking-[0.12em] text-white">Duodecim.</h1>
+
+      <div className="flex h-[calc(100%-5rem)] items-center justify-center gap-8 px-6 [perspective:900px]">
+        {DUODECIM_DICE.map((names, diceIndex) => (
           <div
-            className="absolute inset-0 [transform-style:preserve-3d]"
-            style={{
-              transform: `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)`,
-              transition: dragRef.current ? "none" : "transform 0.35s ease-out"
-            }}
+            key={`duodecim-die-${diceIndex}`}
+            className="relative h-[124px] w-[124px] touch-none"
+            onPointerDown={(event) => startDrag(event, diceIndex)}
+            onPointerMove={moveDrag}
+            onPointerUp={endDrag}
+            onPointerCancel={endDrag}
+            onPointerLeave={endDrag}
           >
-            {DUODECIM_NAMES.map((name, index) => (
-              <button
-                key={name}
-                type="button"
-                className="absolute left-1/2 top-1/2 h-[108px] w-[108px] -translate-x-1/2 -translate-y-1/2 bg-transparent text-white"
-                style={{
-                  transform: DUODECIM_FACE_TRANSFORMS[index],
-                  transformStyle: "preserve-3d"
-                }}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  requestDuodecimSentence(name);
-                }}
-              >
-                <svg
-                  viewBox="0 0 100 100"
-                  className="absolute inset-0 h-full w-full overflow-visible"
-                  aria-hidden="true"
+            <div
+              className="absolute inset-0 [transform-style:preserve-3d]"
+              style={{
+                transform: `rotateX(${rotations[diceIndex].x}deg) rotateY(${rotations[diceIndex].y}deg)`,
+                transition: dragRef.current ? "none" : "transform 0.35s ease-out"
+              }}
+            >
+              {names.map((name, faceIndex) => (
+                <button
+                  key={name}
+                  type="button"
+                  className="absolute left-1/2 top-1/2 flex h-[124px] w-[124px] -translate-x-1/2 -translate-y-1/2 select-none items-center justify-center border border-white/88 bg-black text-center text-[9px] uppercase leading-[1.05] tracking-[0.08em] text-white"
+                  style={{
+                    transform: DICE_FACE_TRANSFORMS[faceIndex],
+                    transformStyle: "preserve-3d"
+                  }}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    requestDuodecimSentence(name);
+                  }}
                 >
-                  <polygon
-                    points="50,4 96,37 78,92 22,92 4,37"
-                    fill="none"
-                    stroke="rgba(255,255,255,0.92)"
-                    strokeWidth="1"
-                    vectorEffect="non-scaling-stroke"
-                  />
-                </svg>
-                <span className="absolute inset-[18px] flex select-none items-center justify-center text-center text-[7.5px] uppercase leading-[1.05] tracking-[0.08em]">
                   {name}
-                </span>
-              </button>
-            ))}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        ))}
       </div>
 
       {selectedName ? (
@@ -1154,7 +1205,6 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
     </motion.main>
   );
 }
-
 
 function fileToArchivePhotoDataUrl(file) {
   return new Promise((resolve, reject) => {

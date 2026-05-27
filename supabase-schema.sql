@@ -20,6 +20,7 @@ create table if not exists public.nox_archives (
   action text default '',
   fatum integer,
   reaction text default '',
+  reactions jsonb not null default '[]'::jsonb,
   comments jsonb not null default '[]'::jsonb
 );
 
@@ -42,3 +43,6 @@ alter table public.nox_fatum_users enable row level security;
 
 -- Le serveur utilise SUPABASE_SERVICE_ROLE_KEY, qui contourne RLS.
 -- Ne jamais exposer cette clé côté client.
+
+
+alter table public.nox_archives add column if not exists reactions jsonb not null default '[]'::jsonb;
