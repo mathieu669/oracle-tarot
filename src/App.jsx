@@ -179,7 +179,7 @@ function DevLatinHome({ onStage, onVerbatim }) {
         }
 
         setSpaceSummary({
-          fatum: Number.isFinite(Number(matchedUser?.score)) ? Math.round(Number(matchedUser.score)) : 0,
+          fatum: hasUnlimitedFatum(matchedUser, selectedUser) ? "∞" : Number.isFinite(Number(matchedUser?.score)) ? Math.round(Number(matchedUser.score)) : 0,
           archives: Array.isArray(archives) ? archives.length : 0
         });
       })
@@ -2046,6 +2046,22 @@ function shouldOfferSecretum(user) {
 const FATUM_USERS_KEY = "nox:fatum-users-cache";
 const FATUM_ACTIVE_USER_KEY = "nox:fatum-active-user";
 const NOX_DEV_USER_KEY = "nox:dev-user";
+const UNLIMITED_FATUM_NAMES = new Set(["mathieu"]);
+
+function hasUnlimitedFatum(user, fallbackName = "") {
+  const name = typeof user === "string" ? user : user?.name || fallbackName || "";
+  return UNLIMITED_FATUM_NAMES.has(normalizeCardLabel(name));
+}
+
+function formatFatumBalance(score, user, fallbackName = "") {
+  if (hasUnlimitedFatum(user, fallbackName)) return "∞ Fat.";
+  return `${Math.max(0, Math.floor(Number(score) || 0))} Fat.`;
+}
+
+function formatFatumPoints(score, user, fallbackName = "") {
+  if (hasUnlimitedFatum(user, fallbackName)) return "∞ pts";
+  return `${Math.max(0, Math.floor(Number(score) || 0))} pts`;
+}
 
 function readNoxSessionUser() {
   if (typeof window === "undefined") return null;
@@ -2377,6 +2393,8 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
 
   const activeUser = users.find((user) => user.id === activeUserId);
   const score = Number(activeUser?.score) || 0;
+  const hasUnlimitedFatumBalance = hasUnlimitedFatum(activeUser, sessionName);
+  const fatumBalanceLabel = formatFatumBalance(score, activeUser, sessionName);
   const revealedAnguis = revealed.filter((index) => symbols[index] === "anguis").length;
 
   const refreshUsers = () => {
@@ -2461,7 +2479,7 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
       return;
     }
 
-    if (score < SALVATIO_COST) {
+    if (!hasUnlimitedFatumBalance && score < SALVATIO_COST) {
       setStatus("error");
       setMessage(`Solde insuffisant : ${score} Fat. disponibles, ${SALVATIO_COST} Fat. requis.`);
       return;
@@ -2472,7 +2490,9 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
     setMessage("Paiement en cours.");
 
     try {
-      await applyUserScore(score - SALVATIO_COST);
+      if (!hasUnlimitedFatumBalance) {
+        await applyUserScore(score - SALVATIO_COST);
+      }
       resetPlayState();
       setPaid(true);
       setPaymentOpen(false);
@@ -2556,7 +2576,7 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
           <h1 className="text-2xl font-semibold uppercase tracking-[0.18em]">Salvatio</h1>
           <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-white/52">Alea · 50 Fat. par tentative</p>
           <p className="mt-2 text-[10px] uppercase tracking-[0.14em] text-white/62">
-            {activeUser?.name || sessionName || "Session absente"} · <span className="text-white">{score} Fat.</span>
+            {activeUser?.name || sessionName || "Session absente"} · <span className="text-white">{fatumBalanceLabel}</span>
           </p>
         </div>
 
@@ -2666,7 +2686,7 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
             </p>
             <div className="mt-4 border border-white/14 bg-white/[0.04] px-3 py-3 text-[11px] uppercase tracking-[0.14em] text-white/62">
               <p>{activeUser?.name || sessionName || "Session intratum absente"}</p>
-              <p className="mt-1 text-white">Solde : {score} Fat.</p>
+              <p className="mt-1 text-white">Solde : {fatumBalanceLabel}</p>
             </div>
             {status === "error" && message ? <p className="mt-3 text-xs text-white/72">{message}</p> : null}
             <div className="mt-5 grid grid-cols-2 gap-3">
@@ -2682,7 +2702,7 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
                 type="button"
                 className="border border-white bg-white px-3 py-2 text-[10px] uppercase tracking-[0.16em] text-black active:scale-95 disabled:opacity-35"
                 onClick={paySalvatio}
-                disabled={busy || !activeUser || score < SALVATIO_COST}
+                disabled={busy || !activeUser || (!hasUnlimitedFatumBalance && score < SALVATIO_COST)}
               >
                 {busy ? "Paiement…" : "Payer 50 Fat."}
               </button>
@@ -3049,7 +3069,7 @@ function FatumScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
             >
               <p className="text-sm uppercase tracking-[0.2em]">{user.name}</p>
               <FatumGlyphs score={user.score} invert={user.id !== activeUserId} />
-              <p className="mt-3 text-[11px] uppercase tracking-[0.16em] opacity-65">{user.score || 0} pts</p>
+              <p className="mt-3 text-[11px] uppercase tracking-[0.16em] opacity-65">{formatFatumPoints(user.score, user)}</p>
             </button>
           ))}
         </div>
