@@ -637,12 +637,17 @@ function ActionButtons({
       activeLabel === label ? "font-medium text-black opacity-100" : "text-black/38"
     ].join(" ");
 
-  const whiteHandScreens = ["Noctem", "Duodecim", "Bulla", "Fatum"];
+  const whiteHandScreens = ["Noctem", "Duodecim", "Bulla", "Fatum", "Salvatio"];
   const isWhiteHandScreen = whiteHandScreens.includes(activeLabel);
   const handIconClass = [
     "h-7 w-7 object-contain",
     isWhiteHandScreen ? "[filter:brightness(0)_invert(1)]" : ""
   ].join(" ");
+
+  const navigateTo = (nextStage) => {
+    if (typeof window === "undefined") return;
+    window.dispatchEvent(new CustomEvent("nox:navigate", { detail: nextStage }));
+  };
 
   const groups = [
     {
@@ -650,7 +655,7 @@ function ActionButtons({
       items: [
         ["Divinatio", onIterum],
         ["Labyrinthus", null],
-        ["Scalpo", null]
+        ["Salvatio", () => navigateTo("salvatio")]
       ]
     },
     {
@@ -2605,6 +2610,303 @@ function FatumScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
   );
 }
 
+
+const SALVATIO_COST = 50;
+const SALVATIO_LUCRUM_LABEL = "Lucrum 1";
+const SALVATIO_SPOTS = [
+  { id: "sinistra-1", x: 14.2, y: 51.3, size: 12.8, symbol: "calvaria", label: "Calvaria", icon: "/images/fatum/calvaria.png" },
+  { id: "sinistra-2", x: 16.6, y: 67.0, size: 12.6, symbol: "anguis", label: "Anguis", icon: "/images/salvatio/anguis.png" },
+  { id: "ima-1", x: 33.7, y: 77.0, size: 12.8, symbol: "manus", label: "Manus", icon: "/images/fatum/manus.png" },
+  { id: "ima-2", x: 51.0, y: 78.0, size: 12.8, symbol: "oculus", label: "Oculus", icon: "/images/fatum/oculus.png" },
+  { id: "ima-3", x: 69.4, y: 77.5, size: 12.8, symbol: "anguis", label: "Anguis", icon: "/images/salvatio/anguis.png" },
+  { id: "dextra-1", x: 84.8, y: 68.0, size: 12.6, symbol: "maleficium", label: "Maleficium", icon: "/images/fatum/maleficium.png" },
+  { id: "dextra-2", x: 87.1, y: 52.0, size: 12.8, symbol: "calvaria", label: "Calvaria", icon: "/images/fatum/calvaria.png" }
+];
+
+function SalvatioScratchSpot({ spot, disabled, revealed, onReveal }) {
+  const canvasRef = useRef(null);
+  const isDrawingRef = useRef(false);
+  const revealedRef = useRef(false);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ratio = window.devicePixelRatio || 1;
+    const size = 180;
+    canvas.width = size * ratio;
+    canvas.height = size * ratio;
+    canvas.style.width = "100%";
+    canvas.style.height = "100%";
+
+    const context = canvas.getContext("2d");
+    context.setTransform(ratio, 0, 0, ratio, 0, 0);
+    context.clearRect(0, 0, size, size);
+    context.save();
+    context.beginPath();
+    context.arc(size / 2, size / 2, size * 0.43, 0, Math.PI * 2);
+    context.clip();
+    context.fillStyle = "#bcb6aa";
+    context.fillRect(0, 0, size, size);
+
+    for (let index = 0; index < 420; index += 1) {
+      const x = Math.random() * size;
+      const y = Math.random() * size;
+      const alpha = 0.06 + Math.random() * 0.12;
+      context.fillStyle = Math.random() > 0.5 ? `rgba(255,255,255,${alpha})` : `rgba(0,0,0,${alpha})`;
+      context.fillRect(x, y, 1 + Math.random() * 2.4, 1 + Math.random() * 2.4);
+    }
+
+    context.strokeStyle = "rgba(255,255,255,0.72)";
+    context.lineWidth = 3;
+    context.stroke();
+    context.restore();
+    revealedRef.current = false;
+  }, [spot.id]);
+
+  useEffect(() => {
+    if (!revealed) return;
+
+    const canvas = canvasRef.current;
+    const context = canvas?.getContext("2d");
+    if (!canvas || !context) return;
+
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    revealedRef.current = true;
+  }, [revealed]);
+
+  const scratchAt = (event) => {
+    if (disabled || revealedRef.current) return;
+
+    const canvas = canvasRef.current;
+    const context = canvas?.getContext("2d");
+    if (!canvas || !context) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * canvas.width;
+    const y = ((event.clientY - rect.top) / rect.height) * canvas.height;
+    const radius = canvas.width * 0.09;
+
+    context.globalCompositeOperation = "destination-out";
+    context.beginPath();
+    context.arc(x, y, radius, 0, Math.PI * 2);
+    context.fill();
+    context.globalCompositeOperation = "source-over";
+
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    let transparent = 0;
+    for (let index = 3; index < pixels.length; index += 4) {
+      if (pixels[index] < 20) transparent += 1;
+    }
+
+    if (transparent / (pixels.length / 4) > 0.56) {
+      revealedRef.current = true;
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      onReveal(spot.id);
+    }
+  };
+
+  return (
+    <canvas
+      ref={canvasRef}
+      aria-label={`Zone à gratter ${spot.label}`}
+      className={["absolute z-20 rounded-full", disabled ? "cursor-not-allowed opacity-80" : "cursor-crosshair touch-none"].join(" ")}
+      style={{
+        left: `${spot.x}%`,
+        top: `${spot.y}%`,
+        width: `${spot.size}%`,
+        height: `${spot.size}%`,
+        transform: "translate(-50%, -50%)"
+      }}
+      onPointerDown={(event) => {
+        isDrawingRef.current = true;
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+        scratchAt(event);
+      }}
+      onPointerMove={(event) => {
+        if (isDrawingRef.current) scratchAt(event);
+      }}
+      onPointerUp={() => {
+        isDrawingRef.current = false;
+      }}
+      onPointerCancel={() => {
+        isDrawingRef.current = false;
+      }}
+    />
+  );
+}
+
+function SalvatioHiddenSymbol({ spot, revealed }) {
+  return (
+    <div
+      className={["absolute z-10 flex items-center justify-center rounded-full bg-white/85 shadow-[inset_0_0_14px_rgba(0,0,0,0.28)] transition-opacity duration-500", revealed ? "opacity-100" : "opacity-0"].join(" ")}
+      style={{
+        left: `${spot.x}%`,
+        top: `${spot.y}%`,
+        width: `${spot.size * 0.72}%`,
+        height: `${spot.size * 0.72}%`,
+        transform: "translate(-50%, -50%)"
+      }}
+    >
+      <img src={spot.icon} alt={spot.label} className="h-[62%] w-[62%] object-contain" draggable={false} />
+    </div>
+  );
+}
+
+function SalvatioScreen({ onIterum, onFatum }) {
+  const [users, setUsers] = useState(() => readFatumUsers());
+  const [activeUserId, setActiveUserId] = useState(() => window.localStorage.getItem(FATUM_ACTIVE_USER_KEY) || "");
+  const [revealedIds, setRevealedIds] = useState([]);
+  const [hasPaid, setHasPaid] = useState(false);
+  const [status, setStatus] = useState("idle");
+  const [message, setMessage] = useState("Sélectionnez un socius dans Fatum, puis engagez 50 Fat.");
+
+  const activeUser = users.find((user) => user.id === activeUserId);
+  const revealedSpots = SALVATIO_SPOTS.filter((spot) => revealedIds.includes(spot.id));
+  const anguisCount = revealedSpots.filter((spot) => spot.symbol === "anguis").length;
+  const isWon = anguisCount >= 2;
+
+  const refreshUsers = () => {
+    const cachedUsers = readFatumUsers();
+    setUsers(cachedUsers);
+    setActiveUserId(window.localStorage.getItem(FATUM_ACTIVE_USER_KEY) || "");
+  };
+
+  useEffect(() => {
+    fetchServerFatumUsers()
+      .then((serverUsers) => setUsers(serverUsers))
+      .catch(() => setUsers(readFatumUsers()));
+
+    window.addEventListener("storage", refreshUsers);
+    window.addEventListener("nox:fatum-users-updated", refreshUsers);
+
+    return () => {
+      window.removeEventListener("storage", refreshUsers);
+      window.removeEventListener("nox:fatum-users-updated", refreshUsers);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!hasPaid) return;
+
+    if (isWon) {
+      setStatus("won");
+      setMessage("Salvatio accomplie : deux signes Anguis découverts. Lucrum 1 remporté.");
+    } else if (revealedIds.length >= SALVATIO_SPOTS.length) {
+      setStatus("lost");
+      setMessage("Aucun salut cette fois. Les signes restent muets.");
+    } else {
+      setMessage(`${anguisCount}/2 Anguis découverts.`);
+    }
+  }, [anguisCount, hasPaid, isWon, revealedIds.length]);
+
+  const startSalvatio = async () => {
+    if (!activeUser) {
+      setStatus("error");
+      setMessage("Aucun socius actif. Ouvrez Fatum et choisissez un utilisateur.");
+      return;
+    }
+
+    const currentScore = Number(activeUser.score) || 0;
+    if (currentScore < SALVATIO_COST) {
+      setStatus("error");
+      setMessage(`Fatum insuffisant : ${currentScore} Fat. disponibles, ${SALVATIO_COST} Fat. requis.`);
+      return;
+    }
+
+    setStatus("syncing");
+    setMessage("Débit du Fatum en cours.");
+
+    try {
+      const nextUsers = await updateServerFatumUser(activeUser.id, {
+        score: currentScore - SALVATIO_COST
+      });
+      setUsers(nextUsers);
+      setRevealedIds([]);
+      setHasPaid(true);
+      setStatus("playing");
+      setMessage("Grattez les cercles. Découvrez deux Anguis pour remporter le Lucrum 1.");
+    } catch {
+      setStatus("error");
+      setMessage("Impossible de débiter le Fatum. Vérifiez la connexion au serveur.");
+    }
+  };
+
+  const resetLocalTicket = () => {
+    setRevealedIds([]);
+    setHasPaid(false);
+    setStatus("idle");
+    setMessage("Sélectionnez un socius dans Fatum, puis engagez 50 Fat.");
+  };
+
+  return (
+    <motion.main
+      className="relative min-h-screen overflow-hidden bg-[#060504] px-3 pb-[7.25rem] pt-[max(3.7rem,calc(env(safe-area-inset-top)+3rem))] text-white"
+      initial={{ opacity: 0, filter: "blur(10px)" }}
+      animate={{ opacity: 1, filter: "blur(0px)" }}
+      transition={{ duration: 0.65, ease: "easeInOut" }}
+    >
+      <div className="mx-auto flex w-full max-w-[560px] flex-col items-center">
+        <div className="mb-3 text-center">
+          <p className="text-[10px] uppercase tracking-[0.22em] text-white/52">Alea</p>
+          <h1 className="mt-1 text-3xl font-semibold tracking-[0.12em]">Salvatio</h1>
+          <p className="mt-1 text-xs text-white/58">Coût : 50 Fat.</p>
+        </div>
+
+        <div className="relative w-full max-w-[540px] select-none overflow-hidden shadow-2xl">
+          <img src="/images/salvatio/salvatio-card.png?v=1" alt="Carte Salvatio" className="relative z-0 w-full" draggable={false} />
+
+          {SALVATIO_SPOTS.map((spot) => (
+            <SalvatioHiddenSymbol key={`symbol-${spot.id}`} spot={spot} revealed={revealedIds.includes(spot.id)} />
+          ))}
+
+          {SALVATIO_SPOTS.map((spot) => (
+            <SalvatioScratchSpot
+              key={`scratch-${spot.id}-${hasPaid ? "paid" : "idle"}`}
+              spot={spot}
+              disabled={!hasPaid || status === "won" || status === "lost"}
+              revealed={revealedIds.includes(spot.id)}
+              onReveal={(spotId) => {
+                setRevealedIds((ids) => (ids.includes(spotId) ? ids : [...ids, spotId]));
+              }}
+            />
+          ))}
+        </div>
+
+        <div className="mt-4 w-full max-w-[540px] border border-white/18 bg-white/8 px-4 py-3 text-center backdrop-blur-md">
+          <p className="text-[10px] uppercase tracking-[0.2em] text-white/52">
+            {activeUser ? `${activeUser.name} · ${Math.round(Number(activeUser.score) || 0)} Fat.` : "Aucun socius actif"}
+          </p>
+          <p className="mt-2 text-sm leading-snug text-white/82">{message}</p>
+
+          <div className="mt-4 flex items-center justify-center gap-2">
+            <button
+              type="button"
+              className="border border-white bg-white px-4 py-2 text-[10px] uppercase tracking-[0.16em] text-black disabled:opacity-35"
+              disabled={status === "syncing" || hasPaid}
+              onClick={startSalvatio}
+            >
+              {status === "syncing" ? "Patientez" : "Engager 50 Fat."}
+            </button>
+            <button
+              type="button"
+              className="border border-white/40 px-4 py-2 text-[10px] uppercase tracking-[0.16em] text-white/74 disabled:opacity-35"
+              disabled={!hasPaid}
+              onClick={resetLocalTicket}
+            >
+              Réinitialiser
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="fixed bottom-[max(5.6rem,calc(env(safe-area-inset-bottom)+4.4rem))] left-0 right-0 z-30">
+        <ActionButtons onIterum={onIterum} onFatum={onFatum} active="Salvatio" compact />
+      </div>
+    </motion.main>
+  );
+}
+
 function createFallbackReading(cards, question) {
   return {
     title: "Le tirage n’a pas cligné des yeux",
@@ -3491,6 +3793,7 @@ function DebugDock({
   onClaves,
   onNoctem,
   onDuodecim,
+  onSalvatio,
   onReset
 }) {
   const [open, setOpen] = useState(true);
@@ -3519,6 +3822,7 @@ function DebugDock({
             ["Claves", onClaves],
             ["Noctem", onNoctem],
             ["Duodecim", onDuodecim],
+            ["Salvatio", onSalvatio],
             ["Reset", onReset]
           ].map(([label, action]) => (
             <button
@@ -3568,6 +3872,17 @@ export default function App() {
 
   useEffect(() => {
     preloadEssentialMedia();
+  }, []);
+
+  useEffect(() => {
+    const navigate = (event) => {
+      const nextStage = event.detail;
+      const allowedStages = new Set(["divinatio", "salvatio", "fatum", "archives", "claves", "noctem", "duodecim", "bulla", "home"]);
+      if (allowedStages.has(nextStage)) setStage(nextStage);
+    };
+
+    window.addEventListener("nox:navigate", navigate);
+    return () => window.removeEventListener("nox:navigate", navigate);
   }, []);
 
   const SpeechRecognition =
@@ -3900,6 +4215,7 @@ export default function App() {
       onClaves={() => goDebugStage("claves")}
       onNoctem={() => goDebugStage("noctem")}
       onDuodecim={() => goDebugStage("duodecim")}
+      onSalvatio={() => goDebugStage("salvatio")}
       onReset={restart}
     />
   ) : null;
@@ -3946,6 +4262,15 @@ export default function App() {
         onDuodecim={() => setStage("duodecim")}
         onBulla={() => setStage("bulla")}
         onArchive={() => setStage("archives")}
+        onFatum={() => setStage("fatum")}
+      />
+    );
+  }
+
+  if (stage === "salvatio") {
+    return (
+      <SalvatioScreen
+        onIterum={() => setStage("divinatio")}
         onFatum={() => setStage("fatum")}
       />
     );
