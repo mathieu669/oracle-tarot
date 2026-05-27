@@ -1,11 +1,26 @@
 {
-  "name": "Oracle original",
-  "short_name": "Oracle",
-  "description": "Tirage divinatoire contemporain.",
-  "start_url": "/",
+  "name": "Nox",
+  "short_name": "Nox",
+  "description": "Signes privés pour heures basses.",
+  "start_url": "/?debug=1",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#060504",
-  "theme_color": "#060504",
+  "background_color": "#050509",
+  "theme_color": "#050509",
   "orientation": "portrait",
-  "lang": "fr"
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "/images/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/nox-icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
 }
