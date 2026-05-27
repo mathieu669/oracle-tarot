@@ -2216,7 +2216,7 @@ function FatumGlyphs({ score, invert = false }) {
 
 
 const SALVATIO_COST = 50;
-const SALVATIO_CARD_SRC = "/images/salvatio/salvatio-card.png?v=1";
+const SALVATIO_CARD_SRC = "/images/salvatio/salvatio-card.png?v=2";
 const SALVATIO_ANGUIS_SRC = "/images/salvatio/anguis.png?v=1";
 const SALVATIO_SKULL_SRC = "/images/fatum/calvaria.png";
 
@@ -2618,14 +2618,6 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
         <div className="relative mx-auto aspect-square w-full overflow-hidden rounded-[1.25rem] shadow-2xl shadow-black/50">
           <img src={SALVATIO_CARD_SRC} alt="Carte Salvatio" className="absolute inset-0 h-full w-full select-none object-cover" draggable={false} />
 
-          <div className="pointer-events-none absolute left-[8.8%] top-[84.7%] z-[11] flex h-[7.6%] w-[28.3%] items-center justify-center rounded-[0.4rem] bg-[#11100d]/88 text-[clamp(0.7rem,3.2vw,1.2rem)] font-semibold uppercase tracking-[0.08em] text-white/88">
-            Lucrum
-          </div>
-          <div className="pointer-events-none absolute left-[42%] top-[84.3%] z-[11] flex h-[8.4%] w-[48%] items-center justify-start gap-[1.4%] rounded-[0.4rem] bg-[#11100d]/88 px-[2%] text-left text-[clamp(0.44rem,1.9vw,0.72rem)] font-semibold leading-[1.1] text-white/82">
-            <span>Trouvez deux signes</span>
-            <AnguisGlyph className="h-[1.3em] w-[1.3em] text-white" />
-            <span>et remportez le Lucrum.</span>
-          </div>
 
           {SALVATIO_ZONES.map((zone, index) => {
             const revealedZone = revealed.includes(index);
