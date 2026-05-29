@@ -6486,19 +6486,31 @@ boardWrap.addEventListener("wheel", (event) => {
 
 let boardTouchScrollState = null;
 let suppressBoardClickUntil = 0;
+let suppressTrustedBoardClickUntil = 0;
+
+function isBoardUiTarget(target){
+  return !!(target && target.closest && target.closest(".control-panel,.mini-rail,.sound-toggle,.info-modal,.exvoto-modal,.exvoto-panel,.info-modal-panel"));
+}
+
+function boardTapTargetFromPoint(x, y){
+  const element = document.elementFromPoint(x, y);
+  if(!element || isBoardUiTarget(element)) return null;
+  return element.closest?.(".cell,.wall-hitbox,.mirror-hitbox,.herba-image,.exvoto-envelope") || null;
+}
 
 boardWrap.addEventListener("pointerdown", (event) => {
   if(event.pointerType !== "touch") return;
   if(animState) return;
+  if(isBoardUiTarget(event.target)) return;
   boardTouchScrollState = {
     pointerId: event.pointerId,
     startX: event.clientX,
     startY: event.clientY,
     lastY: event.clientY,
     startScroll: scroll,
-    dragging: false
+    dragging: false,
+    captured: false
   };
-  boardWrap.setPointerCapture?.(event.pointerId);
 }, {passive:true});
 
 boardWrap.addEventListener("pointermove", (event) => {
@@ -6512,6 +6524,10 @@ boardWrap.addEventListener("pointermove", (event) => {
   if(!state.dragging && distance < 9) return;
 
   state.dragging = true;
+  if(!state.captured){
+    try{ boardWrap.setPointerCapture?.(event.pointerId); }catch(_err){}
+    state.captured = true;
+  }
   event.preventDefault();
   event.stopPropagation();
 
@@ -6530,16 +6546,27 @@ function endBoardTouchScroll(event){
     suppressBoardClickUntil = performance.now() + 220;
     event.preventDefault();
     event.stopPropagation();
+  }else if(event.type === "pointerup"){
+    const tapTarget = boardTapTargetFromPoint(event.clientX, event.clientY);
+    if(tapTarget){
+      event.preventDefault();
+      event.stopPropagation();
+      suppressTrustedBoardClickUntil = performance.now() + 320;
+      tapTarget.click();
+    }
   }
 
-  boardWrap.releasePointerCapture?.(event.pointerId);
+  if(state.captured){
+    try{ boardWrap.releasePointerCapture?.(event.pointerId); }catch(_err){}
+  }
   boardTouchScrollState = null;
 }
 
 boardWrap.addEventListener("pointerup", endBoardTouchScroll, {passive:false});
 boardWrap.addEventListener("pointercancel", endBoardTouchScroll, {passive:false});
 boardWrap.addEventListener("click", (event) => {
-  if(performance.now() < suppressBoardClickUntil){
+  const now = performance.now();
+  if((event.isTrusted && now < suppressTrustedBoardClickUntil) || now < suppressBoardClickUntil){
     event.preventDefault();
     event.stopImmediatePropagation();
   }
@@ -6934,6 +6961,37 @@ catenaCard.addEventListener("click", (event) => {
 
   beginCatenaSelection();
 });
+
+function bindMobileTapActivation(element){
+  if(!element) return;
+  let lastSyntheticTapAt = 0;
+  element.addEventListener("click", (event) => {
+    if(event.isTrusted && performance.now() - lastSyntheticTapAt < 380){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }
+  }, true);
+  element.addEventListener("pointerup", (event) => {
+    if(event.pointerType === "mouse") return;
+    if(event.target?.closest?.(".info-btn")) return;
+    event.preventDefault();
+    event.stopPropagation();
+    keepArcaOpenForTouch();
+    lastSyntheticTapAt = performance.now();
+    element.click();
+  }, {passive:false});
+}
+[
+  murusCard,
+  rotateBtn,
+  fossaCard,
+  marculusCard,
+  scalaCard,
+  costulaCard,
+  negroniCard,
+  exVotoCard,
+  catenaCard
+].forEach(bindMobileTapActivation);
 
 function fileToDataUrl(file){
   return new Promise((resolve,reject) => {
