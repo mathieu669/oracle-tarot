@@ -99,8 +99,17 @@ function preloadHomeMedia() {
   return Promise.all([...videoPromises, ...imagePromises, audioPromise]);
 }
 
-const DEV_USERS = ["Mathieu", "Jonathan", "Jean-Philippe", "Rémi", "Brice", "Antoine", "Fred", "Johan"];
+const DEV_USERS = ["Antoine", "Brice", "Fred", "Jean-Philippe", "Johan", "Jonathan", "Mathieu", "Rémi", "invitatus"];
 const ROMAN_KEYS = ["I", "V", "X", "L", "C", "D", "M"];
+const INVITATUS_NAME = "invitatus";
+
+function isInvitatusName(name = "") {
+  return normalizeCardLabel(name) === INVITATUS_NAME;
+}
+
+function isInvitatusSession() {
+  return isInvitatusName(readNoxSessionUser()?.name || "");
+}
 
 function DevLatinHome({ onStage, onVerbatim }) {
   const [phase, setPhase] = useState("loading");
@@ -192,6 +201,20 @@ function DevLatinHome({ onStage, onVerbatim }) {
   };
 
   const chooseUser = (userName) => {
+    if (isInvitatusName(userName)) {
+      const guestEntry = {
+        name: INVITATUS_NAME,
+        guest: true,
+        createdAt: new Date().toISOString()
+      };
+
+      window.localStorage.setItem("nox:dev-user", JSON.stringify(guestEntry));
+      window.localStorage.removeItem(FATUM_ACTIVE_USER_KEY);
+      setSelectedUser(INVITATUS_NAME);
+      onStage("divinatio");
+      return;
+    }
+
     const registered = readDevUser(userName);
 
     setSelectedUser(userName);
@@ -245,10 +268,10 @@ function DevLatinHome({ onStage, onVerbatim }) {
         onNoctem={() => onStage("noctem")}
         onVerbatim={onVerbatim}
         onDuodecim={() => onStage("duodecim")}
-        onBulla={() => onStage("bulla")}
-        onArchive={() => onStage("archives")}
-        onFatum={() => onStage("fatum")}
-        onSalvatio={() => onStage("salvatio")}
+        onBulla={isInvitatusSession() ? null : () => onStage("bulla")}
+        onArchive={isInvitatusSession() ? null : () => onStage("archives")}
+        onFatum={isInvitatusSession() ? null : () => onStage("fatum")}
+        onSalvatio={isInvitatusSession() ? null : () => onStage("salvatio")}
         active=""
         compact
       />
@@ -650,7 +673,24 @@ function ActionButtons({
     isWhiteHandScreen ? "[filter:brightness(0)_invert(1)]" : ""
   ].join(" ");
 
-  const groups = [
+  const guestSession = isInvitatusSession();
+  const groups = (guestSession ? [
+    {
+      title: "Alea",
+      items: [
+        ["Divinatio", onIterum]
+      ]
+    },
+    {
+      title: "Oraculum",
+      items: [
+        ["Claves", onClaves],
+        ["Noctem", onNoctem],
+        ["Verbatim", onVerbatim],
+        ["Duodecim", onDuodecim]
+      ]
+    }
+  ] : [
     {
       title: "Alea",
       items: [
@@ -682,7 +722,7 @@ function ActionButtons({
         ["Spiritus", null]
       ]
     }
-  ];
+  ]);
 
   return (
     <div className="fixed left-1/2 top-[max(0.62rem,env(safe-area-inset-top))] z-[90] -translate-x-1/2">
@@ -756,7 +796,7 @@ function ClavesScreen({ reading, question, onIterum, onNoctem, onVerbatim, onDuo
                   <img
                     src="/images/ornament-separator.png"
                     alt=""
-                    className="mx-auto mb-7 h-auto max-w-[70px] opacity-90"
+                    className="mx-auto mb-7 h-auto max-w-[35px] opacity-90"
                     loading="lazy"
                   />
                 ) : null}
@@ -1293,8 +1333,8 @@ function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
   const [textEntryValue, setTextEntryValue] = useState("");
   const fileInputRef = useRef(null);
 
-  const archiveBulla = async (message = "") => {
-    const trimmed = message.trim();
+  const publishBulla = async () => {
+    const trimmed = textEntryValue.trim();
 
     if (!trimmed && !photoDataUrl) {
       setStatus("empty");
@@ -1319,6 +1359,7 @@ function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
 
     setPhotoStatus("idle");
     setPhotoDataUrl("");
+    setTextEntryValue("");
     return true;
   };
 
@@ -1346,18 +1387,17 @@ function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
     }
   };
 
-  const saveTypedBulla = async () => {
-    const archived = await archiveBulla(textEntryValue);
-
-    if (archived) {
-      setTextEntryValue("");
-      setTextEntryOpen(false);
+  const validateTypedBulla = () => {
+    if (!textEntryValue.trim()) {
+      setStatus("empty");
+      return;
     }
+
+    setStatus("idle");
+    setTextEntryOpen(false);
   };
 
-  const savePhotoOnlyBulla = async () => {
-    await archiveBulla("");
-  };
+  const hasBullaDraft = Boolean(textEntryValue.trim() || photoDataUrl);
 
   const statusText = {
     idle: "",
@@ -1375,12 +1415,15 @@ function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
 
   return (
     <motion.main
-      className="fixed inset-0 flex items-center justify-center overflow-hidden bg-black px-8 text-center text-white"
+      className="fixed inset-0 flex items-center justify-center overflow-y-auto bg-black px-8 py-28 text-center text-white"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
     >
-      <h1 className="fixed left-0 right-0 top-[max(3.9rem,calc(env(safe-area-inset-top)+3.2rem))] z-20 text-center text-3xl font-semibold tracking-[0.12em] text-white">Bulla.</h1>
+      <div className="fixed left-0 right-0 top-[max(3.4rem,calc(env(safe-area-inset-top)+2.7rem))] z-20 px-6 text-center text-white">
+        <h1 className="text-3xl font-semibold tracking-[0.12em]">Bulla.</h1>
+        <p className="mx-auto mt-3 max-w-[19rem] text-[10px] uppercase leading-5 tracking-[0.14em] text-white/42">Bulla conserve une note ou une image dans l’archivum de Nox.</p>
+      </div>
 
       <div className="flex flex-col items-center justify-center gap-5">
         <div className="flex items-center justify-center gap-5">
@@ -1418,22 +1461,28 @@ function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
           onChange={handlePhotoChange}
         />
 
-        {photoDataUrl ? (
-          <div className="flex flex-col items-center gap-3">
-            <img
-              src={photoDataUrl}
-              alt=""
-              className="h-20 w-20 border border-white/30 object-cover"
-            />
-
-            <button
-              type="button"
-              className="border border-white px-4 py-2 text-[10px] uppercase tracking-[0.16em] text-white"
-              onClick={savePhotoOnlyBulla}
-            >
-              Scribere.
-            </button>
+        {textEntryValue.trim() ? (
+          <div className="w-[116px] border border-white/55 px-3 py-3 text-left text-[12px] leading-5 text-white/88">
+            {textEntryValue.trim()}
           </div>
+        ) : null}
+
+        {photoDataUrl ? (
+          <img
+            src={photoDataUrl}
+            alt=""
+            className="w-[116px] border border-white/55 object-cover"
+          />
+        ) : null}
+
+        {hasBullaDraft ? (
+          <button
+            type="button"
+            className="border border-white px-4 py-2 text-[10px] uppercase tracking-[0.16em] text-white active:scale-95"
+            onClick={publishBulla}
+          >
+            Imprimatur.
+          </button>
         ) : null}
 
         {photoText ? (
@@ -1471,9 +1520,9 @@ function BullaScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
             <button
               type="button"
               className="border border-white px-4 py-2 text-[10px] uppercase tracking-[0.16em]"
-              onClick={saveTypedBulla}
+              onClick={validateTypedBulla}
             >
-              Scribere
+              Valida
             </button>
             <button
               type="button"
