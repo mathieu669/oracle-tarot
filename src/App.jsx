@@ -1175,30 +1175,31 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
             >
               {DUODECIM_NAMES.map((name, index) => {
                 const angle = index * sectorAngle + sectorAngle / 2 - 90;
-                const radians = (angle * Math.PI) / 180;
-                const radius = 31;
-                const x = 50 + Math.cos(radians) * radius;
-                const y = 50 + Math.sin(radians) * radius;
+                const readableFlip = angle > 90 && angle < 270;
                 const darkSector = index % 2 !== 0;
                 const displayName = name === "Houellebecq" ? "HOUELLEBECQ" : name.toUpperCase();
+                const radiusMidpoint = 30;
+                const textLength = name.length > 9 ? 22 : name.length > 7 ? 18 : 14;
 
                 return (
-                  <text
-                    key={name}
-                    x={x}
-                    y={y}
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    fill={darkSector ? "#fff" : "#000"}
-                    fontSize="3.2"
-                    fontWeight="700"
-                    letterSpacing="0.35"
-                    textLength={name.length > 8 ? "20" : "15"}
-                    lengthAdjust="spacingAndGlyphs"
-                    className="pointer-events-none select-none [-webkit-user-select:none]"
-                  >
-                    {displayName}
-                  </text>
+                  <g key={name} transform={`rotate(${angle} 50 50)`}>
+                    <text
+                      x={50 + radiusMidpoint}
+                      y="50"
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      fill={darkSector ? "#fff" : "#000"}
+                      fontSize="3.1"
+                      fontWeight="700"
+                      letterSpacing="0.25"
+                      textLength={textLength}
+                      lengthAdjust="spacingAndGlyphs"
+                      transform={readableFlip ? `rotate(180 ${50 + radiusMidpoint} 50)` : undefined}
+                      className="pointer-events-none select-none [-webkit-user-select:none]"
+                    >
+                      {displayName}
+                    </text>
+                  </g>
                 );
               })}
             </svg>
