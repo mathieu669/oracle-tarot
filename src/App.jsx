@@ -1109,6 +1109,13 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
     }
   };
 
+  const getNameUnderCursor = (rotation) => {
+    const normalizedRotation = ((rotation % 360) + 360) % 360;
+    const angleUnderCursor = (360 - normalizedRotation) % 360;
+    const index = Math.floor(angleUnderCursor / sectorAngle) % DUODECIM_NAMES.length;
+    return DUODECIM_NAMES[index];
+  };
+
   const spinWheel = () => {
     if (spinning) return;
 
@@ -1118,22 +1125,20 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
     setSpinning(true);
 
     const targetIndex = Math.floor(Math.random() * DUODECIM_NAMES.length);
-    const targetName = DUODECIM_NAMES[targetIndex];
     const currentRotation = wheelRotationRef.current;
     const normalizedRotation = ((currentRotation % 360) + 360) % 360;
-    const pointerOffset = 270;
     const targetCenter = targetIndex * sectorAngle + sectorAngle / 2;
-    const desiredModulo = (pointerOffset - targetCenter + 360) % 360;
+    const desiredModulo = (360 - targetCenter) % 360;
     const moduloDelta = (desiredModulo - normalizedRotation + 360) % 360;
     const fullTurns = 5 + Math.floor(Math.random() * 3);
-    const overshoot = (Math.random() - 0.5) * (sectorAngle * 0.38);
-    const nextRotation = currentRotation + fullTurns * 360 + moduloDelta + overshoot;
+    const nextRotation = currentRotation + fullTurns * 360 + moduloDelta;
 
     setWheelRotation(nextRotation);
 
     window.setTimeout(() => {
+      const cursorName = getNameUnderCursor(nextRotation);
       setSpinning(false);
-      requestDuodecimSentence(targetName);
+      requestDuodecimSentence(cursorName);
     }, 4300);
   };
 
@@ -1152,16 +1157,16 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
         </p>
 
         <div className="relative mt-7 aspect-square w-full max-w-[360px] select-none">
-          <div className="absolute left-1/2 top-[-0.6rem] z-20 h-0 w-0 -translate-x-1/2 border-l-[12px] border-r-[12px] border-t-[24px] border-l-transparent border-r-transparent border-t-white drop-shadow-[0_0_12px_rgba(255,255,255,0.48)]" />
+          <div className="absolute left-1/2 top-[-0.6rem] z-20 h-0 w-0 -translate-x-1/2 border-l-[12px] border-r-[12px] border-t-[24px] border-l-transparent border-r-transparent border-t-white" />
           <div
-            className="absolute inset-0 rounded-full border border-white/78 shadow-[0_0_32px_rgba(255,255,255,0.08)] transition-transform duration-[4200ms] ease-[cubic-bezier(0.12,0.72,0.08,1)]"
+            className="absolute inset-0 rounded-full border border-white transition-transform duration-[4200ms] ease-[cubic-bezier(0.12,0.72,0.08,1)]"
             style={{
               transform: `rotate(${wheelRotation}deg)`,
-              background: `conic-gradient(from -90deg, ${DUODECIM_NAMES.map((_, index) => `${index % 2 === 0 ? "#f2efe6" : "#111"} ${index * sectorAngle}deg ${(index + 1) * sectorAngle}deg`).join(", ")})`
+              background: `conic-gradient(from -90deg, ${DUODECIM_NAMES.map((_, index) => `${index % 2 === 0 ? "#fff" : "#000"} ${index * sectorAngle}deg ${(index + 1) * sectorAngle}deg`).join(", ")})`
             }}
           >
-            <div className="absolute inset-[8%] rounded-full border border-black/30 bg-black/74" />
-            <div className="absolute inset-[38%] rounded-full border border-white/70 bg-black shadow-[0_0_20px_rgba(0,0,0,0.8)]" />
+            <div className="absolute inset-[8%] rounded-full border border-white/70" />
+            <div className="absolute inset-[38%] rounded-full border border-white/70" />
 
             {DUODECIM_NAMES.map((name, index) => {
               const angle = index * sectorAngle + sectorAngle / 2;
@@ -1186,17 +1191,19 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
 
         <button
           type="button"
-          className="mt-7 flex h-20 w-20 select-none items-center justify-center rounded-full border border-white/72 bg-black text-5xl leading-none text-white shadow-[0_0_24px_rgba(255,255,255,0.1)] transition active:scale-95 disabled:opacity-45 [-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none] [-webkit-user-select:none]"
+          className="mt-7 flex aspect-square w-20 select-none items-center justify-center bg-transparent text-white active:scale-95 disabled:opacity-25 [-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none] [-webkit-user-select:none]"
           onClick={spinWheel}
           disabled={spinning}
           aria-label="Tourner la roue Duodecim"
         >
-          ☸
+          <DharmaWheelIcon />
         </button>
 
-        <p className="mt-3 min-h-[1.25rem] text-center text-[10px] uppercase tracking-[0.16em] text-white/40">
-          {spinning ? "La roue tourne." : selectedName ? `Arrêt sur ${selectedName}.` : "Touchez la roue dharma."}
-        </p>
+        {(spinning || selectedName) ? (
+          <p className="mt-3 min-h-[1.25rem] text-center text-[10px] uppercase tracking-[0.16em] text-white/40">
+            {spinning ? "La roue tourne." : `Arrêt sur ${selectedName}.`}
+          </p>
+        ) : null}
       </section>
 
       {selectedName ? (
