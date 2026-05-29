@@ -3115,35 +3115,23 @@ function FatumScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
       ) : (
         <p className="mb-3 text-center text-[9px] uppercase tracking-[0.18em] text-white/30">{users.length} socii</p>
       )}
-      <div className="sticky top-[max(0.75rem,env(safe-area-inset-top))] z-30 mb-5 flex justify-center px-1">
-        <div className="flex h-[28px] items-center justify-center gap-2">
-          <button
-            type="button"
-            className="h-[28px] select-none border border-white bg-white px-2 text-[7px] uppercase tracking-[0.13em] text-black active:scale-95"
-            onClick={() => {
-              if (users.length < 9) setCreating(true);
-            }}
-          >
-            Novus socius +
-          </button>
-
-          <div className="grid h-[28px] grid-cols-2 gap-x-2 gap-y-0 bg-transparent px-1 text-white">
-            <div className="flex items-center gap-1 text-[5.5px] uppercase leading-none">
-              <img src="/images/fatum/calvaria.png" alt="" className="h-2.5 w-2.5 object-contain [filter:brightness(0)_invert(1)]" />
-              <span>Calvaria 50</span>
-            </div>
-            <div className="flex items-center gap-1 text-[5.5px] uppercase leading-none">
-              <img src="/images/fatum/manus.png" alt="" className="h-2.5 w-2.5 object-contain [filter:brightness(0)_invert(1)]" />
-              <span>Manus 100</span>
-            </div>
-            <div className="flex items-center gap-1 text-[5.5px] uppercase leading-none">
-              <img src="/images/fatum/maleficium.png" alt="" className="h-2.5 w-2.5 object-contain [filter:brightness(0)_invert(1)]" />
-              <span>Maleficium 500</span>
-            </div>
-            <div className="flex items-center gap-1 text-[5.5px] uppercase leading-none">
-              <img src="/images/fatum/oculus.png" alt="" className="h-2.5 w-2.5 object-contain [filter:brightness(0)_invert(1)]" />
-              <span>Oculus 1000</span>
-            </div>
+      <div className="sticky top-[max(0.75rem,env(safe-area-inset-top))] z-30 mb-5 w-full px-1">
+        <div className="mx-auto flex h-[34px] w-full max-w-[760px] items-center justify-between gap-2 bg-black/82 px-1 text-white backdrop-blur-sm">
+          <div className="flex min-w-0 flex-1 items-center justify-center gap-1.5 text-[7.5px] uppercase leading-none tracking-[0.08em]">
+            <img src="/images/fatum/calvaria.png" alt="" className="h-4 w-4 shrink-0 object-contain [filter:brightness(0)_invert(1)]" />
+            <span className="whitespace-nowrap">Calvaria 50</span>
+          </div>
+          <div className="flex min-w-0 flex-1 items-center justify-center gap-1.5 text-[7.5px] uppercase leading-none tracking-[0.08em]">
+            <img src="/images/fatum/manus.png" alt="" className="h-4 w-4 shrink-0 object-contain [filter:brightness(0)_invert(1)]" />
+            <span className="whitespace-nowrap">Manus 100</span>
+          </div>
+          <div className="flex min-w-0 flex-1 items-center justify-center gap-1.5 text-[7.5px] uppercase leading-none tracking-[0.08em]">
+            <img src="/images/fatum/maleficium.png" alt="" className="h-4 w-4 shrink-0 object-contain [filter:brightness(0)_invert(1)]" />
+            <span className="whitespace-nowrap">Maleficium 500</span>
+          </div>
+          <div className="flex min-w-0 flex-1 items-center justify-center gap-1.5 text-[7.5px] uppercase leading-none tracking-[0.08em]">
+            <img src="/images/fatum/oculus.png" alt="" className="h-4 w-4 shrink-0 object-contain [filter:brightness(0)_invert(1)]" />
+            <span className="whitespace-nowrap">Oculus 1000</span>
           </div>
         </div>
       </div>
