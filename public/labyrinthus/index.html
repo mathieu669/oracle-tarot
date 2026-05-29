@@ -93,7 +93,7 @@
     position:absolute;inset:0;z-index:3;pointer-events:none;overflow:hidden;
   }
   .token-video{
-    position:absolute;display:none;pointer-events:auto;
+    position:absolute;display:none;pointer-events:none;
     width:34px;height:34px;overflow:visible;
     transform:translate(-50%,-68%);
     filter:drop-shadow(0 0 8px rgba(255,255,255,.18));
@@ -104,6 +104,9 @@
   .token-video.active{
     opacity:1;
     filter:drop-shadow(0 0 10px rgba(255,255,255,.24));
+  }
+  .token-video.interactive{
+    pointer-events:auto;
   }
   .token-video video,
   .token-video canvas{
@@ -1574,6 +1577,9 @@
 
       <svg id="board" viewBox="0 0 400 600" preserveAspectRatio="xMidYMid meet">
         <defs>
+          <filter id="vaporSoftBlur" x="-90%" y="-90%" width="280%" height="280%">
+            <feGaussianBlur stdDeviation="7"/>
+          </filter>
           <radialGradient id="sphereGradDark" cx="34%" cy="24%" r="72%">
             <stop offset="0%" stop-color="#d8d8d8"/>
             <stop offset="18%" stop-color="#626262"/>
@@ -2713,22 +2719,14 @@ function ensureFrontierReflectionEl(){
   const wrap = document.createElement("div");
   wrap.className = "mirror-reflection";
 
-  const video = document.createElement("video");
-  video.src = tokenVideoSrc;
-  video.autoplay = true;
-  video.loop = true;
-  video.muted = true;
-  video.playsInline = true;
-  video.preload = "auto";
-  video.setAttribute("playsinline", "");
-  video.setAttribute("webkit-playsinline", "");
+  const visual = createLottieElement(skullLottieConfig, tokenSpriteConfig);
+  visual.classList.add("mirror-reflection-visual");
 
   const hint = document.createElement("div");
   hint.className = "mirror-reflection-hint";
   hint.textContent = "";
 
-  wrap.appendChild(video);
-  attachVideoAlphaCanvas(video, { threshold:32, softness:34 });
+  wrap.appendChild(visual);
   wrap.appendChild(hint);
   wrap.addEventListener("click", (event) => {
     event.preventDefault();
@@ -2746,8 +2744,6 @@ function ensureFrontierReflectionEl(){
 
   tokenVideoLayer.appendChild(wrap);
   frontierReflectionEl = wrap;
-  const playPromise = video.play();
-  if(playPromise && typeof playPromise.catch === "function") playPromise.catch(() => {});
   return wrap;
 }
 function hideFrontierReflection(){
@@ -4737,7 +4733,9 @@ function placeWall(worldRow, col){
   placedWalls.push(candidate);
   user.murusStock -= 1;
   if(user.murusStock <= 0) activeTool = "move";
+  ensureAudioContext();
   playSound("murus");
+  setTimeout(() => playSound("murus"), 24);
   noticeText = `murus placé par ${user.name.toLowerCase()}`;
   addChroniconEvent(`${user.name} place un Murus en ${locusRef(worldRow, col)}.`);
   render();
@@ -5529,6 +5527,7 @@ function appendVaporShape(center, cubeW, cubeH, progress=null){
 
   const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
   g.setAttribute("class", "vapor-cloud");
+  g.setAttribute("filter", "url(#vaporSoftBlur)");
   g.style.opacity = String(fade);
 
   const aura = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
@@ -5789,6 +5788,9 @@ function showTokenVideo(userId, x, y, size, isActive, tilt=0){
   el.style.transform = `translate(-50%,-68%) translateY(${extraY}px) scale(${scale}) rotate(${tilt}deg)`;
   el.style.opacity = `${opacity}`;
   el.classList.toggle("active", isActive && !abyssFx);
+  const tokenInteractive = (activeTool === "move" && isActive) || activeTool === "catenaSelect1" || activeTool === "catenaSelect2" || activeTool === "costula" || activeTool === "negroni";
+  el.classList.toggle("interactive", tokenInteractive);
+  el.style.pointerEvents = tokenInteractive ? "auto" : "none";
   const label = el.querySelector(".token-label");
   if(label) label.textContent = playerAbbrev(userId);
   const sprite = el.querySelector(".anim-visual");
@@ -7165,7 +7167,7 @@ function noxApplyPlayers(payload = {}){
     slot.sphereClass = NOX_SLOT_CLASSES[index] || slot.sphereClass;
     slot.current = slot.current || { row:20, col:NOX_SLOT_COLUMNS[index] || index };
     slot.current.row = Number.isFinite(Number(slot.current.row)) ? Number(slot.current.row) : 20;
-    slot.current.col = NOX_SLOT_COLUMNS[index] || index;
+    slot.current.col = Number.isFinite(Number(slot.current.col)) ? Number(slot.current.col) : (NOX_SLOT_COLUMNS[index] || index);
     slot.filled = slot.filled instanceof Set ? slot.filled : new Set([`${slot.current.row}-${slot.current.col}`]);
   });
 
@@ -7175,14 +7177,15 @@ function noxApplyPlayers(payload = {}){
 
   if(typeof updateUserTabs === "function") updateUserTabs();
   if(typeof updateHud === "function") updateHud();
-  if(typeof centerViewOnActiveUser === "function") centerViewOnActiveUser(false);
+  const shouldCenterOnInit = payload && payload.centerOnInit === true;
+  if(shouldCenterOnInit && typeof centerViewOnActiveUser === "function") centerViewOnActiveUser(false);
   if(typeof render === "function") render();
 }
 
 window.addEventListener("message", (event) => {
   const data = event.data || {};
-  if(data.type === "NOX_LABYRINTHUS_INIT") noxApplyPlayers(data.payload || {});
-  if(data.type === "NOX_LABYRINTHUS_FATUM_SYNC") noxApplyPlayers({ users:data.users || noxSupabaseUsers, activeUser:data.activeUser || noxActiveFatumUser });
+  if(data.type === "NOX_LABYRINTHUS_INIT") noxApplyPlayers({ ...(data.payload || {}), centerOnInit:true });
+  if(data.type === "NOX_LABYRINTHUS_FATUM_SYNC") noxApplyPlayers({ users:data.users || noxSupabaseUsers, activeUser:data.activeUser || noxActiveFatumUser, centerOnInit:false });
 });
 
 function noxRequestFatumDelta(userId, delta, reason){
