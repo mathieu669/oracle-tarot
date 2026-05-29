@@ -120,6 +120,30 @@
     pointer-events:none;
     mix-blend-mode:screen;
   }
+  .sprite-anim{
+    position:absolute;inset:0;display:block;pointer-events:none;
+    background-image:var(--sprite-image);
+    background-repeat:no-repeat;
+    background-size:calc(var(--sprite-frames, 1) * 100%) 100%;
+    background-position:0 0;
+    image-rendering:auto;
+    will-change:background-position;
+    animation-name:sprite-strip;
+    animation-timing-function:steps(var(--sprite-frames, 1));
+    animation-iteration-count:infinite;
+    animation-duration:var(--sprite-duration, 1.2s);
+  }
+  .token-video .sprite-anim,
+  .solidus-video .sprite-anim,
+  .aquila-video .sprite-anim{
+    width:100%;height:100%;
+    background-color:transparent !important;
+    mix-blend-mode:screen;
+  }
+  @keyframes sprite-strip{
+    from{ background-position:0 0; }
+    to{ background-position:100% 0; }
+  }
   .token-video.video-alpha-ready video,
   .solidus-video.video-alpha-ready video,
   .aquila-video.video-alpha-ready video,
@@ -1602,6 +1626,34 @@ const moneyFxGroup = document.getElementById("moneyFx");
 const aquilaVideoLayer = document.getElementById("aquilaVideoLayer");
 const tokenVideoLayer = document.getElementById("tokenVideoLayer");
 const solidusVideoLayer = document.getElementById("solidusVideoLayer");
+const spritePowerFactor = mobileLowPowerMode ? 1.55 : 1;
+const tokenSpriteConfig = Object.freeze({
+  src:"/labyrinthus/assets/token-sprite.png",
+  frames:16,
+  duration:1.12 * spritePowerFactor,
+  className:"token-sprite"
+});
+const solidusSpriteConfig = Object.freeze({
+  src:"/labyrinthus/assets/solidus-sprite.png",
+  frames:16,
+  duration:1.35 * spritePowerFactor,
+  className:"solidus-sprite"
+});
+const aquilaSpriteConfig = Object.freeze({
+  src:"/labyrinthus/assets/aquila-sprite.png",
+  frames:16,
+  duration:1.26 * spritePowerFactor,
+  className:"aquila-sprite"
+});
+function createSpriteElement(config){
+  const sprite = document.createElement("div");
+  sprite.className = `sprite-anim ${config.className || ""}`.trim();
+  sprite.setAttribute("aria-hidden", "true");
+  sprite.style.setProperty("--sprite-image", `url("${config.src}")`);
+  sprite.style.setProperty("--sprite-frames", `${config.frames}`);
+  sprite.style.setProperty("--sprite-duration", `${config.duration}s`);
+  return sprite;
+}
 const chroniconList = document.getElementById("chroniconList");
 const boardWrap = document.getElementById("boardWrap");
 const controlCarousel = document.getElementById("controlCarousel");
@@ -2449,11 +2501,6 @@ function showFrontierReflection(x, y, size, fade=0){
   el.style.height = `${size}px`;
   el.style.opacity = `${Math.max(0, (1 - fade) * .74)}`;
   el.style.transform = `translate(-50%,-50%) scaleX(-1) scale(${1 - fade * .08})`;
-  const video = el.querySelector("video");
-  if(video && video.paused){
-    const playPromise = video.play();
-    if(playPromise && typeof playPromise.catch === "function") playPromise.catch(() => {});
-  }
 }
 
 function abyssusExistsAt(row, col){
@@ -3055,21 +3102,9 @@ function ensureAquilaVideoElement(aquilaId){
   const wrap = document.createElement('div');
   wrap.className = 'aquila-video';
   wrap.dataset.aquilaId = aquilaId;
-  const video = document.createElement('video');
-  video.src = aquilaVideoSrc;
-  video.autoplay = true;
-  video.loop = true;
-  video.muted = true;
-  video.playsInline = true;
-  video.preload = 'auto';
-  video.setAttribute('playsinline', '');
-  video.setAttribute('webkit-playsinline', '');
-  wrap.appendChild(video);
-  attachVideoAlphaCanvas(video, { threshold:34, softness:34 });
+  wrap.appendChild(createSpriteElement(aquilaSpriteConfig));
   aquilaVideoLayer.appendChild(wrap);
   aquilaVideoEls[aquilaId] = wrap;
-  const playPromise = video.play();
-  if(playPromise && typeof playPromise.catch === 'function') playPromise.catch(() => {});
   return wrap;
 }
 function showAquilaVideo(aquilaId, x, y, width, height){
@@ -3081,11 +3116,6 @@ function showAquilaVideo(aquilaId, x, y, width, height){
   wrap.style.width = `${width}px`;
   wrap.style.height = `${height}px`;
   wrap.style.transform = 'translate(-50%,-52%)';
-  const video = wrap.querySelector('video');
-  if(video && video.paused){
-    const playPromise = video.play();
-    if(playPromise && typeof playPromise.catch === 'function') playPromise.catch(() => {});
-  }
 }
 function hideUnusedAquilaVideos(visibleIds){
   for(const [id, el] of Object.entries(aquilaVideoEls)){
@@ -5365,21 +5395,12 @@ function playerAbbrev(userId){
 
 function ensureTokenVideoElement(userId){
   if(tokenVideoEls[userId]) return tokenVideoEls[userId];
-
   const wrap = document.createElement("div");
   wrap.className = "token-video";
   wrap.dataset.userId = userId;
 
-  const video = document.createElement("video");
-  video.src = tokenVideoSrc;
-  video.autoplay = true;
-  video.loop = true;
-  video.muted = true;
-  video.playsInline = true;
-  video.preload = "auto";
-  video.setAttribute("playsinline", "");
-  video.setAttribute("webkit-playsinline", "");
-  video.style.filter = userId === activeUserId ? "brightness(1.08)" : "brightness(.92) opacity(.92)";
+  const sprite = createSpriteElement(tokenSpriteConfig);
+  sprite.style.filter = userId === activeUserId ? "brightness(1.08)" : "brightness(.92) opacity(.92)";
 
   const label = document.createElement("div");
   label.className = "token-label";
@@ -5415,12 +5436,9 @@ function ensureTokenVideoElement(userId){
   });
 
   wrap.appendChild(label);
-  wrap.appendChild(video);
-  attachVideoAlphaCanvas(video, { threshold:34, softness:34 });
+  wrap.appendChild(sprite);
   tokenVideoLayer.appendChild(wrap);
   tokenVideoEls[userId] = wrap;
-  const playPromise = video.play();
-  if(playPromise && typeof playPromise.catch === "function") playPromise.catch(() => {});
   return wrap;
 }
 
@@ -5459,15 +5477,11 @@ function showTokenVideo(userId, x, y, size, isActive, tilt=0){
   el.classList.toggle("active", isActive && !abyssFx);
   const label = el.querySelector(".token-label");
   if(label) label.textContent = playerAbbrev(userId);
-  const video = el.querySelector("video");
-  if(video){
+  const sprite = el.querySelector(".sprite-anim");
+  if(sprite){
     const baseFilter = isActive ? "brightness(1.08)" : "brightness(.92) opacity(.92)";
     const orangeFilter = negroniActive ? " drop-shadow(0 0 4px rgba(255,122,28,.95)) drop-shadow(0 0 10px rgba(255,122,28,.45)) sepia(.4) saturate(1.45)" : "";
-    video.style.filter = abyssFx ? `${baseFilter} opacity(${Math.max(0, opacity)})${orangeFilter}` : `${baseFilter}${orangeFilter}`;
-    if(video.paused){
-      const playPromise = video.play();
-      if(playPromise && typeof playPromise.catch === "function") playPromise.catch(() => {});
-    }
+    sprite.style.filter = abyssFx ? `${baseFilter} opacity(${Math.max(0, opacity)})${orangeFilter}` : `${baseFilter}${orangeFilter}`;
   }
 }
 
@@ -5553,23 +5567,10 @@ function ensureSolidusVideoElement(id){
   const wrap = document.createElement("div");
   wrap.className = "solidus-video";
   wrap.dataset.solidusId = id;
-
-  const video = document.createElement("video");
-  video.src = solidusVideoSrc;
-  video.autoplay = true;
-  video.loop = true;
-  video.muted = true;
-  video.playsInline = true;
-  video.preload = "auto";
-  video.setAttribute("playsinline", "");
-  video.setAttribute("webkit-playsinline", "");
-  wrap.appendChild(video);
-  attachVideoAlphaCanvas(video, { threshold:36, softness:34 });
+  wrap.appendChild(createSpriteElement(solidusSpriteConfig));
 
   solidusVideoLayer.appendChild(wrap);
   solidusVideoEls[id] = wrap;
-  const playPromise = video.play();
-  if(playPromise && typeof playPromise.catch === "function") playPromise.catch(() => {});
   return wrap;
 }
 function showSolidusVideo(id, x, y, size){
@@ -5580,11 +5581,6 @@ function showSolidusVideo(id, x, y, size){
   el.style.top = `${p.y}px`;
   el.style.width = `${size}px`;
   el.style.height = `${size}px`;
-  const video = el.querySelector("video");
-  if(video && video.paused){
-    const playPromise = video.play();
-    if(playPromise && typeof playPromise.catch === "function") playPromise.catch(() => {});
-  }
 }
 function hideUnusedSolidusVideos(visibleIds){
   for(const [id, el] of Object.entries(solidusVideoEls)){
