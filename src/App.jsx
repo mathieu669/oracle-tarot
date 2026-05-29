@@ -1179,7 +1179,7 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
                   style={{ transform: `translate(-50%, -100%) rotate(${angle}deg)` }}
                 >
                   <span
-                    className={["block translate-y-4 rotate-90 whitespace-nowrap text-[9px] font-semibold uppercase tracking-[0.12em]", darkSector ? "text-white" : "text-black"].join(" ")}
+                    className={["block translate-y-4 rotate-90 whitespace-nowrap text-[9px] font-semibold uppercase tracking-[0.12em]", darkSector ? "text-black" : "text-white"].join(" ")}
                   >
                     {name}
                   </span>
@@ -1189,24 +1189,24 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
           </div>
         </div>
 
+        {(spinning || sentenceStatus === "loading" || selectedName) ? (
+          <p className="mt-5 min-h-[1.25rem] text-center text-[10px] uppercase tracking-[0.16em] text-white/36">
+            {spinning ? "La roue tourne." : sentenceStatus === "loading" ? "chargement." : `Arrêt sur ${selectedName}.`}
+          </p>
+        ) : null}
+
         <button
           type="button"
-          className="mt-7 flex aspect-square w-20 select-none items-center justify-center bg-transparent text-white active:scale-95 disabled:opacity-25 [-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none] [-webkit-user-select:none]"
+          className="mt-3 flex aspect-square w-20 select-none items-center justify-center bg-transparent text-white active:scale-95 disabled:opacity-25 [-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none] [-webkit-user-select:none]"
           onClick={spinWheel}
           disabled={spinning}
           aria-label="Tourner la roue Duodecim"
         >
           <DharmaWheelIcon />
         </button>
-
-        {(spinning || selectedName) ? (
-          <p className="mt-3 min-h-[1.25rem] text-center text-[10px] uppercase tracking-[0.16em] text-white/40">
-            {spinning ? "La roue tourne." : `Arrêt sur ${selectedName}.`}
-          </p>
-        ) : null}
       </section>
 
-      {selectedName ? (
+      {selectedName && sentenceStatus === "ready" ? (
         <motion.div
           className="fixed inset-x-5 top-1/2 z-40 -translate-y-1/2 border border-white/22 bg-[#0b0a09] px-6 py-7 text-center text-white shadow-2xl"
           initial={{ opacity: 0, y: 20, filter: "blur(10px)" }}
@@ -1219,17 +1219,7 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
           }}
         >
           <p className="mb-3 text-[10px] uppercase tracking-[0.2em] text-white/45">{selectedName}</p>
-          {sentenceStatus === "loading" ? (
-            <motion.p
-              className="text-xl leading-8"
-              animate={{ opacity: [0.35, 1, 0.35] }}
-              transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
-            >
-              Attends.
-            </motion.p>
-          ) : (
-            <p className="text-xl leading-8">{selectedSentence}</p>
-          )}
+          <p className="text-xl leading-8">{selectedSentence}</p>
         </motion.div>
       ) : null}
 
