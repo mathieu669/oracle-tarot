@@ -1176,10 +1176,10 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
               {DUODECIM_NAMES.map((name, index) => {
                 const angle = index * sectorAngle + sectorAngle / 2 - 90;
                 const readableFlip = angle > 90 && angle < 270;
-                const darkSector = index % 2 !== 0;
-                const displayName = name === "Houellebecq" ? "HOUELLEBECQ" : name.toUpperCase();
+                const whiteNames = new Set(["Jagger", "Marx", "Gainsbourg", "Cantona", "Raël", "Houellebecq"]);
+                const displayName = name.toUpperCase();
                 const radiusMidpoint = 28;
-                const textLength = name.length > 9 ? 22 : name.length > 7 ? 18 : 14;
+                const textColor = whiteNames.has(name) ? "#ffffff" : "#000000";
 
                 return (
                   <g key={name} transform={`rotate(${angle} 50 50)`}>
@@ -1188,12 +1188,11 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
                       y="50"
                       textAnchor="middle"
                       dominantBaseline="middle"
-                      fill="#ff0000"
-                      fontSize="4.1"
+                      fill={textColor}
+                      fontSize="4"
                       fontWeight="700"
-                      letterSpacing="0.25"
-                      textLength={textLength}
-                      lengthAdjust="spacingAndGlyphs"
+                      letterSpacing="0.2"
+                      fontFamily="Crimson Pro, Georgia, serif"
                       transform={readableFlip ? `rotate(180 ${50 + radiusMidpoint} 50)` : undefined}
                       className="pointer-events-none select-none [-webkit-user-select:none]"
                     >
