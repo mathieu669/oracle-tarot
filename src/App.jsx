@@ -112,6 +112,15 @@ function isInvitatusSession() {
   return Boolean(sessionUser?.guest) && isInvitatusName(sessionUser?.name || "");
 }
 
+function getSociusAddressName() {
+  const sessionUser = readNoxSessionUser();
+  const name = sessionUser?.name || "";
+
+  if (!name || isInvitatusSession()) return "";
+
+  return name;
+}
+
 function DevLatinHome({ onStage, onVerbatim }) {
   const [phase, setPhase] = useState("loading");
   const [selectedUser, setSelectedUser] = useState("");
@@ -1116,6 +1125,7 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
   const adviceRequestRef = useRef(0);
   const wheelRotationRef = useRef(0);
   const hasSpecificQuestion = Boolean(String(question || "").trim());
+  const sociusAddressName = getSociusAddressName();
   const sectorAngle = 360 / DUODECIM_NAMES.length;
 
   useEffect(() => {
@@ -1204,7 +1214,7 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
 
       <section className="mx-auto mt-6 flex max-w-[520px] flex-col items-center">
         <p className="max-w-[310px] text-center text-[11px] uppercase leading-5 tracking-[0.18em] text-white/46">
-          {hasSpecificQuestion ? "La roue répond à la question posée dans Divinatio." : "La roue réagit à l’oraculum."}
+          {sociusAddressName ? `${sociusAddressName}, ${hasSpecificQuestion ? "la roue répond à ta question." : "la roue réagit à l’oraculum."}` : hasSpecificQuestion ? "La roue répond à la question posée dans Divinatio." : "La roue réagit à l’oraculum."}
         </p>
 
         <div className="relative mt-7 aspect-square w-full max-w-[360px] select-none">
@@ -2446,6 +2456,7 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
   const hasUnlimitedFatumBalance = hasUnlimitedFatum(activeUser, sessionName);
   const fatumBalanceLabel = formatFatumBalance(score, activeUser, sessionName);
   const revealedAnguis = revealed.filter((index) => symbols[index] === "anguis").length;
+  const sociusAddressName = getSociusAddressName();
 
   const refreshUsers = () => {
     const nextUsers = readFatumUsers();
@@ -2688,7 +2699,7 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
 
         <div className="mt-4 min-h-[4.2rem] border border-white/18 bg-black/52 px-4 py-3 text-center shadow-xl">
           <p className="text-[10px] uppercase tracking-[0.18em] text-white/46">État</p>
-          <p className="mt-1 text-sm text-white/88">{message || "Cramez 50 Ft pour ouvrir Salvatio."}</p>
+          <p className="mt-1 text-sm text-white/88">{message || (sociusAddressName ? `${sociusAddressName}, cramez 50 Ft pour ouvrir Salvatio.` : "Cramez 50 Ft pour ouvrir Salvatio.")}</p>
           {paid ? (
             <p className="mt-2 text-[10px] uppercase tracking-[0.16em] text-white/48">
               Anguis révélés : {revealedAnguis}/2{lucrumUnlocked ? " · Lucrum ouvert" : ""}
@@ -2727,7 +2738,7 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
             <p className="text-[10px] uppercase tracking-[0.2em] text-white/48">Paiement Fatum</p>
             <h2 className="mt-2 text-2xl font-semibold uppercase tracking-[0.14em]">Salvatio</h2>
             <p className="mt-4 flex flex-wrap items-center justify-center gap-1.5 text-sm leading-relaxed text-white/76">
-              <span>Cramer 50 Ft pour jouer ? Trouvez deux signes</span>
+              <span>{sociusAddressName ? `${sociusAddressName}, cramer 50 Ft pour jouer ? Trouvez deux signes` : "Cramer 50 Ft pour jouer ? Trouvez deux signes"}</span>
               <img
                 src={SALVATIO_ANGUIS_POPUP_SRC}
                 alt="Anguis"
@@ -2842,26 +2853,56 @@ function FatumScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbat
   };
 
   useEffect(() => {
+    let cancelled = false;
+
     setSyncStatus("syncing");
 
-    fetchServerFatumUsers()
-      .then((serverUsers) => {
-        setUsers(serverUsers);
-        setSyncStatus("ok");
-      })
-      .catch(() => {
+    const bootFatumUsers = async () => {
+      if (isInvitatusSession()) {
         setUsers(readFatumUsers());
+        setActiveUserId("");
+        setSyncStatus("ok");
+        return;
+      }
+
+      try {
+        const serverUsers = await fetchServerFatumUsers();
+        const ensured = await ensureSessionFatumUser(serverUsers);
+
+        if (cancelled) return;
+
+        setUsers(ensured.users);
+        setActiveUserId(ensured.user?.id || window.localStorage.getItem(FATUM_ACTIVE_USER_KEY) || "");
+        setSyncStatus("ok");
+      } catch {
+        const cachedUsers = readFatumUsers();
+        const sessionName = readNoxSessionUser()?.name || "";
+        const cachedUser = findFatumUserByName(cachedUsers, sessionName);
+
+        if (cachedUser?.id) {
+          window.localStorage.setItem(FATUM_ACTIVE_USER_KEY, cachedUser.id);
+        }
+
+        if (cancelled) return;
+
+        setUsers(cachedUsers);
+        setActiveUserId(cachedUser?.id || window.localStorage.getItem(FATUM_ACTIVE_USER_KEY) || "");
         setSyncStatus("error");
-      });
+      }
+    };
+
+    bootFatumUsers();
 
     const refresh = () => {
       setUsers(readFatumUsers());
+      setActiveUserId(window.localStorage.getItem(FATUM_ACTIVE_USER_KEY) || "");
     };
 
     window.addEventListener("storage", refresh);
     window.addEventListener("nox:fatum-users-updated", refresh);
 
     return () => {
+      cancelled = true;
       window.removeEventListener("storage", refresh);
       window.removeEventListener("nox:fatum-users-updated", refresh);
 
@@ -3718,6 +3759,7 @@ function DivinatioScreen({ question, onQuestionChange, onReadingReady, onClaves,
   const [questionDictating, setQuestionDictating] = useState(false);
   const closeVideoTimerRef = useRef(null);
   const questionRecognitionRef = useRef(null);
+  const sociusAddressName = getSociusAddressName();
 
   const closeSelectedCard = () => {
     window.clearTimeout(closeVideoTimerRef.current);
@@ -4004,7 +4046,7 @@ function DivinatioScreen({ question, onQuestionChange, onReadingReady, onClaves,
       </div>
 
       <section className={["mx-auto text-center", hasDrawn ? "mt-3 max-w-[310px]" : "mt-5 max-w-[430px]"].join(" ")}>
-        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-black/52">Quelle est ta question ?</p>
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-black/52">{sociusAddressName ? `${sociusAddressName}, quelle est ta question ?` : "Quelle est ta question ?"}</p>
         <div className="flex items-stretch gap-2 border border-black/18 bg-white p-2 shadow-sm">
           <textarea
             className="min-h-[44px] flex-1 resize-none bg-transparent px-2 py-1 text-sm leading-5 text-black outline-none placeholder:text-black/28 disabled:opacity-45"
