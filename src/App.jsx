@@ -1168,24 +1168,40 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
             <div className="absolute inset-[8%] rounded-full border border-white/70" />
             <div className="absolute inset-[38%] rounded-full border border-white/70" />
 
-            {DUODECIM_NAMES.map((name, index) => {
-              const angle = index * sectorAngle + sectorAngle / 2;
-              const darkSector = index % 2 !== 0;
+            <svg
+              className="absolute inset-0 z-10 h-full w-full overflow-visible select-none [-webkit-user-select:none]"
+              viewBox="0 0 100 100"
+              aria-hidden="true"
+            >
+              {DUODECIM_NAMES.map((name, index) => {
+                const angle = index * sectorAngle + sectorAngle / 2 - 90;
+                const radians = (angle * Math.PI) / 180;
+                const radius = 31;
+                const x = 50 + Math.cos(radians) * radius;
+                const y = 50 + Math.sin(radians) * radius;
+                const darkSector = index % 2 !== 0;
+                const displayName = name === "Houellebecq" ? "HOUELLEBECQ" : name.toUpperCase();
 
-              return (
-                <div
-                  key={name}
-                  className="absolute left-1/2 top-1/2 h-1/2 w-[34%] origin-bottom select-none text-center [-webkit-user-select:none]"
-                  style={{ transform: `translate(-50%, -100%) rotate(${angle}deg)` }}
-                >
-                  <span
-                    className={["absolute left-1/2 top-[42%] block max-w-[5.6rem] -translate-x-1/2 -translate-y-1/2 rotate-90 overflow-hidden text-ellipsis whitespace-nowrap text-center text-[8px] font-semibold uppercase leading-none tracking-[0.08em]", darkSector ? "text-white" : "text-black"].join(" ")}
+                return (
+                  <text
+                    key={name}
+                    x={x}
+                    y={y}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fill={darkSector ? "#fff" : "#000"}
+                    fontSize="3.2"
+                    fontWeight="700"
+                    letterSpacing="0.35"
+                    textLength={name.length > 8 ? "20" : "15"}
+                    lengthAdjust="spacingAndGlyphs"
+                    className="pointer-events-none select-none [-webkit-user-select:none]"
                   >
-                    {name}
-                  </span>
-                </div>
-              );
-            })}
+                    {displayName}
+                  </text>
+                );
+              })}
+            </svg>
           </div>
         </div>
 
