@@ -486,6 +486,59 @@ const readingSchema = {
   }
 };
 
+
+const strictActionSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["action"],
+  properties: {
+    action: {
+      type: "string",
+      description: "Action concrète qui répond strictement à la question posée. Pour une question de type dois-je, elle tranche explicitement ou implicitement oui/non. Une seule phrase terminée par un point."
+    }
+  }
+};
+
+async function rewriteActionForExplicitQuestion(openai, question, reading, payload) {
+  if (!question?.trim()) return reading?.action || "";
+
+  const response = await openai.responses.create({
+    model: MODEL,
+    temperature: 0.45,
+    max_output_tokens: 180,
+    instructions: `
+Vous réécrivez uniquement l’action prescrite d’un oracle.
+
+La question de l’utilisateur est prioritaire sur tout le reste.
+L’action doit être une réponse stricte, pratique et directement exécutable à cette question.
+Elle ne doit pas commenter les cartes, ne doit pas rester symbolique, ne doit pas donner une ambiance générale.
+Si la question demande « dois-je… ? », l’action doit trancher oui ou non par une consigne claire.
+La phrase peut être ironique, sèche et piquante, mais elle doit répondre au choix demandé.
+Ne répétez pas la question.
+Ne produisez qu’une seule phrase, terminée par un point.
+`,
+    input: JSON.stringify({
+      question: question.trim(),
+      currentAction: reading?.action || "",
+      oracleSentence: reading?.oracleSentence || "",
+      synthesis: reading?.synthesis || "",
+      cards: payload?.cards || []
+    }),
+    text: {
+      format: {
+        type: "json_schema",
+        name: "strict_oracle_action",
+        strict: true,
+        schema: strictActionSchema
+      }
+    }
+  });
+
+  const parsed = JSON.parse(response.output_text || "{}");
+  const action = String(parsed.action || "").trim();
+  return action.endsWith(".") || action.endsWith("!") || action.endsWith("?") ? action : `${action}.`;
+}
+
 function getOpenAIClient() {
   if (!process.env.OPENAI_API_KEY) {
     return null;
@@ -671,7 +724,8 @@ Vous ne glorifiez pas la consommation de drogues et ne donnez aucun conseil lié
 
 Vous travaillez à partir de la question, des cartes tirées, de leurs clés, de leurs indices, de leurs positions, de la date courante fournie dans le payload, du contexte privé, et des éventuels secrets dynamiques ajoutés par les utilisateurs dans dynamicContextSecrets.
 Si hasExplicitQuestion vaut true, répondez réellement et strictement à la question posée. Ne produisez pas une ambiance générale, un commentaire symbolique ou une morale vague.
-L’action prescrite doit être la réponse pratique à la question. Elle doit décider, orienter ou trancher. Pour une question de type « dois-je… ? », répondez implicitement ou explicitement oui/non par l’action elle-même.
+L’action prescrite est le champ le plus important : elle doit être la réponse pratique à la question, pas une illustration des cartes. Elle doit décider, orienter ou trancher. Pour une question de type « dois-je… ? », répondez oui/non par la consigne elle-même.
+Si la question porte sur une action concrète, l’action prescrite doit dire de faire ou de ne pas faire cette action, puis ajouter une justification piquante.
 Exemple : pour « Dois-je sortir ce soir ? », une action valable serait « Tu ferais mieux de rester chez toi et de mater un télé-crochet, ça t’évitera de te ridiculiser avec tes propos pseudo-experts sur la situation géopolitique. »
 Si hasExplicitQuestion vaut false, l’oracle peut rester non spécifique et travailler plus librement à partir des cartes.
 Soyez concret, psychologique, lisible, et orientez plus fermement dans une direction identifiable. Dites ce que la personne devrait comprendre d’elle-même ou de la situation.
@@ -706,6 +760,14 @@ Générez aussi un score Fatum en points, entre 0 et 100 : il mesure la densité
 
     const outputText = response.output_text || "{}";
     const reading = JSON.parse(outputText);
+
+    if (explicitQuestion) {
+      try {
+        reading.action = await rewriteActionForExplicitQuestion(openai, explicitQuestion, reading, payload);
+      } catch (rewriteError) {
+        console.error("Strict action rewrite error:", rewriteError);
+      }
+    }
 
     const fatumSeed = JSON.stringify({
       question: payload.question,
@@ -951,7 +1013,7 @@ app.post("/api/duodecim-advice", async (req, res) => {
       return res.status(500).json({ error: "OPENAI_API_KEY manquante." });
     }
 
-    const { name, question, reading } = req.body || {};
+    const { name, question, hasExplicitQuestion, reading } = req.body || {};
     const allowedNames = [
       "Jagger",
       "Freud",
@@ -971,30 +1033,34 @@ app.post("/api/duodecim-advice", async (req, res) => {
       return res.status(400).json({ error: "Nom Duodecim invalide." });
     }
 
+    const explicitQuestion = Boolean(hasExplicitQuestion && String(question || "").trim());
+
     const response = await client.responses.create({
       model: MODEL,
       instructions: `
-Vous écrivez une seule phrase de conseil pour l’écran Duodecim de l’app Nox.
+Vous écrivez une seule citation fictive pour l’écran Duodecim de l’app Nox.
 
-La phrase répond directement à la question de l’utilisateur, à partir de l’oracle déjà généré.
-Elle doit changer à chaque oracle : ne produisez jamais une formule générique.
-Elle doit être concrète, tranchante, contemporaine, légèrement noire ou ironique.
-
-La phrase est attribuée à un nom : ${name}.
+La phrase est attribuée à : ${name}.
 Évoquez l’imaginaire public associé à ce nom, sa posture ou son univers intellectuel.
 Ne prétendez pas citer réellement la personne.
 N’imitez pas longuement un style littéraire vivant ; faites une évocation courte, libre, satirique et transformée.
 
+Règle prioritaire :
+${explicitQuestion ? `L’utilisateur a posé une question spécifique. La citation doit répondre strictement à cette question : ${String(question || "").trim()}. Elle doit trancher, donner une conduite concrète et ne pas rester symbolique. Pour une question de type « Dois-je… ? », répondez clairement par une action à faire ou à ne pas faire.` : `L’utilisateur n’a pas posé de question spécifique. La citation doit réagir à l’oracle déjà généré et à son action concrète, sans inventer une nouvelle question.`}
+
+Ton : concret, tranchant, contemporain, légèrement noir ou ironique. La réponse peut être sèche, drôle, cruelle ou élégante, mais elle doit rester utilisable comme consigne.
+
 Format :
 - Une seule phrase.
-- 24 à 42 mots.
+- 24 à 48 mots.
 - Commencer par : "${name} dirait :"
 - Pas de guillemets.
 - Pas de markdown.
       `,
       input: JSON.stringify({
         name,
-        question: question || "Question silencieuse",
+        mode: explicitQuestion ? "question_specifique" : "reaction_oracle",
+        question: explicitQuestion ? String(question || "").trim() : "",
         oracle: {
           cards: reading?.cards || [],
           crossReading: reading?.crossReading || "",

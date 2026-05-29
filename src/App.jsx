@@ -1057,78 +1057,19 @@ function getDuodecimFallbackSentence(name, reading, question) {
 }
 
 function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbatim, onBulla, onArchive, onFatum, onSalvatio }) {
-  const [rotations, setRotations] = useState([
-    { x: -18, y: 26 },
-    { x: 18, y: -24 }
-  ]);
+  const [wheelRotation, setWheelRotation] = useState(0);
   const [selectedName, setSelectedName] = useState(null);
   const [selectedSentence, setSelectedSentence] = useState("");
   const [sentenceStatus, setSentenceStatus] = useState("idle");
-  const dragRef = useRef(null);
-  const rotationsRef = useRef(rotations);
-  const velocityRef = useRef([
-    { x: 0.015, y: 0.028 },
-    { x: -0.018, y: 0.024 }
-  ]);
-  const animationRef = useRef(null);
-  const lastFrameRef = useRef(0);
+  const [spinning, setSpinning] = useState(false);
   const adviceRequestRef = useRef(0);
-  const coarsePointerRef = useRef(false);
+  const wheelRotationRef = useRef(0);
+  const hasSpecificQuestion = Boolean(String(question || "").trim());
+  const sectorAngle = 360 / DUODECIM_NAMES.length;
 
   useEffect(() => {
-    rotationsRef.current = rotations;
-  }, [rotations]);
-
-  useEffect(() => {
-    coarsePointerRef.current = Boolean(window.matchMedia?.("(pointer: coarse)")?.matches);
-
-    const tick = (time) => {
-      const last = lastFrameRef.current || time;
-      const rawDelta = time - last;
-
-      const frameTarget = coarsePointerRef.current ? 72 : DUODECIM_AUTO_FRAME_MS;
-
-      if (rawDelta < frameTarget) {
-        animationRef.current = window.requestAnimationFrame(tick);
-        return;
-      }
-
-      const delta = Math.min(coarsePointerRef.current ? 34 : 48, rawDelta);
-      lastFrameRef.current = time;
-
-      if (!dragRef.current) {
-        setRotations((current) => {
-          const next = current.map((rotation, index) => {
-            const mobileFactor = coarsePointerRef.current ? 0.45 : 1;
-            const baseX = (index === 0 ? 0.010 : -0.012) * mobileFactor;
-            const baseY = (index === 0 ? 0.020 : 0.018) * mobileFactor;
-            const velocity = velocityRef.current[index];
-
-            velocity.x *= 0.94;
-            velocity.y *= 0.94;
-
-            return {
-              x: rotation.x + (baseX + velocity.x) * delta,
-              y: rotation.y + (baseY + velocity.y) * delta
-            };
-          });
-
-          rotationsRef.current = next;
-          return next;
-        });
-      }
-
-      animationRef.current = window.requestAnimationFrame(tick);
-    };
-
-    animationRef.current = window.requestAnimationFrame(tick);
-
-    return () => {
-      if (animationRef.current) {
-        window.cancelAnimationFrame(animationRef.current);
-      }
-    };
-  }, []);
+    wheelRotationRef.current = wheelRotation;
+  }, [wheelRotation]);
 
   const requestDuodecimSentence = async (name) => {
     const requestId = Date.now();
@@ -1142,7 +1083,12 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
       const response = await fetch("/api/duodecim-advice", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, question, reading })
+        body: JSON.stringify({
+          name,
+          question,
+          hasExplicitQuestion: hasSpecificQuestion,
+          reading
+        })
       });
 
       const data = await response.json();
@@ -1163,138 +1109,99 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
     }
   };
 
-  const startDrag = (event, diceIndex) => {
-    event.preventDefault();
+  const spinWheel = () => {
+    if (spinning) return;
 
-    if (event.currentTarget.setPointerCapture && event.pointerId !== undefined) {
-      try {
-        event.currentTarget.setPointerCapture(event.pointerId);
-      } catch {
-        // Ignore pointer capture errors.
-      }
-    }
+    setSelectedName(null);
+    setSelectedSentence("");
+    setSentenceStatus("idle");
+    setSpinning(true);
 
-    const targetName = event.target?.closest?.("[data-duodecim-name]")?.dataset?.duodecimName || "";
+    const targetIndex = Math.floor(Math.random() * DUODECIM_NAMES.length);
+    const targetName = DUODECIM_NAMES[targetIndex];
+    const currentRotation = wheelRotationRef.current;
+    const normalizedRotation = ((currentRotation % 360) + 360) % 360;
+    const pointerOffset = 270;
+    const targetCenter = targetIndex * sectorAngle + sectorAngle / 2;
+    const desiredModulo = (pointerOffset - targetCenter + 360) % 360;
+    const moduloDelta = (desiredModulo - normalizedRotation + 360) % 360;
+    const fullTurns = 5 + Math.floor(Math.random() * 3);
+    const overshoot = (Math.random() - 0.5) * (sectorAngle * 0.38);
+    const nextRotation = currentRotation + fullTurns * 360 + moduloDelta + overshoot;
 
-    dragRef.current = {
-      diceIndex,
-      x: event.clientX,
-      y: event.clientY,
-      lastX: event.clientX,
-      lastY: event.clientY,
-      lastTime: event.timeStamp || performance.now(),
-      rotation: rotationsRef.current[diceIndex],
-      targetName,
-      moved: false
-    };
+    setWheelRotation(nextRotation);
+
+    window.setTimeout(() => {
+      setSpinning(false);
+      requestDuodecimSentence(targetName);
+    }, 4300);
   };
-
-  const moveDrag = (event) => {
-    if (!dragRef.current) return;
-    event.preventDefault();
-
-    const now = event.timeStamp || performance.now();
-    const deltaX = event.clientX - dragRef.current.x;
-    const deltaY = event.clientY - dragRef.current.y;
-
-    if (Math.abs(deltaX) > DUODECIM_TAP_THRESHOLD || Math.abs(deltaY) > DUODECIM_TAP_THRESHOLD) {
-      dragRef.current.moved = true;
-    }
-
-    const frameMs = Math.max(12, now - dragRef.current.lastTime);
-    const frameDeltaX = event.clientX - dragRef.current.lastX;
-    const frameDeltaY = event.clientY - dragRef.current.lastY;
-    const diceIndex = dragRef.current.diceIndex;
-
-    const dragFactor = coarsePointerRef.current ? 0.62 : 1;
-
-    velocityRef.current[diceIndex] = {
-      x: ((-frameDeltaY * 0.030) / frameMs) * dragFactor,
-      y: ((frameDeltaX * 0.030) / frameMs) * dragFactor
-    };
-
-    const nextRotation = {
-      x: dragRef.current.rotation.x - deltaY * 0.42 * dragFactor,
-      y: dragRef.current.rotation.y + deltaX * 0.42 * dragFactor
-    };
-
-    setRotations((current) => {
-      const next = current.map((rotation, index) => (index === diceIndex ? nextRotation : rotation));
-      rotationsRef.current = next;
-      return next;
-    });
-
-    dragRef.current.lastX = event.clientX;
-    dragRef.current.lastY = event.clientY;
-    dragRef.current.lastTime = now;
-  };
-
-  const endDrag = (event) => {
-    event?.preventDefault?.();
-    const drag = dragRef.current;
-    dragRef.current = null;
-
-    if (drag?.targetName && !drag.moved) {
-      requestDuodecimSentence(drag.targetName);
-    }
-  };
-
-  const diceOffsetClass = (diceIndex) => (diceIndex === 0 ? "-translate-x-[62px]" : "translate-x-[62px]");
 
   return (
     <motion.main
-      className="fixed inset-0 select-none overflow-hidden bg-black text-white [touch-action:none] [-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none] [-webkit-user-select:none]"
+      className="fixed inset-0 overflow-y-auto bg-black px-5 pb-[max(6.75rem,calc(env(safe-area-inset-bottom)+5.5rem))] pt-[max(4.75rem,env(safe-area-inset-top))] text-white [-webkit-tap-highlight-color:transparent]"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
     >
-      <h1 className="mt-14 text-center text-3xl font-semibold tracking-[0.12em] text-white">Duodecim.</h1>
+      <h1 className="text-center text-3xl font-semibold tracking-[0.12em] text-white">Duodecim.</h1>
 
-      <div className="flex h-[calc(100%-5rem)] flex-col items-center justify-center gap-6 px-6 [perspective:900px]">
-        {DUODECIM_DICE.map((names, diceIndex) => (
+      <section className="mx-auto mt-6 flex max-w-[520px] flex-col items-center">
+        <p className="max-w-[310px] text-center text-[11px] uppercase leading-5 tracking-[0.18em] text-white/46">
+          {hasSpecificQuestion ? "La roue répond à la question posée dans Divinatio." : "La roue réagit à l’oraculum."}
+        </p>
+
+        <div className="relative mt-7 aspect-square w-full max-w-[360px] select-none">
+          <div className="absolute left-1/2 top-[-0.6rem] z-20 h-0 w-0 -translate-x-1/2 border-l-[12px] border-r-[12px] border-t-[24px] border-l-transparent border-r-transparent border-t-white drop-shadow-[0_0_12px_rgba(255,255,255,0.48)]" />
           <div
-            key={`duodecim-die-${diceIndex}`}
-            className={`relative h-[124px] w-[124px] touch-none select-none [contain:layout_style_paint] [will-change:transform] [-webkit-touch-callout:none] [-webkit-user-select:none] ${diceOffsetClass(diceIndex)}`}
-            onPointerDown={(event) => startDrag(event, diceIndex)}
-            onPointerMove={moveDrag}
-            onPointerUp={endDrag}
-            onPointerCancel={endDrag}
-            onPointerLeave={endDrag}
+            className="absolute inset-0 rounded-full border border-white/78 shadow-[0_0_32px_rgba(255,255,255,0.08)] transition-transform duration-[4200ms] ease-[cubic-bezier(0.12,0.72,0.08,1)]"
+            style={{
+              transform: `rotate(${wheelRotation}deg)`,
+              background: `conic-gradient(from -90deg, ${DUODECIM_NAMES.map((_, index) => `${index % 2 === 0 ? "#f2efe6" : "#111"} ${index * sectorAngle}deg ${(index + 1) * sectorAngle}deg`).join(", ")})`
+            }}
           >
-            <div
-              className="absolute inset-0 select-none [transform-style:preserve-3d] [-webkit-touch-callout:none]"
-              style={{
-                transform: `rotateX(${rotations[diceIndex].x}deg) rotateY(${rotations[diceIndex].y}deg)`,
-                transition: dragRef.current ? "none" : "transform 0.12s linear"
-              }}
-            >
-              {names.map((name, faceIndex) => (
-                <button
+            <div className="absolute inset-[8%] rounded-full border border-black/30 bg-black/74" />
+            <div className="absolute inset-[38%] rounded-full border border-white/70 bg-black shadow-[0_0_20px_rgba(0,0,0,0.8)]" />
+
+            {DUODECIM_NAMES.map((name, index) => {
+              const angle = index * sectorAngle + sectorAngle / 2;
+              const darkSector = index % 2 !== 0;
+
+              return (
+                <div
                   key={name}
-                  type="button"
-                  data-duodecim-name={name}
-                  className="absolute left-1/2 top-1/2 flex h-[124px] w-[124px] -translate-x-1/2 -translate-y-1/2 select-none items-center justify-center border border-white/88 bg-black text-center text-[9px] uppercase leading-[1.05] tracking-[0.08em] text-white [backface-visibility:hidden] [-webkit-backface-visibility:hidden] [-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none] [-webkit-user-select:none]"
-                  style={{
-                    transform: DICE_FACE_TRANSFORMS[faceIndex],
-                    transformStyle: "preserve-3d",
-                    userSelect: "none",
-                    WebkitUserSelect: "none",
-                    WebkitTouchCallout: "none",
-                    touchAction: "none"
-                  }}
-                  onContextMenu={(event) => event.preventDefault()}
+                  className="absolute left-1/2 top-1/2 h-1/2 w-[28%] origin-bottom select-none text-center [-webkit-user-select:none]"
+                  style={{ transform: `translate(-50%, -100%) rotate(${angle}deg)` }}
                 >
-                  {name}
-                </button>
-              ))}
-            </div>
+                  <span
+                    className={["block translate-y-4 rotate-90 whitespace-nowrap text-[9px] font-semibold uppercase tracking-[0.12em]", darkSector ? "text-white" : "text-black"].join(" ")}
+                  >
+                    {name}
+                  </span>
+                </div>
+              );
+            })}
           </div>
-        ))}
-      </div>
+        </div>
+
+        <button
+          type="button"
+          className="mt-7 flex h-20 w-20 select-none items-center justify-center rounded-full border border-white/72 bg-black text-5xl leading-none text-white shadow-[0_0_24px_rgba(255,255,255,0.1)] transition active:scale-95 disabled:opacity-45 [-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none] [-webkit-user-select:none]"
+          onClick={spinWheel}
+          disabled={spinning}
+          aria-label="Tourner la roue Duodecim"
+        >
+          ☸
+        </button>
+
+        <p className="mt-3 min-h-[1.25rem] text-center text-[10px] uppercase tracking-[0.16em] text-white/40">
+          {spinning ? "La roue tourne." : selectedName ? `Arrêt sur ${selectedName}.` : "Touchez la roue dharma."}
+        </p>
+      </section>
 
       {selectedName ? (
         <motion.div
-          className="fixed inset-x-6 top-1/2 z-40 -translate-y-1/2 bg-white px-6 py-7 text-center text-black shadow-2xl"
+          className="fixed inset-x-5 top-1/2 z-40 -translate-y-1/2 border border-white/22 bg-[#0b0a09] px-6 py-7 text-center text-white shadow-2xl"
           initial={{ opacity: 0, y: 20, filter: "blur(10px)" }}
           animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
           transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
@@ -1304,6 +1211,7 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
             setSentenceStatus("idle");
           }}
         >
+          <p className="mb-3 text-[10px] uppercase tracking-[0.2em] text-white/45">{selectedName}</p>
           {sentenceStatus === "loading" ? (
             <motion.p
               className="text-xl leading-8"
