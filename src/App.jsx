@@ -3999,7 +3999,7 @@ function DivinatioScreen({ question, onQuestionChange, onReadingReady, onClaves,
               setQuestionDraft(event.target.value);
               onQuestionChange?.(event.target.value);
             }}
-            placeholder="Laissez vide pour un oracle non spécifique."
+            placeholder={questionDictating ? "enregistrement en cours." : "Laissez vide pour un oracle non spécifique."}
             disabled={spinning || hasDrawn}
             rows={2}
           />
@@ -4587,10 +4587,8 @@ export default function App() {
 
   const seedDebugReading = () => {
     const debugCards = deck.slice(0, DRAW_TARGET);
-    const debugQuestion =
-      question ||
-      "Question de test : dois-je rester dans le confort ou faire un vrai mouvement maintenant ?";
-    const debugReading = createFallbackReading(debugCards, debugQuestion);
+    const debugQuestion = (question || "").trim();
+    const debugReading = createFallbackReading(debugCards, debugQuestion || "Question silencieuse");
 
     setQuestion(debugQuestion);
     setDrawnCards(debugCards);
@@ -4614,10 +4612,8 @@ export default function App() {
 
   const jumpToOracleEnd = () => {
     const debugCards = deck.slice(0, DRAW_TARGET);
-    const debugQuestion =
-      question ||
-      "Question de test : faut-il rester dans le confort ou faire un vrai mouvement maintenant ?";
-    const debugReading = createFallbackReading(debugCards, debugQuestion);
+    const debugQuestion = (question || "").trim();
+    const debugReading = createFallbackReading(debugCards, debugQuestion || "Question silencieuse");
 
     setQuestion(debugQuestion);
     setDrawnCards(debugCards);
