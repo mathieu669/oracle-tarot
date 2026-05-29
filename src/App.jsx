@@ -2942,7 +2942,7 @@ function LabyrinthusScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodeci
           <iframe
             ref={iframeRef}
             title="Labyrinthus"
-            src="/labyrinthus/index.html?v=3"
+            src="/labyrinthus/index.html?v=4"
             className="h-full w-full border-0 bg-black"
             allow="fullscreen; autoplay"
             onLoad={() => {
@@ -2957,8 +2957,8 @@ function LabyrinthusScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodeci
             <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black px-6 text-center">
               <iframe
                 title="Chargement Labyrinthus"
-                src="/labyrinthus/loader.html?v=1"
-                className="h-28 w-28 border-0 bg-transparent opacity-95"
+                src="/labyrinthus/loader.html?v=2"
+                className="h-28 w-28 border-0 bg-black opacity-95"
                 aria-hidden="true"
               />
               <p className="mt-5 text-[10px] uppercase tracking-[0.22em] text-white/42">chargement.</p>

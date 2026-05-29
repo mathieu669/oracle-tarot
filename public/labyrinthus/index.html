@@ -148,6 +148,7 @@
     width:100% !important;height:100% !important;display:block;
     overflow:visible !important;background:transparent !important;
   }
+  .aquila-video .lottie-anim{mix-blend-mode:normal;}
   .token-video .lottie-anim,
   .solidus-video .lottie-anim,
   .aquila-video .lottie-anim{
@@ -830,9 +831,9 @@
   position:absolute;
   pointer-events:none;
   transform:translate(-50%,-50%);
-  mix-blend-mode:screen;
-  opacity:.96;
-  filter:drop-shadow(0 0 6px rgba(255,255,255,.14));
+  mix-blend-mode:normal;
+  opacity:.98;
+  filter:none;
 }
 .aquila-video video{
   width:100%;
@@ -863,6 +864,15 @@
   stroke:rgba(255,255,255,.88);
   stroke-width:1.2;
 }
+.aquila-containment-cone{
+  fill:rgba(0,0,0,.055);
+  stroke:rgba(0,0,0,.92);
+  stroke-width:.62;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+  vector-effect:non-scaling-stroke;
+}
+.aquila-containment-ring,.aquila-containment-ring-halo{display:none;}
 
 
   .panel-tab{
@@ -1257,6 +1267,25 @@
     .token-video{width:30px;height:30px;}
     .solidus-video{width:24px;height:24px;}
   }
+
+  @media (hover:none), (pointer:coarse){
+    .arca-panel .control-carousel-wrap{
+      max-height:116px;
+      margin-top:8px;
+      opacity:1;
+      transform:translateY(0);
+      pointer-events:auto;
+      touch-action:pan-y;
+      -webkit-overflow-scrolling:touch;
+    }
+    .arca-panel .control-card,
+    .arca-panel .buy-btn,
+    .arca-panel .info-btn{
+      touch-action:manipulation;
+      -webkit-tap-highlight-color:transparent;
+    }
+  }
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
 </head>
@@ -1693,7 +1722,7 @@ const solidusLottieConfig = Object.freeze({
 });
 const aquilaLottieConfig = Object.freeze({
   path:"/labyrinthus/assets/lottie/aquila-white.json",
-  className:"aquila-lottie",
+  className:"aquila-lottie aquila-black-line",
   speed: mobileLowPowerMode ? 0.82 : 1
 });
 if(window.lottie){
@@ -2221,21 +2250,26 @@ function centeredScrollForRow(row){
 function centerViewOnActiveUser(animate = true){
   const user = currentUser();
   if(!user) return;
-  const targetScroll = centeredScrollForRow(Number(user.current.row) || 0);
-  if(!animate){
+  const targetScroll = clampScrollToVisibleRange(centeredScrollForRow(Number(user.current.row) || 0));
+  if(animState || !animate || mobileLowPowerMode){
     scroll = targetScroll;
-    render();
+    render({ immediate:true });
     return;
   }
   const startScroll = scroll;
   const delta = targetScroll - startScroll;
+  if(Math.abs(delta) < 0.02){
+    scroll = targetScroll;
+    render({ immediate:true });
+    return;
+  }
   const startTime = performance.now();
-  const duration = 260;
+  const duration = 220;
   function step(now){
     const t = clamp((now - startTime) / duration, 0, 1);
     const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-    scroll = startScroll + delta * eased;
-    render();
+    scroll = clampScrollToVisibleRange(startScroll + delta * eased);
+    render({ immediate:true });
     if(t < 1) requestAnimationFrame(step);
   }
   requestAnimationFrame(step);
@@ -3231,38 +3265,27 @@ function renderAquilas(){
       const cx = token ? token.c.x + token.offsetX : (minX + maxX) / 2;
       const cy = token ? token.c.y + token.offsetY - (token.baseSize * .12) : (minY + maxY) / 2;
 
-      const ringRx = Math.max(26, (maxX - minX) * .36);
-      const ringRy = Math.max(18, (maxY - minY) * .36);
-      const ringHalo = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
-      ringHalo.setAttribute('cx', cx);
-      ringHalo.setAttribute('cy', cy);
-      ringHalo.setAttribute('rx', ringRx);
-      ringHalo.setAttribute('ry', ringRy);
-      ringHalo.setAttribute('class', 'aquila-containment-ring-halo');
-      aquilasGroup.appendChild(ringHalo);
-
-      const ring = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
-      ring.setAttribute('cx', cx);
-      ring.setAttribute('cy', cy);
-      ring.setAttribute('rx', ringRx);
-      ring.setAttribute('ry', ringRy);
-      ring.setAttribute('class', 'aquila-containment-ring');
-      aquilasGroup.appendChild(ring);
-
-      const size = token ? Math.max(24, token.baseSize * 1.55) : 28;
+      const ringRx = Math.max(24, (maxX - minX) * .34);
+      const ringRy = Math.max(16, (maxY - minY) * .32);
+      const size = token ? Math.max(30, token.baseSize * 3.85) : 30;
       const ax = cx;
-      const ay = cy - (token ? token.baseSize * 1.72 : 24);
+      const ay = cy - (token ? token.baseSize * 3.35 : 44);
+
+      const cone = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      const leftX = cx - ringRx;
+      const rightX = cx + ringRx;
+      const baseTopY = cy - ringRy * .52;
+      const baseBottomY = cy + ringRy * .78;
+      cone.setAttribute('d', `M ${ax} ${ay + size * .30} L ${leftX} ${baseTopY} Q ${cx} ${baseBottomY} ${rightX} ${baseTopY} Z`);
+      cone.setAttribute('class', 'aquila-containment-cone');
+      aquilasGroup.appendChild(cone);
+
       showAquilaVideo(aq.id, ax, ay, size, size);
       visible.add(aq.id);
     }
   }
   hideUnusedAquilaVideos(visible);
 
-  if(visible.size){
-    requestAnimationFrame(() => {
-      if(activeAquilas.length && !animState) render();
-    });
-  }
 }
 
 function restoreOwnAction(state, actorId){
@@ -3771,7 +3794,17 @@ function mirroredCatenaTarget(catena, user, targetRow, targetCol){
   };
 }
 function canSelectTarget(user,row,col){
-  if(!isValidCellForUser(user,row,col)) return false;
+  const currentRow = Math.round(user.current.row);
+  const currentCol = user.current.col;
+  const isForwardOne = row === currentRow + 1 && col === currentCol;
+  const valid = isValidCellForUser(user,row,col);
+  if(!valid){
+    // Safety net: the straight +1 move must remain available unless a real rule blocks it.
+    if(!isForwardOne || row < 0 || col < 0 || col >= cols) return false;
+    if(moveBlocked(currentRow, currentCol, row, col)) return false;
+    if(isMirrorMoveBlocked(user, row, col)) return false;
+    if(user.filled.has(key(row,col))) return false;
+  }
   const catena = catenaForUser(user.id);
   if(!catena) return true;
   const mirror = mirroredCatenaTarget(catena, user, row, col);
@@ -5689,7 +5722,7 @@ function renderSolidus(){
       const c = centroid(poly);
       const width = Math.abs(poly[2].x - poly[3].x);
       const depth = Math.abs(poly[3].y - poly[0].y);
-      const size = clamp(width * 1.08, 28, 68);
+      const size = clamp(width * 0.78, 24, 44);
       visibleIds.add(item.id);
       showSolidusVideo(item.id, c.x, c.y - depth * 0.04, size);
     }
@@ -6397,6 +6430,20 @@ retroBtn.addEventListener("click", (event) => {
   event.stopPropagation();
   retro();
 });
+
+
+function keepArcaOpenForTouch(){
+  if(!arcaPanel) return;
+  arcaPanel.classList.add("held");
+}
+if(arcaPanel){
+  ["pointerdown","touchstart","click"].forEach(type => {
+    arcaPanel.addEventListener(type, (event) => {
+      event.stopPropagation();
+      keepArcaOpenForTouch();
+    }, { passive:true });
+  });
+}
 
 murusCard.addEventListener("click", (event) => {
   if(event.target === rotateBtn) return;
