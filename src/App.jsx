@@ -669,6 +669,7 @@ function ActionButtons({
   onArchive,
   onFatum,
   onSalvatio,
+  onLabyrinthus,
   active = "",
   compact = false
 }) {
@@ -686,7 +687,7 @@ function ActionButtons({
       activeLabel === label ? "font-medium text-black opacity-100" : "text-black/38"
     ].join(" ");
 
-  const whiteHandScreens = ["Noctem", "Duodecim", "Bulla", "Fatum", "Salvatio"];
+  const whiteHandScreens = ["Noctem", "Duodecim", "Bulla", "Fatum", "Salvatio", "Labyrinthus"];
   const isWhiteHandScreen = whiteHandScreens.includes(activeLabel);
   const handIconClass = [
     "h-7 w-7 object-contain",
@@ -694,6 +695,7 @@ function ActionButtons({
   ].join(" ");
 
   const guestSession = isInvitatusSession();
+  const openLabyrinthus = onLabyrinthus || (() => window.dispatchEvent(new CustomEvent("nox:open-labyrinthus")));
   const groups = (guestSession ? [
     {
       title: "Alea",
@@ -715,7 +717,7 @@ function ActionButtons({
       title: "Alea",
       items: [
         ["Divinatio", onIterum],
-        ["Labyrinthus", null],
+        ["Labyrinthus", openLabyrinthus],
         ["Salvatio", onSalvatio]
       ]
     },
@@ -2786,6 +2788,190 @@ function SalvatioScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, 
   );
 }
 
+
+function LabyrinthusScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, onBulla, onArchive, onFatum, onSalvatio }) {
+  const iframeRef = useRef(null);
+  const [loading, setLoading] = useState(true);
+  const [ready, setReady] = useState(false);
+  const [blocked, setBlocked] = useState(false);
+  const [users, setUsers] = useState(() => readFatumUsers());
+  const [activeUser, setActiveUser] = useState(null);
+  const [message, setMessage] = useState("chargement.");
+
+  const buildPayload = (nextUsers = users, nextActiveUser = activeUser) => ({
+    activeUser: nextActiveUser,
+    users: nextUsers.filter((user) => user?.id && user?.name && !isInvitatusName(user.name))
+  });
+
+  const postInit = (nextUsers = users, nextActiveUser = activeUser) => {
+    const iframe = iframeRef.current;
+    if (!iframe?.contentWindow || !nextActiveUser) return;
+    iframe.contentWindow.postMessage({
+      type: "NOX_LABYRINTHUS_INIT",
+      payload: buildPayload(nextUsers, nextActiveUser)
+    }, window.location.origin);
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const boot = async () => {
+      if (isInvitatusSession()) {
+        setBlocked(true);
+        setLoading(false);
+        setMessage("Labyrinthus est réservé aux socii.");
+        return;
+      }
+
+      const sessionUser = readNoxSessionUser();
+      if (!sessionUser?.name) {
+        setBlocked(true);
+        setLoading(false);
+        setMessage("Session socius absente.");
+        return;
+      }
+
+      try {
+        const serverUsers = await fetchServerFatumUsers();
+        const ensured = await ensureSessionFatumUser(serverUsers);
+        if (cancelled) return;
+        const nextUsers = ensured.users.filter((user) => !isInvitatusName(user.name));
+        const nextActiveUser = ensured.user && !isInvitatusName(ensured.user.name) ? ensured.user : findFatumUserByName(nextUsers, sessionUser.name);
+        setUsers(nextUsers);
+        setActiveUser(nextActiveUser || null);
+        setMessage(nextActiveUser ? "chargement." : "Profil Fatum introuvable.");
+        if (!nextActiveUser) {
+          setBlocked(true);
+          setLoading(false);
+        }
+      } catch {
+        const cachedUsers = readFatumUsers().filter((user) => !isInvitatusName(user.name));
+        const cachedUser = findFatumUserByName(cachedUsers, sessionUser.name);
+        if (cancelled) return;
+        setUsers(cachedUsers);
+        setActiveUser(cachedUser || null);
+        setMessage(cachedUser ? "chargement." : "Connexion Fatum impossible.");
+        if (!cachedUser) {
+          setBlocked(true);
+          setLoading(false);
+        }
+      }
+    };
+
+    boot();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const receiveMessage = async (event) => {
+      if (event.origin !== window.location.origin) return;
+      const data = event.data || {};
+
+      if (data.type === "NOX_LABYRINTHUS_READY") {
+        setReady(true);
+        postInit();
+        return;
+      }
+
+      if (data.type !== "NOX_LABYRINTHUS_FATUM_DELTA") return;
+      if (!data.userId || !Number.isFinite(Number(data.delta))) return;
+
+      const currentUsers = readFatumUsers();
+      const targetUser = currentUsers.find((user) => user.id === data.userId);
+      if (!targetUser || isInvitatusName(targetUser.name)) return;
+
+      const nextScore = Math.max(0, Math.floor((Number(targetUser.score) || 0) + Number(data.delta)));
+      try {
+        const nextUsers = await updateServerFatumUser(targetUser.id, {
+          score: nextScore,
+          credited: Array.isArray(targetUser.credited) ? targetUser.credited : [],
+          secretumUnlockedLevel: Number(targetUser.secretumUnlockedLevel) || 0
+        });
+        const filteredUsers = nextUsers.filter((user) => !isInvitatusName(user.name));
+        const nextActiveUser = activeUser?.id ? filteredUsers.find((user) => user.id === activeUser.id) || activeUser : activeUser;
+        setUsers(filteredUsers);
+        setActiveUser(nextActiveUser);
+        iframeRef.current?.contentWindow?.postMessage({
+          type: "NOX_LABYRINTHUS_FATUM_SYNC",
+          users: filteredUsers,
+          activeUser: nextActiveUser
+        }, window.location.origin);
+      } catch {
+        setMessage("Synchronisation Fatum impossible.");
+      }
+    };
+
+    window.addEventListener("message", receiveMessage);
+    return () => window.removeEventListener("message", receiveMessage);
+  }, [activeUser, users]);
+
+  useEffect(() => {
+    if (!ready || !activeUser) return;
+    postInit();
+  }, [ready, activeUser?.id, users.length]);
+
+  const showLoader = loading || !ready;
+
+  return (
+    <main className="fixed inset-0 bg-black text-white">
+      <ActionButtons
+        onIterum={onIterum}
+        onClaves={onClaves}
+        onNoctem={onNoctem}
+        onVerbatim={onVerbatim}
+        onDuodecim={onDuodecim}
+        onBulla={onBulla}
+        onArchive={onArchive}
+        onFatum={onFatum}
+        onSalvatio={onSalvatio}
+        onLabyrinthus={() => {}}
+        active="Labyrinthus"
+        compact
+      />
+
+      {blocked ? (
+        <section className="flex h-full flex-col items-center justify-center px-6 text-center">
+          <h1 className="text-2xl font-semibold uppercase tracking-[0.18em]">Labyrinthus</h1>
+          <p className="mt-4 max-w-[280px] text-sm leading-relaxed text-white/58">{message}</p>
+        </section>
+      ) : (
+        <>
+          <iframe
+            ref={iframeRef}
+            title="Labyrinthus"
+            src="/labyrinthus/index.html?v=1"
+            className="h-full w-full border-0 bg-black"
+            allow="fullscreen; autoplay"
+            onLoad={() => {
+              window.setTimeout(() => {
+                setLoading(false);
+                postInit();
+              }, 900);
+            }}
+          />
+
+          {showLoader ? (
+            <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black px-6 text-center">
+              <video
+                src="/labyrinthus/player-token-animation.webm?v=1"
+                className="h-28 w-28 object-contain opacity-95"
+                autoPlay
+                muted
+                loop
+                playsInline
+              />
+              <p className="mt-5 text-[10px] uppercase tracking-[0.22em] text-white/42">chargement.</p>
+            </div>
+          ) : null}
+        </>
+      )}
+    </main>
+  );
+}
+
 function FatumScreen({ reading, question, onIterum, onClaves, onNoctem, onVerbatim, onDuodecim, onBulla, onArchive, onSalvatio }) {
   const [users, setUsers] = useState(() => readFatumUsers());
   const [activeUserId, setActiveUserId] = useState(() => window.localStorage.getItem(FATUM_ACTIVE_USER_KEY) || "");
@@ -4386,6 +4572,12 @@ export default function App() {
     preloadEssentialMedia();
   }, []);
 
+  useEffect(() => {
+    const openLabyrinthus = () => setStage("labyrinthus");
+    window.addEventListener("nox:open-labyrinthus", openLabyrinthus);
+    return () => window.removeEventListener("nox:open-labyrinthus", openLabyrinthus);
+  }, []);
+
   const SpeechRecognition =
     typeof window !== "undefined"
       ? window.SpeechRecognition || window.webkitSpeechRecognition
@@ -4737,6 +4929,23 @@ export default function App() {
           setError(null);
           setRevelationEnded(true);
         }}
+        onClaves={() => setStage("claves")}
+        onNoctem={() => setStage("noctem")}
+        onVerbatim={() => downloadVerbatimPdf(reading || createFallbackReading(drawnCards, question), question)}
+        onDuodecim={() => setStage("duodecim")}
+        onBulla={() => setStage("bulla")}
+        onArchive={() => setStage("archives")}
+        onFatum={() => setStage("fatum")}
+        onSalvatio={() => setStage("salvatio")}
+      />
+    );
+  }
+
+
+  if (stage === "labyrinthus") {
+    return (
+      <LabyrinthusScreen
+        onIterum={() => setStage("divinatio")}
         onClaves={() => setStage("claves")}
         onNoctem={() => setStage("noctem")}
         onVerbatim={() => downloadVerbatimPdf(reading || createFallbackReading(drawnCards, question), question)}
