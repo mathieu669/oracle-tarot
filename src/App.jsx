@@ -3684,7 +3684,7 @@ function makeReelCards(finalCard, offset = 0) {
   return reel;
 }
 
-function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerbatim, onDuodecim, onBulla, onArchive, onFatum, onSalvatio }) {
+function DivinatioScreen({ question, onQuestionChange, onReadingReady, onClaves, onNoctem, onVerbatim, onDuodecim, onBulla, onArchive, onFatum, onSalvatio }) {
   const [reels, setReels] = useState(() => {
     const initialCards = deck.slice(0, 3);
     return initialCards.map((card, index) => ({
@@ -3700,7 +3700,10 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
   const [reading, setReading] = useState(null);
   const [loadingReading, setLoadingReading] = useState(false);
   const [selectedCard, setSelectedCard] = useState(null);
+  const [questionDraft, setQuestionDraft] = useState(question || "");
+  const [questionDictating, setQuestionDictating] = useState(false);
   const closeVideoTimerRef = useRef(null);
+  const questionRecognitionRef = useRef(null);
 
   const closeSelectedCard = () => {
     window.clearTimeout(closeVideoTimerRef.current);
@@ -3718,9 +3721,106 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
     return () => window.clearTimeout(closeVideoTimerRef.current);
   }, [selectedCard]);
 
-  const callReadingApi = async (cards) => {
-    const activeQuestion = question || "Question silencieuse";
-    const fallback = createFallbackReading(cards, activeQuestion);
+  useEffect(() => {
+    if (hasDrawn || spinning) return;
+    setQuestionDraft(question || "");
+  }, [question, hasDrawn, spinning]);
+
+  useEffect(() => {
+    return () => {
+      if (questionRecognitionRef.current) {
+        try {
+          questionRecognitionRef.current.abort();
+        } catch {
+          // Ignore speech recognition cleanup errors.
+        }
+      }
+    };
+  }, []);
+
+  const SpeechRecognition =
+    typeof window !== "undefined"
+      ? window.SpeechRecognition || window.webkitSpeechRecognition
+      : null;
+
+  const stopQuestionDictation = () => {
+    if (!questionRecognitionRef.current) return;
+
+    try {
+      questionRecognitionRef.current.stop();
+    } catch {
+      setQuestionDictating(false);
+      questionRecognitionRef.current = null;
+    }
+  };
+
+  const startQuestionDictation = () => {
+    if (!SpeechRecognition || spinning || hasDrawn) return;
+
+    if (questionDictating) {
+      stopQuestionDictation();
+      return;
+    }
+
+    if (questionRecognitionRef.current) {
+      try {
+        questionRecognitionRef.current.abort();
+      } catch {
+        // Ignore abort errors.
+      }
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "fr-FR";
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    let finalTranscript = questionDraft.trim();
+
+    recognition.onstart = () => {
+      setQuestionDictating(true);
+    };
+
+    recognition.onresult = (speechEvent) => {
+      let interimTranscript = "";
+
+      for (let index = 0; index < speechEvent.results.length; index += 1) {
+        const transcript = speechEvent.results[index][0].transcript;
+        if (speechEvent.results[index].isFinal) {
+          finalTranscript = `${finalTranscript} ${transcript}`.trim();
+        } else {
+          interimTranscript = `${interimTranscript} ${transcript}`.trim();
+        }
+      }
+
+      const nextQuestion = `${finalTranscript} ${interimTranscript}`.trim();
+      setQuestionDraft(nextQuestion);
+      onQuestionChange?.(nextQuestion);
+    };
+
+    recognition.onerror = () => {
+      setQuestionDictating(false);
+      questionRecognitionRef.current = null;
+    };
+
+    recognition.onend = () => {
+      setQuestionDictating(false);
+      questionRecognitionRef.current = null;
+    };
+
+    questionRecognitionRef.current = recognition;
+
+    try {
+      recognition.start();
+    } catch {
+      setQuestionDictating(false);
+      questionRecognitionRef.current = null;
+    }
+  };
+
+  const callReadingApi = async (cards, submittedQuestion = questionDraft) => {
+    const activeQuestion = submittedQuestion.trim();
+    const fallback = createFallbackReading(cards, activeQuestion || "Question silencieuse");
 
     setReading(null);
     setLoadingReading(true);
@@ -3759,6 +3859,18 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
   const spin = () => {
     if (spinning || hasDrawn) return;
 
+    const submittedQuestion = questionDraft.trim();
+    onQuestionChange?.(submittedQuestion);
+
+    if (questionRecognitionRef.current) {
+      try {
+        questionRecognitionRef.current.abort();
+      } catch {
+        // Ignore abort errors.
+      }
+    }
+    setQuestionDictating(false);
+
     const picked = [];
     while (picked.length < 3) {
       const card = pickRandomCard(picked.map((item) => item.slug));
@@ -3795,7 +3907,7 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
     window.setTimeout(() => {
       setFinalCards(picked);
       setSpinning(false);
-      callReadingApi(picked);
+      callReadingApi(picked, submittedQuestion);
     }, 7250);
   };
 
@@ -3877,7 +3989,49 @@ function DivinatioScreen({ question, onReadingReady, onClaves, onNoctem, onVerba
         })}
       </div>
 
-      <div className={["mx-auto grid grid-cols-3 gap-3", hasDrawn ? "mt-3 max-w-[310px]" : "mt-5 max-w-[430px]"].join(" ")}>
+      <section className={["mx-auto text-center", hasDrawn ? "mt-3 max-w-[310px]" : "mt-5 max-w-[430px]"].join(" ")}>
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-black/52">Quelle est ta question ?</p>
+        <div className="flex items-stretch gap-2 border border-black/18 bg-white p-2 shadow-sm">
+          <textarea
+            className="min-h-[44px] flex-1 resize-none bg-transparent px-2 py-1 text-sm leading-5 text-black outline-none placeholder:text-black/28 disabled:opacity-45"
+            value={questionDraft}
+            onChange={(event) => {
+              setQuestionDraft(event.target.value);
+              onQuestionChange?.(event.target.value);
+            }}
+            placeholder="Laissez vide pour un oracle non spécifique."
+            disabled={spinning || hasDrawn}
+            rows={2}
+          />
+          <button
+            type="button"
+            className={[
+              "flex w-11 shrink-0 items-center justify-center border text-black transition active:scale-95 disabled:opacity-25",
+              questionDictating ? "border-black bg-black text-white" : "border-black/22 bg-white"
+            ].join(" ")}
+            onClick={startQuestionDictation}
+            disabled={!SpeechRecognition || spinning || hasDrawn}
+            aria-label={questionDictating ? "Arrêter la dictée" : "Dicter la question"}
+            title={SpeechRecognition ? "Dicter la question" : "Dictée non disponible sur ce navigateur"}
+          >
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path
+                d="M12 14.5c1.8 0 3.2-1.4 3.2-3.2V5.7C15.2 3.9 13.8 2.5 12 2.5S8.8 3.9 8.8 5.7v5.6c0 1.8 1.4 3.2 3.2 3.2Z"
+                stroke="currentColor"
+                strokeWidth="1.7"
+              />
+              <path
+                d="M5.5 10.5c0 3.6 2.8 6.4 6.5 6.4s6.5-2.8 6.5-6.4M12 16.9v4.6M8.8 21.5h6.4"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+        </div>
+      </section>
+
+      <div className={["mx-auto grid grid-cols-3 gap-3", hasDrawn ? "mt-3 max-w-[310px]" : "mt-4 max-w-[430px]"].join(" ")}>
         <button
           type="button"
           className="col-start-2 flex aspect-square w-full select-none items-center justify-center bg-transparent text-black active:scale-95 disabled:opacity-25"
@@ -4535,6 +4689,7 @@ export default function App() {
     return (
       <DivinatioScreen
         question={question}
+        onQuestionChange={(nextQuestion) => setQuestion(nextQuestion)}
         onReadingReady={(cards, nextReading, nextQuestion) => {
           setQuestion(nextQuestion);
           setDrawnCards(cards);
