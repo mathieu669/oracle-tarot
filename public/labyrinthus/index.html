@@ -59,12 +59,17 @@
   }
   *{box-sizing:border-box}
   html,body{
-    margin:0;width:100%;height:100%;overflow:hidden;
+    margin:0;width:100%;height:100%;height:100dvh;overflow:hidden;
     background:var(--appBg);color:var(--text);
     font-family:"Inter",sans-serif;
+    overscroll-behavior:none;
+    -webkit-user-select:none;
+    user-select:none;
+    -webkit-touch-callout:none;
   }
   .app{
-    position:relative;width:100vw;height:100vh;overflow:hidden;background:var(--appBg);
+    position:relative;width:100vw;height:100vh;height:100dvh;overflow:hidden;background:var(--appBg);
+    touch-action:none;
   }
   #space{
     position:absolute;inset:0;width:100%;height:100%;display:block;
@@ -75,10 +80,13 @@
     padding:18px;pointer-events:none;
   }
   .board-wrap{
-    position:relative;width:min(94vw,420px);aspect-ratio:2/3;
+    position:relative;width:min(94vw,calc((100dvh - 112px) * .6667),420px);aspect-ratio:2/3;
     pointer-events:auto;overflow:hidden;border-radius:22px;
     background:var(--boardFill);
     box-shadow:var(--boardGlow);
+    touch-action:none;
+    -webkit-user-select:none;
+    user-select:none;
   }
   #board{position:absolute;inset:0;width:100%;height:100%;display:block}
   .token-video-layer{
@@ -90,6 +98,8 @@
     transform:translate(-50%,-68%);
     filter:drop-shadow(0 0 8px rgba(255,255,255,.18));
     opacity:.92;
+    background:transparent;
+    mix-blend-mode:screen;
   }
   .token-video.active{
     opacity:1;
@@ -97,6 +107,8 @@
   }
   .token-video video{
     width:100%;height:100%;display:block;object-fit:contain;pointer-events:none;
+    background:transparent;
+    mix-blend-mode:screen;
   }
   .mirror-reflection{
     position:absolute;
@@ -144,9 +156,13 @@
   transform:translate(-50%,-66%);
   filter:drop-shadow(0 0 10px rgba(255,255,255,.18)) drop-shadow(0 0 6px rgba(0,0,0,.26));
   opacity:.98;
+  background:transparent;
+  mix-blend-mode:screen;
 }
 .solidus-video video{
   width:100%;height:100%;display:block;object-fit:contain;pointer-events:none;
+  background:transparent;
+  mix-blend-mode:screen;
 }
   .token-label{
     position:absolute;left:50%;top:-8px;
@@ -1139,6 +1155,38 @@
     pointer-events:none;
   }
 
+
+  @media (max-width:390px), (max-height:700px){
+    .frame{
+      padding:8px 5px 10px;
+      align-items:center;
+    }
+    .board-wrap{
+      width:min(96vw,calc((100dvh - 92px) * .6667),360px);
+      border-radius:16px;
+    }
+    .left-stack{
+      top:8px;
+      left:8px;
+      gap:8px;
+      width:146px;
+      transform:scale(.92);
+      transform-origin:top left;
+    }
+    .top-hud{
+      top:max(8px,env(safe-area-inset-top));
+      right:8px;
+      transform:scale(.92);
+      transform-origin:top right;
+    }
+    .bottom-hud{
+      bottom:max(8px,env(safe-area-inset-bottom));
+      transform:scale(.92);
+      transform-origin:bottom center;
+    }
+    .token-video{width:30px;height:30px;}
+    .solidus-video{width:24px;height:24px;}
+  }
 </style>
 </head>
 <body>
@@ -5852,6 +5900,65 @@ boardWrap.addEventListener("wheel", (event) => {
   scroll = Math.max(0, scroll + event.deltaY * .018);
   render();
 }, {passive:false});
+
+let boardTouchScrollState = null;
+let suppressBoardClickUntil = 0;
+
+boardWrap.addEventListener("pointerdown", (event) => {
+  if(event.pointerType !== "touch") return;
+  if(animState) return;
+  boardTouchScrollState = {
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startY: event.clientY,
+    lastY: event.clientY,
+    startScroll: scroll,
+    dragging: false
+  };
+  boardWrap.setPointerCapture?.(event.pointerId);
+}, {passive:true});
+
+boardWrap.addEventListener("pointermove", (event) => {
+  const state = boardTouchScrollState;
+  if(!state || event.pointerId !== state.pointerId || animState) return;
+
+  const dx = event.clientX - state.startX;
+  const dy = event.clientY - state.startY;
+  const distance = Math.hypot(dx, dy);
+
+  if(!state.dragging && distance < 9) return;
+
+  state.dragging = true;
+  event.preventDefault();
+  event.stopPropagation();
+
+  const deltaRows = (state.startY - event.clientY) * 0.036;
+  scroll = Math.max(0, state.startScroll + deltaRows);
+  render();
+}, {passive:false});
+
+function endBoardTouchScroll(event){
+  const state = boardTouchScrollState;
+  if(!state || event.pointerId !== state.pointerId) return;
+
+  if(state.dragging){
+    suppressBoardClickUntil = performance.now() + 220;
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  boardWrap.releasePointerCapture?.(event.pointerId);
+  boardTouchScrollState = null;
+}
+
+boardWrap.addEventListener("pointerup", endBoardTouchScroll, {passive:false});
+boardWrap.addEventListener("pointercancel", endBoardTouchScroll, {passive:false});
+boardWrap.addEventListener("click", (event) => {
+  if(performance.now() < suppressBoardClickUntil){
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }
+}, true);
 
 resetBtn.addEventListener("click", (event) => {
   event.preventDefault();
