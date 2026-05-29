@@ -1031,6 +1031,9 @@ const DICE_FACE_TRANSFORMS = [
   "rotateX(-90deg) translateZ(62px)"
 ];
 
+const DUODECIM_AUTO_FRAME_MS = 56;
+const DUODECIM_TAP_THRESHOLD = 14;
+
 function getDuodecimFallbackSentence(name, reading, question) {
   const q = question ? `À ta question — ${question} —` : "À ta question,";
   const sign = reading?.oracleSentence || reading?.synthesis || "le signe refuse de rester décoratif.";
@@ -1070,26 +1073,39 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
   const animationRef = useRef(null);
   const lastFrameRef = useRef(0);
   const adviceRequestRef = useRef(0);
+  const coarsePointerRef = useRef(false);
 
   useEffect(() => {
     rotationsRef.current = rotations;
   }, [rotations]);
 
   useEffect(() => {
+    coarsePointerRef.current = Boolean(window.matchMedia?.("(pointer: coarse)")?.matches);
+
     const tick = (time) => {
       const last = lastFrameRef.current || time;
-      const delta = Math.min(48, time - last);
+      const rawDelta = time - last;
+
+      const frameTarget = coarsePointerRef.current ? 72 : DUODECIM_AUTO_FRAME_MS;
+
+      if (rawDelta < frameTarget) {
+        animationRef.current = window.requestAnimationFrame(tick);
+        return;
+      }
+
+      const delta = Math.min(coarsePointerRef.current ? 34 : 48, rawDelta);
       lastFrameRef.current = time;
 
       if (!dragRef.current) {
         setRotations((current) => {
           const next = current.map((rotation, index) => {
-            const baseX = index === 0 ? 0.012 : -0.014;
-            const baseY = index === 0 ? 0.026 : 0.022;
+            const mobileFactor = coarsePointerRef.current ? 0.45 : 1;
+            const baseX = (index === 0 ? 0.010 : -0.012) * mobileFactor;
+            const baseY = (index === 0 ? 0.020 : 0.018) * mobileFactor;
             const velocity = velocityRef.current[index];
 
-            velocity.x *= 0.965;
-            velocity.y *= 0.965;
+            velocity.x *= 0.94;
+            velocity.y *= 0.94;
 
             return {
               x: rotation.x + (baseX + velocity.x) * delta,
@@ -1158,6 +1174,8 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
       }
     }
 
+    const targetName = event.target?.closest?.("[data-duodecim-name]")?.dataset?.duodecimName || "";
+
     dragRef.current = {
       diceIndex,
       x: event.clientX,
@@ -1165,7 +1183,9 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
       lastX: event.clientX,
       lastY: event.clientY,
       lastTime: event.timeStamp || performance.now(),
-      rotation: rotationsRef.current[diceIndex]
+      rotation: rotationsRef.current[diceIndex],
+      targetName,
+      moved: false
     };
   };
 
@@ -1176,19 +1196,26 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
     const now = event.timeStamp || performance.now();
     const deltaX = event.clientX - dragRef.current.x;
     const deltaY = event.clientY - dragRef.current.y;
+
+    if (Math.abs(deltaX) > DUODECIM_TAP_THRESHOLD || Math.abs(deltaY) > DUODECIM_TAP_THRESHOLD) {
+      dragRef.current.moved = true;
+    }
+
     const frameMs = Math.max(12, now - dragRef.current.lastTime);
     const frameDeltaX = event.clientX - dragRef.current.lastX;
     const frameDeltaY = event.clientY - dragRef.current.lastY;
     const diceIndex = dragRef.current.diceIndex;
 
+    const dragFactor = coarsePointerRef.current ? 0.62 : 1;
+
     velocityRef.current[diceIndex] = {
-      x: (-frameDeltaY * 0.030) / frameMs,
-      y: (frameDeltaX * 0.030) / frameMs
+      x: ((-frameDeltaY * 0.030) / frameMs) * dragFactor,
+      y: ((frameDeltaX * 0.030) / frameMs) * dragFactor
     };
 
     const nextRotation = {
-      x: dragRef.current.rotation.x - deltaY * 0.42,
-      y: dragRef.current.rotation.y + deltaX * 0.42
+      x: dragRef.current.rotation.x - deltaY * 0.42 * dragFactor,
+      y: dragRef.current.rotation.y + deltaX * 0.42 * dragFactor
     };
 
     setRotations((current) => {
@@ -1202,15 +1229,21 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
     dragRef.current.lastTime = now;
   };
 
-  const endDrag = () => {
+  const endDrag = (event) => {
+    event?.preventDefault?.();
+    const drag = dragRef.current;
     dragRef.current = null;
+
+    if (drag?.targetName && !drag.moved) {
+      requestDuodecimSentence(drag.targetName);
+    }
   };
 
   const diceOffsetClass = (diceIndex) => (diceIndex === 0 ? "-translate-x-[62px]" : "translate-x-[62px]");
 
   return (
     <motion.main
-      className="fixed inset-0 overflow-hidden bg-black text-white"
+      className="fixed inset-0 select-none overflow-hidden bg-black text-white [touch-action:none] [-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none] [-webkit-user-select:none]"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
@@ -1221,7 +1254,7 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
         {DUODECIM_DICE.map((names, diceIndex) => (
           <div
             key={`duodecim-die-${diceIndex}`}
-            className={`relative h-[124px] w-[124px] touch-none ${diceOffsetClass(diceIndex)}`}
+            className={`relative h-[124px] w-[124px] touch-none select-none [contain:layout_style_paint] [will-change:transform] [-webkit-touch-callout:none] [-webkit-user-select:none] ${diceOffsetClass(diceIndex)}`}
             onPointerDown={(event) => startDrag(event, diceIndex)}
             onPointerMove={moveDrag}
             onPointerUp={endDrag}
@@ -1229,27 +1262,27 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
             onPointerLeave={endDrag}
           >
             <div
-              className="absolute inset-0 [transform-style:preserve-3d]"
+              className="absolute inset-0 select-none [transform-style:preserve-3d] [-webkit-touch-callout:none]"
               style={{
                 transform: `rotateX(${rotations[diceIndex].x}deg) rotateY(${rotations[diceIndex].y}deg)`,
-                transition: dragRef.current ? "none" : "transform 0.08s linear"
+                transition: dragRef.current ? "none" : "transform 0.12s linear"
               }}
             >
               {names.map((name, faceIndex) => (
                 <button
                   key={name}
                   type="button"
-                  className="absolute left-1/2 top-1/2 flex h-[124px] w-[124px] -translate-x-1/2 -translate-y-1/2 select-none items-center justify-center border border-white/88 bg-black text-center text-[9px] uppercase leading-[1.05] tracking-[0.08em] text-white"
+                  data-duodecim-name={name}
+                  className="absolute left-1/2 top-1/2 flex h-[124px] w-[124px] -translate-x-1/2 -translate-y-1/2 select-none items-center justify-center border border-white/88 bg-black text-center text-[9px] uppercase leading-[1.05] tracking-[0.08em] text-white [backface-visibility:hidden] [-webkit-backface-visibility:hidden] [-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none] [-webkit-user-select:none]"
                   style={{
                     transform: DICE_FACE_TRANSFORMS[faceIndex],
-                    transformStyle: "preserve-3d"
+                    transformStyle: "preserve-3d",
+                    userSelect: "none",
+                    WebkitUserSelect: "none",
+                    WebkitTouchCallout: "none",
+                    touchAction: "none"
                   }}
-                  onClick={(event) => event.stopPropagation()}
-                  onDoubleClick={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    requestDuodecimSentence(name);
-                  }}
+                  onContextMenu={(event) => event.preventDefault()}
                 >
                   {name}
                 </button>
@@ -3915,7 +3948,7 @@ function DivinatioScreen({ question, onQuestionChange, onReadingReady, onClaves,
 
   return (
     <motion.main
-      className="fixed inset-0 overflow-hidden bg-white px-4 pb-4 pt-[max(1.25rem,env(safe-area-inset-top))] text-black"
+      className="fixed inset-0 overflow-y-auto overscroll-contain bg-white px-4 pb-[max(8rem,calc(env(safe-area-inset-bottom)+7rem))] pt-[max(1.25rem,env(safe-area-inset-top))] text-black [scrollbar-width:none] [-ms-overflow-style:none]"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: FADE_DURATION, ease: "easeInOut" }}
@@ -4055,7 +4088,7 @@ function DivinatioScreen({ question, onQuestionChange, onReadingReady, onClaves,
 
       {displayedReading ? (
         <motion.section
-          className="mx-auto mt-0 max-w-[430px] bg-white px-4 pb-2 pt-0 text-center"
+          className="mx-auto mt-0 max-w-[430px] bg-white px-4 pb-10 pt-0 text-center"
           initial={{ opacity: 0, y: 18, filter: "blur(8px)" }}
           animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
           transition={{ duration: 0.85, ease: "easeInOut" }}
