@@ -108,7 +108,8 @@ function isInvitatusName(name = "") {
 }
 
 function isInvitatusSession() {
-  return isInvitatusName(readNoxSessionUser()?.name || "");
+  const sessionUser = readNoxSessionUser();
+  return Boolean(sessionUser?.guest) && isInvitatusName(sessionUser?.name || "");
 }
 
 function DevLatinHome({ onStage, onVerbatim }) {
@@ -237,6 +238,15 @@ function DevLatinHome({ onStage, onVerbatim }) {
     if (romanPass.length < 5) return;
 
     if (isRegisteredUser) {
+      const registered = readDevUser(selectedUser);
+      if (registered) {
+        const sessionEntry = {
+          ...registered,
+          name: selectedUser,
+          guest: false
+        };
+        writeDevUser(sessionEntry);
+      }
       loadUserSpace();
       return;
     }
@@ -253,6 +263,7 @@ function DevLatinHome({ onStage, onVerbatim }) {
       pass: romanPass,
       email: trimmed,
       notifications,
+      guest: false,
       createdAt: new Date().toISOString()
     });
 
