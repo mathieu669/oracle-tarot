@@ -1178,7 +1178,7 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
                 const readableFlip = angle > 90 && angle < 270;
                 const darkSector = index % 2 !== 0;
                 const displayName = name === "Houellebecq" ? "HOUELLEBECQ" : name.toUpperCase();
-                const radiusMidpoint = 30;
+                const radiusMidpoint = 28;
                 const textLength = name.length > 9 ? 22 : name.length > 7 ? 18 : 14;
 
                 return (
@@ -1188,8 +1188,8 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
                       y="50"
                       textAnchor="middle"
                       dominantBaseline="middle"
-                      fill={darkSector ? "#fff" : "#000"}
-                      fontSize="3.1"
+                      fill="#ff0000"
+                      fontSize="4.1"
                       fontWeight="700"
                       letterSpacing="0.25"
                       textLength={textLength}
