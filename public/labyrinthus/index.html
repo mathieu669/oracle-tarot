@@ -6493,10 +6493,76 @@ function isBoardUiTarget(target){
 }
 
 function boardTapTargetFromPoint(x, y){
-  const element = document.elementFromPoint(x, y);
-  if(!element || isBoardUiTarget(element)) return null;
-  return element.closest?.(".cell,.wall-hitbox,.mirror-hitbox,.herba-image,.exvoto-envelope") || null;
+  const stack = typeof document.elementsFromPoint === "function"
+    ? document.elementsFromPoint(x, y)
+    : [document.elementFromPoint(x, y)].filter(Boolean);
+  if(stack.some(element => isBoardUiTarget(element))) return null;
+  for(const element of stack){
+    const target = element?.closest?.(".cell,.wall-hitbox,.mirror-hitbox,.herba-image,.exvoto-envelope");
+    if(target) return target;
+  }
+  return null;
 }
+
+function activateElementBySyntheticClick(element, sourceEvent){
+  if(!element) return false;
+  const clickEvent = new MouseEvent("click", {
+    bubbles:true,
+    cancelable:true,
+    view:window,
+    clientX:sourceEvent?.clientX || 0,
+    clientY:sourceEvent?.clientY || 0
+  });
+  element.dispatchEvent(clickEvent);
+  return true;
+}
+
+let globalTouchTapState = null;
+
+document.addEventListener("pointerdown", (event) => {
+  if(event.pointerType !== "touch") return;
+  globalTouchTapState = {
+    pointerId:event.pointerId,
+    startX:event.clientX,
+    startY:event.clientY,
+    target:event.target
+  };
+}, true);
+
+document.addEventListener("pointerup", (event) => {
+  const state = globalTouchTapState;
+  if(!state || event.pointerId !== state.pointerId || event.pointerType !== "touch") return;
+  globalTouchTapState = null;
+
+  const dx = event.clientX - state.startX;
+  const dy = event.clientY - state.startY;
+  if(Math.hypot(dx, dy) > 10) return;
+
+  const stack = typeof document.elementsFromPoint === "function"
+    ? document.elementsFromPoint(event.clientX, event.clientY)
+    : [document.elementFromPoint(event.clientX, event.clientY)].filter(Boolean);
+
+  const arcaTarget = stack.map(element => element?.closest?.(".arca-panel .control-card, .arca-panel button"))
+    .find(Boolean);
+  if(arcaTarget && !event.target?.closest?.(".info-btn")){
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    keepArcaOpenForTouch();
+    activateElementBySyntheticClick(arcaTarget, event);
+    return;
+  }
+
+  if(boardWrap.contains(state.target) || boardWrap.contains(event.target)){
+    if(isBoardUiTarget(event.target)) return;
+    const boardTarget = boardTapTargetFromPoint(event.clientX, event.clientY);
+    if(boardTarget){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      suppressTrustedBoardClickUntil = performance.now() + 320;
+      activateElementBySyntheticClick(boardTarget, event);
+    }
+  }
+}, true);
 
 boardWrap.addEventListener("pointerdown", (event) => {
   if(event.pointerType !== "touch") return;
@@ -6552,7 +6618,7 @@ function endBoardTouchScroll(event){
       event.preventDefault();
       event.stopPropagation();
       suppressTrustedBoardClickUntil = performance.now() + 320;
-      tapTarget.click();
+      activateElementBySyntheticClick(tapTarget, event);
     }
   }
 
@@ -6981,17 +7047,8 @@ function bindMobileTapActivation(element){
     element.click();
   }, {passive:false});
 }
-[
-  murusCard,
-  rotateBtn,
-  fossaCard,
-  marculusCard,
-  scalaCard,
-  costulaCard,
-  negroniCard,
-  exVotoCard,
-  catenaCard
-].forEach(bindMobileTapActivation);
+// Mobile Arca activation is handled by the global touch bridge above.
+// Keeping card clicks native on desktop prevents validation jitter and duplicate purchases.
 
 function fileToDataUrl(file){
   return new Promise((resolve,reject) => {
