@@ -17,6 +17,7 @@ const DATA_DIR = process.env.NOX_DATA_DIR || path.join(__dirname, "data");
 const CONTEXT_SECRETS_FILE = path.join(DATA_DIR, "context-secrets.json");
 const ARCHIVES_FILE = path.join(DATA_DIR, "archives.json");
 const FATUM_USERS_FILE = path.join(DATA_DIR, "fatum-users.json");
+const LABYRINTHUS_CHRONICON_FILE = path.join(DATA_DIR, "labyrinthus-chronicon.json");
 
 function ensureDataDir() {
   if (!fs.existsSync(DATA_DIR)) {
@@ -159,6 +160,65 @@ function mapFatumUserFromDb(row) {
     credited: Array.isArray(row.credited) ? row.credited : [],
     secretumUnlockedLevel: Number(row.secretum_unlocked_level) || 0
   };
+}
+
+function mapLabyrinthusChroniconFromDb(row) {
+  return {
+    id: row.id,
+    createdAt: row.created_at,
+    timestamp: row.timestamp || "",
+    text: row.text || ""
+  };
+}
+
+async function readLabyrinthusChronicon() {
+  if (isSupabaseEnabled()) {
+    try {
+      const rows = await supabaseRequest("nox_labyrinthus_chronicon?select=*&order=created_at.desc&limit=100");
+      return rows.map(mapLabyrinthusChroniconFromDb);
+    } catch (error) {
+      console.error("Labyrinthus chronicon Supabase read error:", error);
+      return readJsonArrayFromServer(LABYRINTHUS_CHRONICON_FILE).slice(0, 100);
+    }
+  }
+
+  return readJsonArrayFromServer(LABYRINTHUS_CHRONICON_FILE).slice(0, 100);
+}
+
+async function insertLabyrinthusChroniconEvent(entry) {
+  const text = String(entry?.text || "").trim().slice(0, 600);
+  if (!text) return null;
+
+  const timestamp = String(entry?.timestamp || "").trim().slice(0, 40);
+
+  if (isSupabaseEnabled()) {
+    try {
+      const rows = await supabaseRequest("nox_labyrinthus_chronicon", {
+        method: "POST",
+        body: JSON.stringify({
+          timestamp,
+          text
+        })
+      });
+      return rows?.[0] ? mapLabyrinthusChroniconFromDb(rows[0]) : null;
+    } catch (error) {
+      console.error("Labyrinthus chronicon Supabase write error:", error);
+    }
+  }
+
+  const events = readJsonArrayFromServer(LABYRINTHUS_CHRONICON_FILE);
+  const nextEvents = [
+    {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      createdAt: new Date().toISOString(),
+      timestamp,
+      text
+    },
+    ...events
+  ].slice(0, 100);
+
+  writeJsonArrayToServer(LABYRINTHUS_CHRONICON_FILE, nextEvents, 100);
+  return nextEvents[0];
 }
 
 async function readContextSecrets() {
@@ -800,7 +860,7 @@ Générez aussi un score Fatum en points, entre 0 et 100 : il mesure la densité
 
 
 
-app.use(["/api/archives", "/api/fatum-users", "/api/memory-status"], (req, res, next) => {
+app.use(["/api/archives", "/api/fatum-users", "/api/labyrinthus-chronicon", "/api/memory-status"], (req, res, next) => {
   res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
   res.set("Pragma", "no-cache");
   res.set("Expires", "0");
@@ -810,10 +870,11 @@ app.use(["/api/archives", "/api/fatum-users", "/api/memory-status"], (req, res, 
 
 app.get("/api/memory-status", async (req, res) => {
   try {
-    const [contextSecrets, archives, fatumUsers] = await Promise.all([
+    const [contextSecrets, archives, fatumUsers, labyrinthusChronicon] = await Promise.all([
       readContextSecrets(),
       readArchives(),
-      readFatumUsers()
+      readFatumUsers(),
+      readLabyrinthusChronicon()
     ]);
 
     res.json({
@@ -832,12 +893,38 @@ app.get("/api/memory-status", async (req, res) => {
         fatumUsers: {
           path: isSupabaseEnabled() ? "supabase:nox_fatum_users" : FATUM_USERS_FILE,
           count: fatumUsers.length
+        },
+        labyrinthusChronicon: {
+          path: isSupabaseEnabled() ? "supabase:nox_labyrinthus_chronicon" : LABYRINTHUS_CHRONICON_FILE,
+          count: labyrinthusChronicon.length
         }
       }
     });
   } catch (error) {
     console.error("Memory status error:", error);
     res.status(500).json({ error: "Erreur pendant la lecture de la mémoire." });
+  }
+});
+
+app.get("/api/labyrinthus-chronicon", async (req, res) => {
+  try {
+    res.json({
+      events: await readLabyrinthusChronicon(),
+      storage: isSupabaseEnabled() ? "supabase:nox_labyrinthus_chronicon" : LABYRINTHUS_CHRONICON_FILE
+    });
+  } catch (error) {
+    console.error("Labyrinthus chronicon read error:", error);
+    res.status(500).json({ error: "Erreur pendant la lecture du Chronicon." });
+  }
+});
+
+app.post("/api/labyrinthus-chronicon", async (req, res) => {
+  try {
+    await insertLabyrinthusChroniconEvent(req.body || {});
+    res.json({ ok: true, events: await readLabyrinthusChronicon() });
+  } catch (error) {
+    console.error("Labyrinthus chronicon write error:", error);
+    res.status(500).json({ error: "Erreur pendant l’écriture du Chronicon." });
   }
 });
 

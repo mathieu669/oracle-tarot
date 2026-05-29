@@ -864,15 +864,14 @@
   stroke:rgba(255,255,255,.88);
   stroke-width:1.2;
 }
-.aquila-containment-cone{
-  fill:rgba(0,0,0,.055);
-  stroke:rgba(0,0,0,.92);
-  stroke-width:.62;
-  stroke-linecap:round;
-  stroke-linejoin:round;
+.aquila-containment-ring{
+  fill:rgba(0,0,0,.035);
+  stroke:rgba(0,0,0,.82);
+  stroke-width:.48;
   vector-effect:non-scaling-stroke;
 }
-.aquila-containment-ring,.aquila-containment-ring-halo{display:none;}
+.aquila-containment-ring-halo{display:none;}
+.aquila-containment-cone{display:none;}
 
 
   .panel-tab{
@@ -1917,14 +1916,77 @@ function parisTimestamp(date = new Date()){
   return `${parts.day}/${parts.month} · ${parts.hour}:${parts.minute}`;
 }
 
+const CHRONICON_MAX_ENTRIES = 100;
+let chroniconRemoteReady = false;
+let chroniconSyncQueue = Promise.resolve();
+
+function escapeHtml(value){
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function normalizeChroniconEntries(entries){
+  return (Array.isArray(entries) ? entries : [])
+    .filter(entry => entry && entry.text)
+    .map(entry => ({
+      id: entry.id || `evt-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,
+      timestamp: entry.timestamp || parisTimestamp(entry.createdAt ? new Date(entry.createdAt) : new Date()),
+      text: String(entry.text || ""),
+      createdAt: entry.createdAt || new Date().toISOString()
+    }))
+    .slice(0, CHRONICON_MAX_ENTRIES);
+}
+
+async function loadChroniconFromServer(){
+  try{
+    const response = await fetch('/api/labyrinthus-chronicon', { cache:'no-store' });
+    if(!response.ok) throw new Error('chronicon unavailable');
+    const data = await response.json();
+    chroniconEntries = normalizeChroniconEntries(data.events || []);
+    chroniconRemoteReady = true;
+    renderChronicon();
+  }catch(error){
+    chroniconRemoteReady = false;
+    console.warn('Chronicon remote load skipped:', error);
+  }
+}
+
+function persistChroniconEvent(entry){
+  chroniconSyncQueue = chroniconSyncQueue.catch(() => {}).then(async () => {
+    try{
+      const response = await fetch('/api/labyrinthus-chronicon', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body:JSON.stringify({ text:entry.text, timestamp:entry.timestamp, createdAt:entry.createdAt })
+      });
+      if(!response.ok) throw new Error('chronicon write failed');
+      const data = await response.json();
+      if(Array.isArray(data.events)){
+        chroniconEntries = normalizeChroniconEntries(data.events);
+        renderChronicon();
+      }
+    }catch(error){
+      console.warn('Chronicon remote write skipped:', error);
+    }
+  });
+}
+
 function addChroniconEvent(text){
   if(!text) return;
-  chroniconEntries.unshift({
+  const entry = {
     id:`evt-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,
     timestamp:parisTimestamp(),
-    text
-  });
-  if(chroniconEntries.length > 50) chroniconEntries = chroniconEntries.slice(0,50);
+    text:String(text),
+    createdAt:new Date().toISOString()
+  };
+  chroniconEntries.unshift(entry);
+  if(chroniconEntries.length > CHRONICON_MAX_ENTRIES) chroniconEntries = chroniconEntries.slice(0, CHRONICON_MAX_ENTRIES);
+  renderChronicon();
+  persistChroniconEvent(entry);
 }
 
 function renderChronicon(){
@@ -1935,8 +1997,8 @@ function renderChronicon(){
   }
   chroniconList.innerHTML = chroniconEntries.map(entry => `
     <div class="chronicon-item">
-      <div class="chronicon-time">${entry.timestamp}</div>
-      <div class="chronicon-text">${entry.text}</div>
+      <div class="chronicon-time">${escapeHtml(entry.timestamp)}</div>
+      <div class="chronicon-text">${escapeHtml(entry.text)}</div>
     </div>
   `).join("");
 }
@@ -2984,7 +3046,7 @@ function restore(state){
   placedExVotos = (state.placedExVotos || []).map(v => ({...v}));
   activeCatenas = (state.activeCatenas || []).map(c => ({...c, pair:[...c.pair]}));
   activeAquilas = (state.activeAquilas || []).map(a => ({...a}));
-  chroniconEntries = (state.chroniconEntries || []).map(e => ({...e})).slice(0,50);
+  chroniconEntries = normalizeChroniconEntries(state.chroniconEntries || []);
   pendingCatenaSelection = state.pendingCatenaSelection || null;
   pendingFossaId = state.pendingFossaId;
   restartState = state.restartState ? {...state.restartState} : null;
@@ -3267,18 +3329,17 @@ function renderAquilas(){
 
       const ringRx = Math.max(24, (maxX - minX) * .34);
       const ringRy = Math.max(16, (maxY - minY) * .32);
-      const size = token ? Math.max(30, token.baseSize * 3.85) : 30;
+      const size = token ? Math.max(26, token.baseSize * 3.25) : 30;
       const ax = cx;
-      const ay = cy - (token ? token.baseSize * 3.35 : 44);
+      const ay = cy - (token ? token.baseSize * 3.85 : 48);
 
-      const cone = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      const leftX = cx - ringRx;
-      const rightX = cx + ringRx;
-      const baseTopY = cy - ringRy * .52;
-      const baseBottomY = cy + ringRy * .78;
-      cone.setAttribute('d', `M ${ax} ${ay + size * .30} L ${leftX} ${baseTopY} Q ${cx} ${baseBottomY} ${rightX} ${baseTopY} Z`);
-      cone.setAttribute('class', 'aquila-containment-cone');
-      aquilasGroup.appendChild(cone);
+      const ring = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+      ring.setAttribute('cx', cx);
+      ring.setAttribute('cy', cy);
+      ring.setAttribute('rx', ringRx);
+      ring.setAttribute('ry', ringRy);
+      ring.setAttribute('class', 'aquila-containment-ring');
+      aquilasGroup.appendChild(ring);
 
       showAquilaVideo(aq.id, ax, ay, size, size);
       visible.add(aq.id);
@@ -5722,7 +5783,7 @@ function renderSolidus(){
       const c = centroid(poly);
       const width = Math.abs(poly[2].x - poly[3].x);
       const depth = Math.abs(poly[3].y - poly[0].y);
-      const size = clamp(width * 0.78, 24, 44);
+      const size = clamp(width * 0.48, 18, 32);
       visibleIds.add(item.id);
       showSolidusVideo(item.id, c.x, c.y - depth * 0.04, size);
     }
@@ -6358,7 +6419,6 @@ resetBtn.addEventListener("click", (event) => {
   placedExVotos = [];
   activeCatenas = [];
   activeAquilas = [];
-  chroniconEntries = [];
   pendingCatenaSelection = null;
   pendingFossaId = null;
   restartState = null;
@@ -6437,11 +6497,19 @@ function keepArcaOpenForTouch(){
   arcaPanel.classList.add("held");
 }
 if(arcaPanel){
-  ["pointerdown","touchstart","click"].forEach(type => {
+  ["pointerdown","touchstart","pointerup","click"].forEach(type => {
     arcaPanel.addEventListener(type, (event) => {
       event.stopPropagation();
       keepArcaOpenForTouch();
     }, { passive:true });
+  });
+  arcaPanel.querySelectorAll("button").forEach(button => {
+    ["pointerdown","pointerup","click"].forEach(type => {
+      button.addEventListener(type, (event) => {
+        event.stopPropagation();
+        keepArcaOpenForTouch();
+      }, { passive:true });
+    });
   });
 }
 
@@ -6926,6 +6994,7 @@ if(window.parent){
 initZoom();
 loadSoundPreference();
 document.addEventListener("pointerdown", () => { if(soundEnabled) ensureAudioContext(); }, { passive:true });
+loadChroniconFromServer();
 render();
 
 // Deep space
