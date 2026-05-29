@@ -18,6 +18,7 @@ const CONTEXT_SECRETS_FILE = path.join(DATA_DIR, "context-secrets.json");
 const ARCHIVES_FILE = path.join(DATA_DIR, "archives.json");
 const FATUM_USERS_FILE = path.join(DATA_DIR, "fatum-users.json");
 const LABYRINTHUS_CHRONICON_FILE = path.join(DATA_DIR, "labyrinthus-chronicon.json");
+const LABYRINTHUS_EXVOTOS_FILE = path.join(DATA_DIR, "labyrinthus-exvotos.json");
 
 function ensureDataDir() {
   if (!fs.existsSync(DATA_DIR)) {
@@ -171,6 +172,20 @@ function mapLabyrinthusChroniconFromDb(row) {
   };
 }
 
+function mapLabyrinthusExVotoFromDb(row) {
+  return {
+    id: row.id,
+    createdAt: row.created_at,
+    row: Number(row.row),
+    col: Number(row.col),
+    owner: row.owner || "",
+    type: row.type || "",
+    dataUrl: row.data_url || "",
+    openedAt: row.opened_at || null,
+    openedBy: row.opened_by || ""
+  };
+}
+
 async function readLabyrinthusChronicon() {
   if (isSupabaseEnabled()) {
     try {
@@ -219,6 +234,92 @@ async function insertLabyrinthusChroniconEvent(entry) {
 
   writeJsonArrayToServer(LABYRINTHUS_CHRONICON_FILE, nextEvents, 500);
   return nextEvents[0];
+}
+
+async function readLabyrinthusExVotos() {
+  if (isSupabaseEnabled()) {
+    try {
+      const rows = await supabaseRequest("nox_labyrinthus_exvotos?select=*&opened_at=is.null&order=created_at.desc&limit=500");
+      return rows.map(mapLabyrinthusExVotoFromDb);
+    } catch (error) {
+      console.error("Labyrinthus ex voto Supabase read error:", error);
+      return readJsonArrayFromServer(LABYRINTHUS_EXVOTOS_FILE).slice(0, 500);
+    }
+  }
+
+  return readJsonArrayFromServer(LABYRINTHUS_EXVOTOS_FILE).slice(0, 500);
+}
+
+async function insertLabyrinthusExVoto(entry) {
+  const row = Number(entry?.row);
+  const col = Number(entry?.col);
+  const owner = String(entry?.owner || "").trim().slice(0, 80);
+  const type = String(entry?.type || "").trim().slice(0, 20);
+  const dataUrl = String(entry?.dataUrl || entry?.data_url || "").trim();
+
+  if (!Number.isFinite(row) || !Number.isFinite(col) || !owner || !type || !dataUrl) {
+    throw new Error("Invalid Labyrinthus ex voto payload.");
+  }
+
+  if (isSupabaseEnabled()) {
+    try {
+      const rows = await supabaseRequest("nox_labyrinthus_exvotos", {
+        method: "POST",
+        body: JSON.stringify({
+          row: Math.round(row),
+          col: Math.round(col),
+          owner,
+          type,
+          data_url: dataUrl
+        })
+      });
+      return rows?.[0] ? mapLabyrinthusExVotoFromDb(rows[0]) : null;
+    } catch (error) {
+      console.error("Labyrinthus ex voto Supabase write error:", error);
+    }
+  }
+
+  const values = readJsonArrayFromServer(LABYRINTHUS_EXVOTOS_FILE);
+  const created = {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    createdAt: new Date().toISOString(),
+    row: Math.round(row),
+    col: Math.round(col),
+    owner,
+    type,
+    dataUrl,
+    openedAt: null,
+    openedBy: ""
+  };
+  const next = [created, ...values].slice(0, 500);
+  writeJsonArrayToServer(LABYRINTHUS_EXVOTOS_FILE, next, 500);
+  return created;
+}
+
+async function openLabyrinthusExVoto(id, openedBy = "") {
+  const safeId = String(id || "").trim();
+  if (!safeId) return null;
+
+  if (isSupabaseEnabled()) {
+    try {
+      const rows = await supabaseRequest(`nox_labyrinthus_exvotos?id=eq.${encodeURIComponent(safeId)}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          opened_at: new Date().toISOString(),
+          opened_by: String(openedBy || "").slice(0, 80)
+        })
+      });
+      return rows?.[0] ? mapLabyrinthusExVotoFromDb(rows[0]) : null;
+    } catch (error) {
+      console.error("Labyrinthus ex voto Supabase open error:", error);
+    }
+  }
+
+  const values = readJsonArrayFromServer(LABYRINTHUS_EXVOTOS_FILE);
+  const openedAt = new Date().toISOString();
+  const next = values.map((entry) => entry.id === safeId ? { ...entry, openedAt, openedBy } : entry);
+  writeJsonArrayToServer(LABYRINTHUS_EXVOTOS_FILE, next, 500);
+  return next.find(entry => entry.id === safeId) || null;
 }
 
 async function readContextSecrets() {
@@ -860,7 +961,7 @@ Générez aussi un score Fatum en points, entre 0 et 100 : il mesure la densité
 
 
 
-app.use(["/api/archives", "/api/fatum-users", "/api/labyrinthus-chronicon", "/api/memory-status"], (req, res, next) => {
+app.use(["/api/archives", "/api/fatum-users", "/api/labyrinthus-chronicon", "/api/labyrinthus-exvotos", "/api/memory-status"], (req, res, next) => {
   res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
   res.set("Pragma", "no-cache");
   res.set("Expires", "0");
@@ -870,11 +971,12 @@ app.use(["/api/archives", "/api/fatum-users", "/api/labyrinthus-chronicon", "/ap
 
 app.get("/api/memory-status", async (req, res) => {
   try {
-    const [contextSecrets, archives, fatumUsers, labyrinthusChronicon] = await Promise.all([
+    const [contextSecrets, archives, fatumUsers, labyrinthusChronicon, labyrinthusExVotos] = await Promise.all([
       readContextSecrets(),
       readArchives(),
       readFatumUsers(),
-      readLabyrinthusChronicon()
+      readLabyrinthusChronicon(),
+      readLabyrinthusExVotos()
     ]);
 
     res.json({
@@ -897,6 +999,10 @@ app.get("/api/memory-status", async (req, res) => {
         labyrinthusChronicon: {
           path: isSupabaseEnabled() ? "supabase:nox_labyrinthus_chronicon" : LABYRINTHUS_CHRONICON_FILE,
           count: labyrinthusChronicon.length
+        },
+        labyrinthusExVotos: {
+          path: isSupabaseEnabled() ? "supabase:nox_labyrinthus_exvotos" : LABYRINTHUS_EXVOTOS_FILE,
+          count: labyrinthusExVotos.length
         }
       }
     });
@@ -925,6 +1031,38 @@ app.post("/api/labyrinthus-chronicon", async (req, res) => {
   } catch (error) {
     console.error("Labyrinthus chronicon write error:", error);
     res.status(500).json({ error: "Erreur pendant l’écriture du Chronicon." });
+  }
+});
+
+app.get("/api/labyrinthus-exvotos", async (req, res) => {
+  try {
+    res.json({
+      exvotos: await readLabyrinthusExVotos(),
+      storage: isSupabaseEnabled() ? "supabase:nox_labyrinthus_exvotos" : LABYRINTHUS_EXVOTOS_FILE
+    });
+  } catch (error) {
+    console.error("Labyrinthus ex voto read error:", error);
+    res.status(500).json({ error: "Erreur pendant la lecture des Ex voto." });
+  }
+});
+
+app.post("/api/labyrinthus-exvotos", async (req, res) => {
+  try {
+    const exvoto = await insertLabyrinthusExVoto(req.body || {});
+    res.json({ ok: true, exvoto, exvotos: await readLabyrinthusExVotos() });
+  } catch (error) {
+    console.error("Labyrinthus ex voto write error:", error);
+    res.status(500).json({ error: "Erreur pendant l’écriture de l’Ex voto." });
+  }
+});
+
+app.patch("/api/labyrinthus-exvotos/:id/open", async (req, res) => {
+  try {
+    const exvoto = await openLabyrinthusExVoto(req.params.id, req.body?.openedBy || "");
+    res.json({ ok: true, exvoto, exvotos: await readLabyrinthusExVotos() });
+  } catch (error) {
+    console.error("Labyrinthus ex voto open error:", error);
+    res.status(500).json({ error: "Erreur pendant l’ouverture de l’Ex voto." });
   }
 });
 

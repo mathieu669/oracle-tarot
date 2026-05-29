@@ -55,3 +55,23 @@ alter table public.nox_labyrinthus_chronicon enable row level security;
 
 
 alter table public.nox_archives add column if not exists reactions jsonb not null default '[]'::jsonb;
+
+create table if not exists public.nox_labyrinthus_exvotos (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  row integer not null,
+  col integer not null,
+  owner text default '',
+  type text not null,
+  data_url text not null,
+  opened_at timestamptz,
+  opened_by text default ''
+);
+
+create index if not exists nox_labyrinthus_exvotos_created_at_idx
+on public.nox_labyrinthus_exvotos (created_at desc);
+
+create index if not exists nox_labyrinthus_exvotos_opened_at_idx
+on public.nox_labyrinthus_exvotos (opened_at);
+
+alter table public.nox_labyrinthus_exvotos enable row level security;

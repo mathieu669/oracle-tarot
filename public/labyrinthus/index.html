@@ -448,12 +448,12 @@
     transform-origin:center;
     animation:vaporBreath 3.2s ease-in-out infinite;
   }
-  .vapor-aura{ fill:rgba(255,255,255,.06); filter:blur(8px); }
-  .vapor-base{ fill:rgba(255,255,255,.13); filter:blur(6px); }
-  .vapor-mist-a{ fill:rgba(255,255,255,.21); filter:blur(5.4px); }
-  .vapor-mist-b{ fill:rgba(255,255,255,.17); filter:blur(5px); }
-  .vapor-mist-c{ fill:rgba(255,255,255,.13); filter:blur(4.4px); }
-  .vapor-core{ fill:rgba(255,255,255,.28); filter:blur(3px); }
+  .vapor-aura{ fill:rgba(255,255,255,.06); filter:blur(16px); }
+  .vapor-base{ fill:rgba(255,255,255,.13); filter:blur(12px); }
+  .vapor-mist-a{ fill:rgba(255,255,255,.21); filter:blur(10.8px); }
+  .vapor-mist-b{ fill:rgba(255,255,255,.17); filter:blur(10px); }
+  .vapor-mist-c{ fill:rgba(255,255,255,.13); filter:blur(8.8px); }
+  .vapor-core{ fill:rgba(255,255,255,.28); filter:blur(6px); }
   .vapor-highlight{ fill:none; stroke:rgba(255,255,255,.24); stroke-width:1.05; stroke-linecap:round; opacity:.88; }
 
   @keyframes vaporBreath{
@@ -1047,6 +1047,7 @@
   }
   .exvoto-panel{
     position:relative;
+    text-align:center;
     width:min(320px, calc(100% - 36px));
     max-height:82vh;
     overflow:auto;
@@ -1150,6 +1151,21 @@
     color:rgba(255,255,255,.54);
     font-size:10px;
     line-height:1.35;
+    text-align:justify;
+    text-align-last:center;
+  }
+  .exvoto-title,
+  .exvoto-preview,
+  .exvoto-choice span{
+    text-align:center;
+  }
+  .exvoto-preview > div{
+    width:100%;
+    text-align:center;
+  }
+  .exvoto-preview audio,
+  .exvoto-preview img{
+    text-align:center;
   }
   #exVotoReadModal .exvoto-title,
   #exVotoReadModal .exvoto-note,
@@ -2000,6 +2016,73 @@ function addChroniconEvent(text){
   if(chroniconEntries.length > CHRONICON_MAX_ENTRIES) chroniconEntries = chroniconEntries.slice(0, CHRONICON_MAX_ENTRIES);
   renderChronicon();
   persistChroniconEvent(entry);
+}
+
+function normalizeExVotoEntries(entries){
+  return (Array.isArray(entries) ? entries : [])
+    .filter(entry => entry && entry.dataUrl && entry.type)
+    .map(entry => ({
+      id: entry.id || `exvoto-${entry.row}-${entry.col}-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,
+      createdAt: entry.createdAt || entry.created_at || new Date().toISOString(),
+      row: Number(entry.row),
+      col: Number(entry.col),
+      owner: entry.owner || "",
+      type: entry.type || "",
+      dataUrl: entry.dataUrl || entry.data_url || ""
+    }))
+    .filter(entry => Number.isFinite(entry.row) && Number.isFinite(entry.col));
+}
+
+async function loadExVotosFromServer(){
+  try{
+    const response = await fetch('/api/labyrinthus-exvotos', { cache:'no-store' });
+    if(!response.ok) throw new Error('ex voto unavailable');
+    const data = await response.json();
+    const remote = normalizeExVotoEntries(data.exvotos || []);
+    if(remote.length || Array.isArray(data.exvotos)){
+      placedExVotos = remote;
+      render();
+    }
+  }catch(error){
+    console.warn('Ex voto remote load skipped:', error);
+  }
+}
+
+async function persistExVotoToServer(exvoto){
+  try{
+    const response = await fetch('/api/labyrinthus-exvotos', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json' },
+      body:JSON.stringify(exvoto)
+    });
+    if(!response.ok) throw new Error('ex voto write failed');
+    const data = await response.json();
+    if(data.exvoto && data.exvoto.id){
+      const local = placedExVotos.find(item => item.id === exvoto.id);
+      if(local) local.id = data.exvoto.id;
+    }
+    if(Array.isArray(data.exvotos)){
+      placedExVotos = normalizeExVotoEntries(data.exvotos);
+      render();
+    }
+  }catch(error){
+    console.warn('Ex voto remote write skipped:', error);
+    showExVotoToast('Ex voto gardé localement. Synchronisation impossible.');
+  }
+}
+
+async function markExVotoOpenedOnServer(exvoto, reader){
+  if(!exvoto || !exvoto.id) return;
+  try{
+    const response = await fetch(`/api/labyrinthus-exvotos/${encodeURIComponent(exvoto.id)}/open`, {
+      method:'PATCH',
+      headers:{ 'Content-Type':'application/json' },
+      body:JSON.stringify({ openedBy: reader?.id || reader?.name || "" })
+    });
+    if(!response.ok) throw new Error('ex voto open failed');
+  }catch(error){
+    console.warn('Ex voto remote open skipped:', error);
+  }
 }
 
 function renderChronicon(){
@@ -3796,18 +3879,19 @@ function validateExVoto(){
     return;
   }
   pushUndo();
-  placedExVotos.push({
+  const exvoto = {
     id:`exvoto-${row}-${col}-${Date.now()}`,
     row,
     col,
     owner,
     type:exVotoDraft.type,
     dataUrl:exVotoDraft.dataUrl
-  });
+  };
+  placedExVotos.push(exvoto);
+  persistExVotoToServer(exvoto);
   user.exVotoStock -= 1;
   pendingExVoto = null;
   if(user.exVotoStock <= 0) activeTool = "move";
-  revealPossibleMoves = false;
   noticeText = `ex voto placé par ${user.name.toLowerCase()}`;
   addChroniconEvent(`${user.name} place un Ex voto en ${locusRef(row,col)}.`);
   closeExVotoModal(false);
@@ -3823,6 +3907,7 @@ function openExVotoReadModal(exvoto, reader){
   reader.ft += 25;
   if(owner) owner.ft += 75;
   placedExVotos = placedExVotos.filter(v => v.id !== exvoto.id);
+  markExVotoOpenedOnServer(exvoto, reader);
   startMoneyBurst(exvoto.row, exvoto.col, 25);
   playSound("gain");
   if(owner){
@@ -4652,7 +4737,6 @@ function placeWall(worldRow, col){
   placedWalls.push(candidate);
   user.murusStock -= 1;
   if(user.murusStock <= 0) activeTool = "move";
-  revealPossibleMoves = true;
   playSound("murus");
   noticeText = `murus placé par ${user.name.toLowerCase()}`;
   addChroniconEvent(`${user.name} place un Murus en ${locusRef(worldRow, col)}.`);
@@ -4728,7 +4812,6 @@ function placeScala(worldRow, col){
   placedScalas.push({ id, row:worldRow, col, owner:user.id });
   user.scalaStock -= 1;
   if(user.scalaStock <= 0) activeTool = "move";
-  revealPossibleMoves = true;
   noticeText = `scala placée par ${user.name.toLowerCase()}`;
   addChroniconEvent(`${user.name} place une Scala en ${locusRef(worldRow, col)}.`);
   render();
@@ -4756,7 +4839,6 @@ function defineFossaZone(centerRow, centerCol){
   fossa.zoneCenter = { row:centerRow, col:centerCol };
   pendingFossaId = null;
   activeTool = user.fossaStock > 0 ? "fossa" : "move";
-  revealPossibleMoves = true;
   noticeText = `zone fossa définie par ${user.name.toLowerCase()}`;
   addChroniconEvent(`${user.name} définit une zone Fossa autour de ${locusRef(centerRow, centerCol)}.`);
   render();
@@ -6571,8 +6653,8 @@ function debitArcaPurchase(user, assetKey, label){
   return true;
 }
 function returnToPlayerSquareAfterPlacement(user){
-  activeTool = "move";
-  revealPossibleMoves = true;
+  // No automatic return/recentering after Arca purchase or trap placement.
+  // The current-player white square remains visible independently.
 }
 
 function keepArcaOpenForTouch(){
@@ -6933,7 +7015,7 @@ exVotoRecordBtn.addEventListener("click", async (event) => {
         exVotoValidateBtn.disabled = true;
       }
     };
-    exVotoRecorder.start();
+    exVotoRecorder.start(1000);
     exVotoRecordBtn.textContent = "Enregistrement…";
     exVotoValidateBtn.disabled = true;
     let remaining = 10;
@@ -6945,7 +7027,10 @@ exVotoRecordBtn.addEventListener("click", async (event) => {
       if(remaining <= 0 && exVotoCountdownInterval){ clearInterval(exVotoCountdownInterval); exVotoCountdownInterval = null; }
     }, 1000);
     exVotoRecordingTimer = setTimeout(() => {
-      if(exVotoRecorder && exVotoRecorder.state === "recording") exVotoRecorder.stop();
+      if(exVotoRecorder && exVotoRecorder.state === "recording"){
+        try{ exVotoRecorder.requestData(); }catch(_err){}
+        try{ exVotoRecorder.stop(); }catch(_err){}
+      }
     }, 10000);
   }catch(err){
     if(exVotoRecordingTimer){ clearTimeout(exVotoRecordingTimer); exVotoRecordingTimer = null; }
@@ -7124,6 +7209,7 @@ initZoom();
 loadSoundPreference();
 document.addEventListener("pointerdown", () => { if(soundEnabled) ensureAudioContext(); }, { passive:true });
 loadChroniconFromServer();
+loadExVotosFromServer();
 render();
 
 // Deep space
