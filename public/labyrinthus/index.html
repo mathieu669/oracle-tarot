@@ -148,7 +148,24 @@
     width:100% !important;height:100% !important;display:block;
     overflow:visible !important;background:transparent !important;
   }
+  .token-video .lottie-anim,
+  .solidus-video .lottie-anim,
+  .aquila-video .lottie-anim{
+    background:transparent !important;
+  }
   .anim-visual{ will-change:transform,opacity,filter; }
+  .aquila-containment-ring{
+    pointer-events:none;
+    fill:none;
+    stroke:rgba(0,0,0,.88);
+    stroke-width:4.2;
+  }
+  .aquila-containment-ring-halo{
+    pointer-events:none;
+    fill:rgba(0,0,0,.18);
+    stroke:rgba(255,255,255,.18);
+    stroke-width:.85;
+  }
   @keyframes sprite-strip{
     from{ background-position:0 0; }
     to{ background-position:100% 0; }
@@ -3089,7 +3106,7 @@ function maybeSpawnAquila(user){
   if(!isMontibusRow(row)) return false;
   if(isUserLockedByAquila(user.id)) return false;
   if(availableAquilaSlot() < 0) return false;
-  const chance = 1 / 9;
+  const chance = 1 / 18;
   if(Math.random() > chance) return false;
   return spawnAquilaOnUser(user.id, { source:'random' });
 }
@@ -3214,33 +3231,27 @@ function renderAquilas(){
       const cx = token ? token.c.x + token.offsetX : (minX + maxX) / 2;
       const cy = token ? token.c.y + token.offsetY - (token.baseSize * .12) : (minY + maxY) / 2;
 
-      const orbitW = Math.max(18, (maxX - minX) * .36);
-      const orbitH = Math.max(12, (maxY - minY) * .34);
-      const phase = ((now - aq.startedAt) / 1800 + aq.slot * .5) * Math.PI * 2;
-      const ax = cx + Math.cos(phase) * orbitW;
-      const ay = cy + Math.sin(phase) * orbitH;
+      const ringRx = Math.max(26, (maxX - minX) * .36);
+      const ringRy = Math.max(18, (maxY - minY) * .36);
+      const ringHalo = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+      ringHalo.setAttribute('cx', cx);
+      ringHalo.setAttribute('cy', cy);
+      ringHalo.setAttribute('rx', ringRx);
+      ringHalo.setAttribute('ry', ringRy);
+      ringHalo.setAttribute('class', 'aquila-containment-ring-halo');
+      aquilasGroup.appendChild(ringHalo);
 
-      const guide = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
-      guide.setAttribute('cx', cx);
-      guide.setAttribute('cy', cy);
-      guide.setAttribute('rx', orbitW);
-      guide.setAttribute('ry', orbitH);
-      guide.setAttribute('fill', 'none');
-      guide.setAttribute('stroke', 'rgba(255,255,255,.12)');
-      guide.setAttribute('stroke-width', '.65');
-      guide.setAttribute('stroke-dasharray', '2.5 3.5');
-      guide.setAttribute('style', 'pointer-events:none;');
-      aquilasGroup.appendChild(guide);
+      const ring = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+      ring.setAttribute('cx', cx);
+      ring.setAttribute('cy', cy);
+      ring.setAttribute('rx', ringRx);
+      ring.setAttribute('ry', ringRy);
+      ring.setAttribute('class', 'aquila-containment-ring');
+      aquilasGroup.appendChild(ring);
 
-      const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      label.setAttribute('x', cx);
-      label.setAttribute('y', cy - (token ? token.baseSize * 1.48 : 18));
-      label.setAttribute('text-anchor', 'middle');
-      label.setAttribute('class', 'aquila-tag');
-      label.textContent = 'AQUILA';
-      aquilasGroup.appendChild(label);
-
-      const size = token ? Math.max(28, token.baseSize * 3.45) : 34;
+      const size = token ? Math.max(24, token.baseSize * 1.55) : 28;
+      const ax = cx;
+      const ay = cy - (token ? token.baseSize * 1.72 : 24);
       showAquilaVideo(aq.id, ax, ay, size, size);
       visible.add(aq.id);
     }
@@ -3518,9 +3529,9 @@ function moveBlocked(fromRow, fromCol, toRow, toCol){
 
   if(dRow === 0 && dCol === 1) return hasWall(fromRow, fromCol, "right");
   if(dRow === 0 && dCol === -1) return hasWall(fromRow, toCol, "right");
-  if(dRow === 1 && dCol === 0) return hasWall(toRow, toCol, "bottom");
-  if(dRow === 1 && dCol === 1) return hasWall(fromRow, fromCol, "right") || hasWall(toRow, toCol, "bottom");
-  if(dRow === 1 && dCol === -1) return hasWall(fromRow, toCol, "right") || hasWall(toRow, toCol, "bottom");
+  if(dRow === 1 && dCol === 0) return hasWall(fromRow, fromCol, "bottom");
+  if(dRow === 1 && dCol === 1) return hasWall(fromRow, fromCol, "right") || hasWall(fromRow, fromCol, "bottom");
+  if(dRow === 1 && dCol === -1) return hasWall(fromRow, toCol, "right") || hasWall(fromRow, fromCol, "bottom");
   return false;
 }
 
@@ -3537,6 +3548,11 @@ function scalaAt(row,col){
 }
 function scalaDestination(scala){
   return { row:scala.row + 3, col:scala.col };
+}
+function scalaCrossesMirror(scala){
+  if(!scala) return false;
+  const dest = scalaDestination(scala);
+  return levelIndexForRow(scala.row) !== levelIndexForRow(dest.row);
 }
 function exVotoAt(row,col){
   return placedExVotos.find(v => v.row === row && v.col === col) || null;
@@ -4005,9 +4021,13 @@ function stepMoveAnimation(now){
 
   const landedScala = scalaAt(landedRow, landedCol);
   if(landedScala){
-    startScalaAnimation(user, landedScala);
-    render();
-    return;
+    if(scalaCrossesMirror(landedScala)){
+      noticeText = "scala inactive : impossible de franchir un speculum";
+    }else{
+      startScalaAnimation(user, landedScala);
+      render();
+      return;
+    }
   }
 
   if(landedTrap && landedTrap.owner !== user.id){
@@ -4279,15 +4299,18 @@ function stepCatenaMoveAnimation(now){
     return;
   }
 
-  if(scalaA){
+  if(scalaA && !scalaCrossesMirror(scalaA)){
     startScalaAnimation(userA, scalaA);
     render();
     return;
   }
-  if(scalaB){
+  if(scalaB && !scalaCrossesMirror(scalaB)){
     startScalaAnimation(userB, scalaB);
     render();
     return;
+  }
+  if((scalaA && scalaCrossesMirror(scalaA)) || (scalaB && scalaCrossesMirror(scalaB))){
+    noticeText = "scala inactive : impossible de franchir un speculum";
   }
 
   if(activeTrapA || activeTrapB){
@@ -4518,6 +4541,12 @@ function placeScala(worldRow, col){
   if(user.scalaStock <= 0) return;
   if(abyssusExistsAt(worldRow,col)){
     noticeText = "scala impossible : abyssus";
+    render();
+    return;
+  }
+  const candidateScala = { row:worldRow, col };
+  if(scalaCrossesMirror(candidateScala)){
+    noticeText = "scala impossible : ne peut pas franchir un speculum";
     render();
     return;
   }
@@ -5660,7 +5689,7 @@ function renderSolidus(){
       const c = centroid(poly);
       const width = Math.abs(poly[2].x - poly[3].x);
       const depth = Math.abs(poly[3].y - poly[0].y);
-      const size = clamp(width * 0.54, 14, 34);
+      const size = clamp(width * 1.08, 28, 68);
       visibleIds.add(item.id);
       showSolidusVideo(item.id, c.x, c.y - depth * 0.04, size);
     }

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+  html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden;}
+  body{display:flex;align-items:center;justify-content:center;}
+  #loader{width:100%;height:100%;background:transparent;}
+  #loader svg{background:transparent!important;overflow:visible!important;}
+</style>
+</head>
+<body>
+<div id="loader" aria-hidden="true"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script>
+  if(window.lottie){
+    if(typeof window.lottie.setQuality === "function") window.lottie.setQuality("medium");
+    if(typeof window.lottie.setSubframe === "function") window.lottie.setSubframe(false);
+    window.lottie.loadAnimation({
+      container:document.getElementById("loader"),
+      renderer:"svg",
+      loop:true,
+      autoplay:true,
+      path:"/labyrinthus/assets/lottie/skull-white.json",
+      rendererSettings:{
+        preserveAspectRatio:"xMidYMid meet",
+        progressiveLoad:true,
+        hideOnTransparent:true
+      }
+    });
+  }
+</script>
+</body>
+</html>
