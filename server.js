@@ -174,15 +174,15 @@ function mapLabyrinthusChroniconFromDb(row) {
 async function readLabyrinthusChronicon() {
   if (isSupabaseEnabled()) {
     try {
-      const rows = await supabaseRequest("nox_labyrinthus_chronicon?select=*&order=created_at.desc&limit=100");
+      const rows = await supabaseRequest("nox_labyrinthus_chronicon?select=*&order=created_at.desc&limit=500");
       return rows.map(mapLabyrinthusChroniconFromDb);
     } catch (error) {
       console.error("Labyrinthus chronicon Supabase read error:", error);
-      return readJsonArrayFromServer(LABYRINTHUS_CHRONICON_FILE).slice(0, 100);
+      return readJsonArrayFromServer(LABYRINTHUS_CHRONICON_FILE).slice(0, 500);
     }
   }
 
-  return readJsonArrayFromServer(LABYRINTHUS_CHRONICON_FILE).slice(0, 100);
+  return readJsonArrayFromServer(LABYRINTHUS_CHRONICON_FILE).slice(0, 500);
 }
 
 async function insertLabyrinthusChroniconEvent(entry) {
@@ -215,9 +215,9 @@ async function insertLabyrinthusChroniconEvent(entry) {
       text
     },
     ...events
-  ].slice(0, 100);
+  ].slice(0, 500);
 
-  writeJsonArrayToServer(LABYRINTHUS_CHRONICON_FILE, nextEvents, 100);
+  writeJsonArrayToServer(LABYRINTHUS_CHRONICON_FILE, nextEvents, 500);
   return nextEvents[0];
 }
 

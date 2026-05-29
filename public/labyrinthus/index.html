@@ -448,12 +448,12 @@
     transform-origin:center;
     animation:vaporBreath 3.2s ease-in-out infinite;
   }
-  .vapor-aura{ fill:rgba(255,255,255,.06); filter:blur(3.8px); }
-  .vapor-base{ fill:rgba(255,255,255,.13); filter:blur(3px); }
-  .vapor-mist-a{ fill:rgba(255,255,255,.21); filter:blur(2.4px); }
-  .vapor-mist-b{ fill:rgba(255,255,255,.17); filter:blur(2.1px); }
-  .vapor-mist-c{ fill:rgba(255,255,255,.13); filter:blur(1.8px); }
-  .vapor-core{ fill:rgba(255,255,255,.28); filter:blur(1px); }
+  .vapor-aura{ fill:rgba(255,255,255,.06); filter:blur(8px); }
+  .vapor-base{ fill:rgba(255,255,255,.13); filter:blur(6px); }
+  .vapor-mist-a{ fill:rgba(255,255,255,.21); filter:blur(5.4px); }
+  .vapor-mist-b{ fill:rgba(255,255,255,.17); filter:blur(5px); }
+  .vapor-mist-c{ fill:rgba(255,255,255,.13); filter:blur(4.4px); }
+  .vapor-core{ fill:rgba(255,255,255,.28); filter:blur(3px); }
   .vapor-highlight{ fill:none; stroke:rgba(255,255,255,.24); stroke-width:1.05; stroke-linecap:round; opacity:.88; }
 
   @keyframes vaporBreath{
@@ -636,7 +636,7 @@
   
   .sound-toggle{
     position:absolute;top:12px;right:12px;z-index:8;
-    display:flex;gap:8px;align-items:center;
+    display:flex;flex-direction:column;gap:8px;align-items:center;
   }
   .sound-btn,
   .music-btn{
@@ -666,7 +666,7 @@
   body.theme-light .music-btn{box-shadow:0 0 18px rgba(0,0,0,.04)}
 
   .mini-rail{
-    position:absolute;top:56px;right:12px;z-index:8;
+    position:absolute;top:102px;right:12px;z-index:8;
     display:flex;flex-direction:column;gap:8px;
     align-items:center;
   }
@@ -968,6 +968,8 @@
     letter-spacing:.14em;
     text-transform:uppercase;
     font-family:"Inter",sans-serif;
+    text-align:justify;
+    text-align-last:center;
   }
   .chronicon-text{
     color:rgba(255,255,255,.90);
@@ -1071,6 +1073,7 @@
     font-size:13px;
     letter-spacing:.16em;
     text-transform:uppercase;
+    text-align:center;
   }
   .exvoto-choice-row{
     display:flex;
@@ -1151,7 +1154,8 @@
   #exVotoReadModal .exvoto-title,
   #exVotoReadModal .exvoto-note,
   #exVotoReadModal .exvoto-preview{
-    text-align:center;
+    text-align:justify;
+    text-align-last:center;
   }
   #exVotoReadModal .exvoto-preview{
     justify-content:center;
@@ -1864,6 +1868,7 @@ const AQUILA_LOCK_MS = 24 * 60 * 60 * 1000;
 const AQUILA_POOL_SIZE = 2;
 let activeAquilas = [];
 let herbaeAnimationFrame = null;
+const herbaeTapCooldown = new Map();
 let chroniconEntries = [];
 let pendingExVoto = null;
 let exVotoDraft = { type:null, dataUrl:null };
@@ -1871,6 +1876,7 @@ let exVotoRecorder = null;
 let renderScheduled = false;
 let exVotoChunks = [];
 let exVotoRecordingTimer = null;
+let exVotoCountdownInterval = null;
 let exVotoToastTimer = null;
 
 const INFO_CONTENT = {
@@ -1923,7 +1929,7 @@ function parisTimestamp(date = new Date()){
   return `${parts.day}/${parts.month} · ${parts.hour}:${parts.minute}`;
 }
 
-const CHRONICON_MAX_ENTRIES = 100;
+const CHRONICON_MAX_ENTRIES = 500;
 let chroniconRemoteReady = false;
 let chroniconSyncQueue = Promise.resolve();
 
@@ -2184,6 +2190,7 @@ function syncAmbience(){
 
 function playSound(kind){
   if(!soundEnabled) return;
+  ensureAudioContext();
   initSoundPlayers();
   const base = soundPlayers[kind];
   if(!base) return;
@@ -3564,6 +3571,12 @@ function renderHerbae(){
     image.setAttribute("height", size);
     image.setAttribute("class", "herba-image");
     image.setAttribute("transform", `rotate(${state.rotation} ${p.x} ${y})`);
+    image.setAttribute("style", "pointer-events:auto; cursor:pointer;");
+    image.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      collectHerbaTap(herba, herba.row, Math.max(0, Math.min(cols - 1, Math.round(state.col))));
+    });
     herbaeGroup.appendChild(image);
     anyVisible = true;
   }
@@ -3579,6 +3592,24 @@ function scheduleHerbaeAnimation(){
     herbaeGroup.innerHTML = "";
     renderHerbae();
   });
+}
+
+function collectHerbaTap(herba, row, col){
+  const user = currentUser();
+  if(!user || animState) return;
+  const now = performance.now();
+  const cooldownKey = `${user.id}:${herba.id}`;
+  const last = herbaeTapCooldown.get(cooldownKey) || 0;
+  if(now - last < 1400) return;
+  herbaeTapCooldown.set(cooldownKey, now);
+  const delta = 5;
+  user.ft += delta;
+  if(user.noxFatumUserId) noxRequestFatumDelta(user.noxFatumUserId, delta, "herbae_tap");
+  startMoneyBurst(row, col, delta);
+  playSound("gain");
+  noticeText = `herbae : ${user.name.toLowerCase()} gagne ${delta} Ft`;
+  addChroniconEvent(`${user.name} touche Herbae en ${locusRef(row, col)} et gagne ${delta} Ft.`);
+  render();
 }
 
 function herbaForCrossing(){
@@ -3710,6 +3741,7 @@ function resetExVotoDraft(){
   exVotoDraft = { type:null, dataUrl:null };
   exVotoChunks = [];
   if(exVotoRecordingTimer){ clearTimeout(exVotoRecordingTimer); exVotoRecordingTimer = null; }
+  if(exVotoCountdownInterval){ clearInterval(exVotoCountdownInterval); exVotoCountdownInterval = null; }
   if(exVotoRecorder && exVotoRecorder.state !== "inactive"){
     try{ exVotoRecorder.stop(); }catch(err){}
   }
@@ -4619,7 +4651,8 @@ function placeWall(worldRow, col){
   pushUndo();
   placedWalls.push(candidate);
   user.murusStock -= 1;
-  returnToPlayerSquareAfterPlacement(user);
+  if(user.murusStock <= 0) activeTool = "move";
+  revealPossibleMoves = true;
   playSound("murus");
   noticeText = `murus placé par ${user.name.toLowerCase()}`;
   addChroniconEvent(`${user.name} place un Murus en ${locusRef(worldRow, col)}.`);
@@ -4694,7 +4727,8 @@ function placeScala(worldRow, col){
   pushUndo();
   placedScalas.push({ id, row:worldRow, col, owner:user.id });
   user.scalaStock -= 1;
-  returnToPlayerSquareAfterPlacement(user);
+  if(user.scalaStock <= 0) activeTool = "move";
+  revealPossibleMoves = true;
   noticeText = `scala placée par ${user.name.toLowerCase()}`;
   addChroniconEvent(`${user.name} place une Scala en ${locusRef(worldRow, col)}.`);
   render();
@@ -4721,7 +4755,8 @@ function defineFossaZone(centerRow, centerCol){
   pushUndo();
   fossa.zoneCenter = { row:centerRow, col:centerCol };
   pendingFossaId = null;
-  returnToPlayerSquareAfterPlacement(user);
+  activeTool = user.fossaStock > 0 ? "fossa" : "move";
+  revealPossibleMoves = true;
   noticeText = `zone fossa définie par ${user.name.toLowerCase()}`;
   addChroniconEvent(`${user.name} définit une zone Fossa autour de ${locusRef(centerRow, centerCol)}.`);
   render();
@@ -4826,7 +4861,7 @@ function makeCell(worldRow, col, screenDistance){
   }
 
   if(user.filled.has(k)) poly.classList.add("filled");
-  if(!animState && Math.round(user.current.row) === worldRow && user.current.col === col) poly.classList.add("current");
+  if(Math.round(user.current.row) === worldRow && user.current.col === col) poly.classList.add("current");
   if(shouldDisplayPossibleMoves(user) && canSelectTarget(user,worldRow,col)){
     poly.classList.add("possible-from-sphere");
   }
@@ -5496,8 +5531,8 @@ function renderVapors(){
       const center = centroid(poly);
       const width = Math.abs(poly[2].x - poly[3].x);
       const depth = Math.abs(poly[3].y - poly[0].y);
-      const cubeW = width * 0.60;
-      const cubeH = Math.max(10, depth * 1.28);
+      const cubeW = width * 1.20;
+      const cubeH = Math.max(20, depth * 2.56);
       appendVaporShape(center, cubeW, cubeH, null);
     }
   }
@@ -5511,8 +5546,8 @@ function renderVapors(){
     const center = centroid(poly);
     const width = Math.abs(poly[2].x - poly[3].x);
     const depth = Math.abs(poly[3].y - poly[0].y);
-    const cubeW = width * 0.60;
-    const cubeH = Math.max(10, depth * 1.28);
+    const cubeW = width * 1.20;
+    const cubeH = Math.max(20, depth * 2.56);
     const progress = (now - burst.startTime) / burst.duration;
     appendVaporShape(center, cubeW, cubeH, progress);
   }
@@ -6538,7 +6573,6 @@ function debitArcaPurchase(user, assetKey, label){
 function returnToPlayerSquareAfterPlacement(user){
   activeTool = "move";
   revealPossibleMoves = true;
-  if(user) centerViewOnUser(user, true);
 }
 
 function keepArcaOpenForTouch(){
@@ -6856,29 +6890,68 @@ exVotoMicBtn.addEventListener("click", async (event) => {
 exVotoRecordBtn.addEventListener("click", async (event) => {
   event.preventDefault();
   if(exVotoRecorder && exVotoRecorder.state === "recording") return;
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof MediaRecorder === "undefined"){
+    exVotoPreview.innerHTML = "Micro indisponible sur ce navigateur.";
+    return;
+  }
   try{
     const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
     exVotoChunks = [];
-    exVotoRecorder = new MediaRecorder(stream);
+    const mimeCandidates = [
+      "audio/mp4",
+      "audio/webm;codecs=opus",
+      "audio/webm",
+      "audio/ogg;codecs=opus"
+    ];
+    const mimeType = mimeCandidates.find(type => {
+      try{ return MediaRecorder.isTypeSupported(type); }catch(_err){ return false; }
+    });
+    exVotoRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
     exVotoRecorder.ondataavailable = e => { if(e.data && e.data.size) exVotoChunks.push(e.data); };
+    exVotoRecorder.onerror = () => {
+      stream.getTracks().forEach(track => track.stop());
+      if(exVotoRecordingTimer){ clearTimeout(exVotoRecordingTimer); exVotoRecordingTimer = null; }
+      if(exVotoCountdownInterval){ clearInterval(exVotoCountdownInterval); exVotoCountdownInterval = null; }
+      exVotoRecordBtn.textContent = "Enregistrer";
+      exVotoPreview.innerHTML = "Erreur d’enregistrement. Recommencer.";
+    };
     exVotoRecorder.onstop = async () => {
       stream.getTracks().forEach(track => track.stop());
-      const blob = new Blob(exVotoChunks, { type:"audio/webm" });
-      exVotoDraft.type = "audio";
-      exVotoDraft.dataUrl = await fileToDataUrl(blob);
-      exVotoRecordBtn.textContent = "Enregistrer";
-      exVotoNote.textContent = "Réécouter le message, puis valider ou recommencer.";
-      previewExVotoDraft();
+      if(exVotoRecordingTimer){ clearTimeout(exVotoRecordingTimer); exVotoRecordingTimer = null; }
+      if(exVotoCountdownInterval){ clearInterval(exVotoCountdownInterval); exVotoCountdownInterval = null; }
+      try{
+        if(!exVotoChunks.length) throw new Error("empty audio");
+        const blob = new Blob(exVotoChunks, { type:mimeType || exVotoChunks[0]?.type || "audio/mp4" });
+        exVotoDraft.type = "audio";
+        exVotoDraft.dataUrl = await fileToDataUrl(blob);
+        exVotoRecordBtn.textContent = "Enregistrer";
+        exVotoNote.textContent = "Réécouter le message, puis valider ou recommencer.";
+        previewExVotoDraft();
+      }catch(_err){
+        exVotoRecordBtn.textContent = "Enregistrer";
+        exVotoPreview.innerHTML = "Erreur d’enregistrement. Recommencer.";
+        exVotoValidateBtn.disabled = true;
+      }
     };
     exVotoRecorder.start();
     exVotoRecordBtn.textContent = "Enregistrement…";
-    exVotoPreview.innerHTML = "Enregistrement en cours…";
     exVotoValidateBtn.disabled = true;
+    let remaining = 10;
+    exVotoPreview.innerHTML = `<div>Enregistrement en cours.</div><div class="exvoto-timer">${remaining}s</div>`;
+    exVotoNote.textContent = "L’enregistrement s’arrête automatiquement.";
+    exVotoCountdownInterval = setInterval(() => {
+      remaining = Math.max(0, remaining - 1);
+      exVotoPreview.innerHTML = `<div>Enregistrement en cours.</div><div class="exvoto-timer">${remaining}s</div>`;
+      if(remaining <= 0 && exVotoCountdownInterval){ clearInterval(exVotoCountdownInterval); exVotoCountdownInterval = null; }
+    }, 1000);
     exVotoRecordingTimer = setTimeout(() => {
       if(exVotoRecorder && exVotoRecorder.state === "recording") exVotoRecorder.stop();
     }, 10000);
   }catch(err){
+    if(exVotoRecordingTimer){ clearTimeout(exVotoRecordingTimer); exVotoRecordingTimer = null; }
+    if(exVotoCountdownInterval){ clearInterval(exVotoCountdownInterval); exVotoCountdownInterval = null; }
     exVotoPreview.innerHTML = "Micro indisponible ou autorisation refusée.";
+    exVotoRecordBtn.textContent = "Enregistrer";
   }
 });
 
