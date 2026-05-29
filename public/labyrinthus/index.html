@@ -155,12 +155,7 @@
     background:transparent !important;
   }
   .anim-visual{ will-change:transform,opacity,filter; }
-  .aquila-containment-ring{
-    pointer-events:none;
-    fill:none;
-    stroke:rgba(0,0,0,.88);
-    stroke-width:4.2;
-  }
+  .aquila-containment-ring{display:none;}
   .aquila-containment-ring-halo{
     pointer-events:none;
     fill:rgba(0,0,0,.18);
@@ -3252,15 +3247,8 @@ function transferAquilaWithCostula(targetUserId){
   return true;
 }
 function cellsForAquilaZone(centerRow, centerCol){
-  const cells = [];
-  for(let row = centerRow - 1; row <= centerRow + 1; row++){
-    if(row < 0) continue;
-    for(let col = centerCol - 1; col <= centerCol + 1; col++){
-      if(col < 0 || col >= cols) continue;
-      cells.push({ row, col });
-    }
-  }
-  return cells;
+  if(centerRow < 0 || centerCol < 0 || centerCol >= cols) return [];
+  return [{ row:centerRow, col:centerCol }];
 }
 function ensureAquilaVideoElement(aquilaId){
   if(aquilaVideoEls[aquilaId]) return aquilaVideoEls[aquilaId];
@@ -3327,19 +3315,9 @@ function renderAquilas(){
       const cx = token ? token.c.x + token.offsetX : (minX + maxX) / 2;
       const cy = token ? token.c.y + token.offsetY - (token.baseSize * .12) : (minY + maxY) / 2;
 
-      const ringRx = Math.max(24, (maxX - minX) * .34);
-      const ringRy = Math.max(16, (maxY - minY) * .32);
       const size = token ? Math.max(26, token.baseSize * 3.25) : 30;
       const ax = cx;
       const ay = cy - (token ? token.baseSize * 3.85 : 48);
-
-      const ring = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
-      ring.setAttribute('cx', cx);
-      ring.setAttribute('cy', cy);
-      ring.setAttribute('rx', ringRx);
-      ring.setAttribute('ry', ringRy);
-      ring.setAttribute('class', 'aquila-containment-ring');
-      aquilasGroup.appendChild(ring);
 
       showAquilaVideo(aq.id, ax, ay, size, size);
       visible.add(aq.id);
