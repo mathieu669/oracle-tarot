@@ -1175,11 +1175,11 @@ function DuodecimScreen({ reading, question, onIterum, onClaves, onNoctem, onVer
               return (
                 <div
                   key={name}
-                  className="absolute left-1/2 top-1/2 h-1/2 w-[28%] origin-bottom select-none text-center [-webkit-user-select:none]"
+                  className="absolute left-1/2 top-1/2 h-1/2 w-[34%] origin-bottom select-none text-center [-webkit-user-select:none]"
                   style={{ transform: `translate(-50%, -100%) rotate(${angle}deg)` }}
                 >
                   <span
-                    className={["block translate-y-4 rotate-90 whitespace-nowrap text-[9px] font-semibold uppercase tracking-[0.12em]", darkSector ? "text-black" : "text-white"].join(" ")}
+                    className={["absolute left-1/2 top-[42%] block max-w-[5.6rem] -translate-x-1/2 -translate-y-1/2 rotate-90 overflow-hidden text-ellipsis whitespace-nowrap text-center text-[8px] font-semibold uppercase leading-none tracking-[0.08em]", darkSector ? "text-white" : "text-black"].join(" ")}
                   >
                     {name}
                   </span>
