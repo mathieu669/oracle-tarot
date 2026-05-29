@@ -843,9 +843,10 @@
   stroke-width:.75;
 }
 .aquila-zone-center{
-  fill:rgba(255,255,255,.08);
-  stroke:rgba(255,255,255,.55);
-  stroke-width:1.15;
+  fill:rgba(0,0,0,.96);
+  stroke:rgba(0,0,0,.98);
+  stroke-width:.9;
+  vector-effect:non-scaling-stroke;
 }
 .aquila-tag{
   fill:rgba(255,255,255,.92);
@@ -3186,8 +3187,8 @@ function spawnAquilaOnUser(userId, options={}){
     source: options.source || 'random',
     movedOnce: !!options.movedOnce
   });
-  noticeText = `aquila : ${user.name.toLowerCase()} est encerclé`;
-  addChroniconEvent(`Aquila encercle ${user.name} en ${locusRef(user.current.row, user.current.col)}.`);
+  noticeText = `aquila : ${user.name.toLowerCase()} est bloqué`;
+  addChroniconEvent(`Aquila bloque ${user.name} en ${locusRef(user.current.row, user.current.col)}.`);
   return true;
 }
 function maybeSpawnAquila(user){
