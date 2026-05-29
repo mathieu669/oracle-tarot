@@ -2797,6 +2797,7 @@ function LabyrinthusScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodeci
   const [users, setUsers] = useState(() => readFatumUsers());
   const [activeUser, setActiveUser] = useState(null);
   const [message, setMessage] = useState("chargement.");
+  const [loaderFrameReady, setLoaderFrameReady] = useState(false);
 
   const buildPayload = (nextUsers = users, nextActiveUser = activeUser) => ({
     activeUser: nextActiveUser,
@@ -2957,9 +2958,11 @@ function LabyrinthusScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodeci
             <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black px-6 text-center">
               <iframe
                 title="Chargement Labyrinthus"
-                src="/labyrinthus/loader.html?v=2"
-                className="h-28 w-28 border-0 bg-black opacity-95"
+                src="/labyrinthus/loader.html?v=3"
+                className={`h-28 w-28 border-0 bg-black ${loaderFrameReady ? "opacity-95" : "opacity-0"}`}
+                style={{ backgroundColor: "#000", colorScheme: "dark" }}
                 aria-hidden="true"
+                onLoad={() => setLoaderFrameReady(true)}
               />
               <p className="mt-5 text-[10px] uppercase tracking-[0.22em] text-white/42">chargement.</p>
             </div>

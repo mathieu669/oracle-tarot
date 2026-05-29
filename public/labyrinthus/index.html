@@ -838,14 +838,26 @@
   opacity:.96;
 }
 .aquila-zone{
-  fill:rgba(255,255,255,.035);
-  stroke:rgba(255,255,255,.14);
-  stroke-width:.75;
+  fill:transparent;
+  stroke:none;
 }
 .aquila-zone-center{
-  fill:rgba(0,0,0,.96);
-  stroke:rgba(0,0,0,.98);
+  fill:transparent;
+  stroke:none;
+}
+.aquila-cage-edge,
+.aquila-cage-bar{
+  fill:none;
+  stroke:rgba(0,0,0,.96);
   stroke-width:.9;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+  vector-effect:non-scaling-stroke;
+}
+.aquila-cage-back{
+  fill:rgba(0,0,0,.10);
+  stroke:rgba(0,0,0,.82);
+  stroke-width:.72;
   vector-effect:non-scaling-stroke;
 }
 .aquila-tag{
@@ -1537,7 +1549,6 @@
       </div>
       </div>
 
-      <div class="hint">Fossa : recul 5 lignes · Catena : 3 tours liés · Aquila : prison 24 h sur 9 cases · Costula : détourne l’Aquila · Vapor : +100 Ft ou −20 Ft</div>
       <div class="fade-top"></div>
       <div class="fade-bottom"></div>
 
@@ -3276,6 +3287,56 @@ function hideUnusedAquilaVideos(visibleIds){
     if(!visibleIds.has(id)) el.style.display = 'none';
   }
 }
+function addAquilaCage(poly){
+  const inset = insetPolygon(poly, .12);
+  const cage = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  cage.setAttribute('class', 'aquila-cage');
+
+  const base = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+  base.setAttribute('points', pointsAttr(inset));
+  base.setAttribute('class', 'aquila-cage-back');
+  cage.appendChild(base);
+
+  const topOffset = Math.max(10, Math.abs(poly[3].y - poly[0].y) * .68);
+  const top = inset.map(pt => ({ x: pt.x, y: pt.y - topOffset }));
+
+  const topPoly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+  topPoly.setAttribute('points', pointsAttr(top));
+  topPoly.setAttribute('class', 'aquila-cage-edge');
+  cage.appendChild(topPoly);
+
+  const bottomPoly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+  bottomPoly.setAttribute('points', pointsAttr(inset));
+  bottomPoly.setAttribute('class', 'aquila-cage-edge');
+  cage.appendChild(bottomPoly);
+
+  for(let i = 0; i < inset.length; i++){
+    const vertical = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    vertical.setAttribute('x1', top[i].x);
+    vertical.setAttribute('y1', top[i].y);
+    vertical.setAttribute('x2', inset[i].x);
+    vertical.setAttribute('y2', inset[i].y);
+    vertical.setAttribute('class', 'aquila-cage-edge');
+    cage.appendChild(vertical);
+  }
+
+  const barPairs = [
+    [.22, .22], [.44, .44], [.66, .66], [.82, .82]
+  ];
+  for(const [tx, bx] of barPairs){
+    const topPt = { x: top[0].x + (top[1].x - top[0].x) * tx, y: top[0].y + (top[1].y - top[0].y) * tx };
+    const bottomPt = { x: inset[3].x + (inset[2].x - inset[3].x) * bx, y: inset[3].y + (inset[2].y - inset[3].y) * bx };
+    const bar = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    bar.setAttribute('x1', topPt.x);
+    bar.setAttribute('y1', topPt.y);
+    bar.setAttribute('x2', bottomPt.x);
+    bar.setAttribute('y2', bottomPt.y);
+    bar.setAttribute('class', 'aquila-cage-bar');
+    cage.appendChild(bar);
+  }
+
+  aquilasGroup.appendChild(cage);
+}
 function renderAquilas(){
   cleanupExpiredAquilas();
   const visible = new Set();
@@ -3297,10 +3358,7 @@ function renderAquilas(){
       if(screenDistance < -1.4 || screenDistance > visibleRows + .8) continue;
 
       const poly = cellPolygonWorld(cell.row, cell.col, screenDistance);
-      const zonePoly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-      zonePoly.setAttribute('points', pointsAttr(insetPolygon(poly, .1)));
-      zonePoly.setAttribute('class', (cell.row === centerRow && cell.col === centerCol) ? 'aquila-zone-center' : 'aquila-zone');
-      aquilasGroup.appendChild(zonePoly);
+      if(cell.row === centerRow && cell.col === centerCol) addAquilaCage(poly);
 
       for(const pt of poly){
         minX = Math.min(minX, pt.x);
@@ -3612,10 +3670,14 @@ function scalaAt(row,col){
 function scalaDestination(scala){
   return { row:scala.row + 3, col:scala.col };
 }
-function scalaCrossesMirror(scala){
+function scalaCrossesMirror(scala, userId = activeUserId){
   if(!scala) return false;
   const dest = scalaDestination(scala);
-  return levelIndexForRow(scala.row) !== levelIndexForRow(dest.row);
+  const fromLevel = levelIndexForRow(scala.row);
+  const toLevel = levelIndexForRow(dest.row);
+  if(fromLevel === toLevel) return false;
+  const boundaryLevel = Math.min(fromLevel, toLevel);
+  return isFrontierLocked(boundaryLevel) && !isMirrorUnlockedForUser(users[userId] || currentUser(), boundaryLevel);
 }
 function exVotoAt(row,col){
   return placedExVotos.find(v => v.row === row && v.col === col) || null;
@@ -4557,8 +4619,7 @@ function placeWall(worldRow, col){
   pushUndo();
   placedWalls.push(candidate);
   user.murusStock -= 1;
-  if(user.murusStock <= 0) activeTool = "move";
-  revealPossibleMoves = false;
+  returnToPlayerSquareAfterPlacement(user);
   playSound("murus");
   noticeText = `murus placé par ${user.name.toLowerCase()}`;
   addChroniconEvent(`${user.name} place un Murus en ${locusRef(worldRow, col)}.`);
@@ -4633,8 +4694,7 @@ function placeScala(worldRow, col){
   pushUndo();
   placedScalas.push({ id, row:worldRow, col, owner:user.id });
   user.scalaStock -= 1;
-  if(user.scalaStock <= 0) activeTool = "move";
-  revealPossibleMoves = false;
+  returnToPlayerSquareAfterPlacement(user);
   noticeText = `scala placée par ${user.name.toLowerCase()}`;
   addChroniconEvent(`${user.name} place une Scala en ${locusRef(worldRow, col)}.`);
   render();
@@ -4661,8 +4721,7 @@ function defineFossaZone(centerRow, centerCol){
   pushUndo();
   fossa.zoneCenter = { row:centerRow, col:centerCol };
   pendingFossaId = null;
-  activeTool = "move";
-  revealPossibleMoves = false;
+  returnToPlayerSquareAfterPlacement(user);
   noticeText = `zone fossa définie par ${user.name.toLowerCase()}`;
   addChroniconEvent(`${user.name} définit une zone Fossa autour de ${locusRef(centerRow, centerCol)}.`);
   render();
@@ -5023,7 +5082,7 @@ function renderFrontierLocks(){
   const rightX = rightPoly[1].x + 14;
   const topY = Math.min(leftPoly[0].y, rightPoly[1].y) - 2;
   const cellDepth = Math.max(12, Math.abs(leftPoly[3].y - leftPoly[0].y));
-  const mirrorH = cellDepth * 2.5;
+  const mirrorH = cellDepth * 5;
   const baseY = topY + cellDepth * 0.12 - mirrorH;
   const fogDrift = performance.now() / 1450;
 
@@ -5040,7 +5099,7 @@ function renderFrontierLocks(){
     shadow.setAttribute("y", baseY + 4);
     shadow.setAttribute("width", mirrorW);
     shadow.setAttribute("height", mirrorH);
-    shadow.setAttribute("rx", "3");
+    shadow.setAttribute("rx", "0");
     shadow.setAttribute("fill", "rgba(8,12,20,.34)");
     shadow.setAttribute("opacity", mirrorOpacity.toFixed(3));
     shadow.setAttribute("pointer-events", "none");
@@ -5051,7 +5110,7 @@ function renderFrontierLocks(){
     mirror.setAttribute("y", baseY);
     mirror.setAttribute("width", mirrorW);
     mirror.setAttribute("height", mirrorH);
-    mirror.setAttribute("rx", "3.4");
+    mirror.setAttribute("rx", "0");
     mirror.setAttribute("fill", "rgba(142,169,196,.24)");
     mirror.setAttribute("stroke", "rgba(248,252,255,.88)");
     mirror.setAttribute("stroke-width", "1.7");
@@ -5065,7 +5124,7 @@ function renderFrontierLocks(){
       mirrorHit.setAttribute("y", baseY);
       mirrorHit.setAttribute("width", mirrorW);
       mirrorHit.setAttribute("height", mirrorH);
-      mirrorHit.setAttribute("rx", "3.4");
+      mirrorHit.setAttribute("rx", "0");
       mirrorHit.setAttribute("fill", "rgba(0,0,0,0)");
       mirrorHit.setAttribute("style", activeTool === "marculus" ? "cursor:pointer; pointer-events:auto;" : "pointer-events:auto;");
       mirrorHit.addEventListener("click", (event) => {
@@ -5093,7 +5152,7 @@ function renderFrontierLocks(){
     inner.setAttribute("y", baseY + 5);
     inner.setAttribute("width", mirrorW - 10);
     inner.setAttribute("height", mirrorH - 10);
-    inner.setAttribute("rx", "2.6");
+    inner.setAttribute("rx", "0");
     inner.setAttribute("fill", "rgba(99,126,156,.18)");
     inner.setAttribute("stroke", "rgba(255,255,255,.20)");
     inner.setAttribute("stroke-width", ".9");
@@ -5181,22 +5240,6 @@ function renderFrontierLocks(){
       }
     }
 
-    const fogOpacityScale = fade !== null ? Math.max(0, 1 - fade * .92) : 1;
-    for(let i = 0; i < 6; i++){
-      const cloud = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
-      const t = fogDrift + i * .82;
-      const cx = leftX + mirrorW * ((i + .45) / 6) + Math.sin(t * 1.1) * 5.5;
-      const cy = topY + cellDepth * .54 + Math.cos(t * 1.3) * 3;
-      cloud.setAttribute("cx", cx);
-      cloud.setAttribute("cy", cy);
-      cloud.setAttribute("rx", 12 + (i % 3) * 3.8);
-      cloud.setAttribute("ry", 5.2 + (i % 2) * 2.1);
-      cloud.setAttribute("fill", "rgba(255,255,255,.52)");
-      cloud.setAttribute("filter", "blur(2px)");
-      cloud.setAttribute("opacity", String((.58 + Math.sin(t * .7) * .12) * fogOpacityScale));
-      cloud.setAttribute("pointer-events", "none");
-      frontierFxGroup.appendChild(cloud);
-    }
   }
 
   const activeCanReflect = active && levelIndexForRow(Math.round(active.current.row)) === boundaryLevel;
@@ -5762,7 +5805,7 @@ function renderSolidus(){
       const c = centroid(poly);
       const width = Math.abs(poly[2].x - poly[3].x);
       const depth = Math.abs(poly[3].y - poly[0].y);
-      const size = clamp(width * 0.48, 18, 32);
+      const size = clamp(width * 0.576, 22, 38);
       visibleIds.add(item.id);
       showSolidusVideo(item.id, c.x, c.y - depth * 0.04, size);
     }
@@ -6471,6 +6514,33 @@ retroBtn.addEventListener("click", (event) => {
 });
 
 
+const ARCA_COSTS = Object.freeze({
+  murus:20,
+  fossa:50,
+  marculus:15,
+  scala:30,
+  costula:75,
+  negroni:60,
+  exvoto:50
+});
+function debitArcaPurchase(user, assetKey, label){
+  const cost = ARCA_COSTS[assetKey] || 0;
+  if(!user || cost <= 0) return true;
+  if((Number(user.ft) || 0) < cost){
+    noticeText = `${label} impossible : solde insuffisant`;
+    render();
+    return false;
+  }
+  user.ft = Math.max(0, Math.round((Number(user.ft) || 0) - cost));
+  if(user.noxFatumUserId) noxRequestFatumDelta(user.noxFatumUserId, -cost, `arca_${assetKey}`);
+  return true;
+}
+function returnToPlayerSquareAfterPlacement(user){
+  activeTool = "move";
+  revealPossibleMoves = true;
+  if(user) centerViewOnUser(user, true);
+}
+
 function keepArcaOpenForTouch(){
   if(!arcaPanel) return;
   arcaPanel.classList.add("held");
@@ -6480,14 +6550,14 @@ if(arcaPanel){
     arcaPanel.addEventListener(type, (event) => {
       event.stopPropagation();
       keepArcaOpenForTouch();
-    }, { passive:true });
+    }, { passive:false });
   });
-  arcaPanel.querySelectorAll("button").forEach(button => {
-    ["pointerdown","pointerup","click"].forEach(type => {
+  arcaPanel.querySelectorAll("button, .control-card").forEach(button => {
+    ["pointerdown","touchstart","pointerup","click"].forEach(type => {
       button.addEventListener(type, (event) => {
         event.stopPropagation();
         keepArcaOpenForTouch();
-      }, { passive:true });
+      }, { passive:false });
     });
   });
 }
@@ -6514,6 +6584,7 @@ murusCard.addEventListener("click", (event) => {
     return;
   }
 
+  if(!debitArcaPurchase(currentUser(), "murus", "murus")) return;
   pushUndo();
   currentUser().murusStock += 1;
   activeTool = "murus";
@@ -6556,6 +6627,7 @@ fossaCard.addEventListener("click", (event) => {
     return;
   }
 
+  if(!debitArcaPurchase(currentUser(), "fossa", "fossa")) return;
   pushUndo();
   currentUser().fossaStock += 1;
   activeTool = "fossa";
@@ -6585,6 +6657,7 @@ marculusCard.addEventListener("click", (event) => {
     return;
   }
 
+  if(!debitArcaPurchase(currentUser(), "marculus", "marculus")) return;
   pushUndo();
   currentUser().marculusStock += 1;
   activeTool = "marculus";
@@ -6614,6 +6687,7 @@ scalaCard.addEventListener("click", (event) => {
     return;
   }
 
+  if(!debitArcaPurchase(currentUser(), "scala", "scala")) return;
   pushUndo();
   currentUser().scalaStock += 1;
   activeTool = "scala";
@@ -6651,6 +6725,7 @@ costulaCard.addEventListener("click", (event) => {
     return;
   }
 
+  if(!debitArcaPurchase(currentUser(), "costula", "costula")) return;
   pushUndo();
   currentUser().costulaStock += 1;
   activeTool = "costula";
@@ -6680,6 +6755,7 @@ negroniCard.addEventListener("click", (event) => {
     return;
   }
 
+  if(!debitArcaPurchase(currentUser(), "negroni", "negroni")) return;
   pushUndo();
   currentUser().negroniStock += 1;
   activeTool = "negroni";
@@ -6709,6 +6785,7 @@ exVotoCard.addEventListener("click", (event) => {
     return;
   }
 
+  if(!debitArcaPurchase(currentUser(), "exvoto", "ex voto")) return;
   pushUndo();
   currentUser().exVotoStock += 1;
   activeTool = "exvoto";
