@@ -105,10 +105,26 @@
     opacity:1;
     filter:drop-shadow(0 0 10px rgba(255,255,255,.24));
   }
-  .token-video video{
+  .token-video video,
+  .token-video canvas{
     width:100%;height:100%;display:block;object-fit:contain;pointer-events:none;
-    background:transparent;
+    background:transparent !important;
     mix-blend-mode:screen;
+  }
+  .token-video canvas,
+  .solidus-video canvas,
+  .aquila-video canvas,
+  .mirror-reflection canvas{
+    position:absolute;inset:0;width:100%;height:100%;
+    background:transparent !important;
+    pointer-events:none;
+    mix-blend-mode:screen;
+  }
+  .token-video.video-alpha-ready video,
+  .solidus-video.video-alpha-ready video,
+  .aquila-video.video-alpha-ready video,
+  .mirror-reflection.video-alpha-ready video{
+    opacity:0;
   }
   .mirror-reflection{
     position:absolute;
@@ -129,6 +145,7 @@
     display:block;
     object-fit:contain;
     pointer-events:none;
+    background:transparent !important;
     filter:brightness(1.3) saturate(.08) contrast(1.05) opacity(.86);
   }
   .mirror-reflection-hint{
@@ -161,7 +178,7 @@
 }
 .solidus-video video{
   width:100%;height:100%;display:block;object-fit:contain;pointer-events:none;
-  background:transparent;
+  background:transparent !important;
   mix-blend-mode:screen;
 }
   .token-label{
@@ -350,25 +367,25 @@
 
   .abyss-fog-a{
     fill:rgba(0,0,0,.68);
-    filter:blur(14px);
+    filter:url(#abyssBlur14);
     opacity:.95;
     pointer-events:none;
   }
   .abyss-fog-b{
     fill:rgba(0,0,0,.84);
-    filter:blur(10px);
+    filter:url(#abyssBlur10);
     opacity:.92;
     pointer-events:none;
   }
   .abyss-fog-c{
     fill:rgba(0,0,0,.98);
-    filter:blur(6px);
+    filter:url(#abyssBlur6);
     opacity:.86;
     pointer-events:none;
   }
   .abyss-fog-wisp{
     fill:rgba(0,0,0,.54);
-    filter:blur(9px);
+    filter:url(#abyssBlur9);
     opacity:.85;
     pointer-events:none;
   }
@@ -843,6 +860,9 @@
     width:188px;
     max-height:0;
     overflow-y:auto;
+    overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch;
+    touch-action:pan-y;
     opacity:0;
     transform:translateY(-4px);
     pointer-events:none;
@@ -1496,6 +1516,18 @@
             <path d="M6 -2 L1 32" stroke="rgba(255,255,255,.22)" stroke-width=".9"/>
             <path d="M22 -2 L17 32" stroke="rgba(149,209,255,.18)" stroke-width=".9"/>
           </pattern>
+          <filter id="abyssBlur14" x="-90%" y="-90%" width="280%" height="280%" color-interpolation-filters="sRGB">
+            <feGaussianBlur stdDeviation="6"/>
+          </filter>
+          <filter id="abyssBlur10" x="-80%" y="-80%" width="260%" height="260%" color-interpolation-filters="sRGB">
+            <feGaussianBlur stdDeviation="4.2"/>
+          </filter>
+          <filter id="abyssBlur9" x="-80%" y="-80%" width="260%" height="260%" color-interpolation-filters="sRGB">
+            <feGaussianBlur stdDeviation="3.8"/>
+          </filter>
+          <filter id="abyssBlur6" x="-70%" y="-70%" width="240%" height="240%" color-interpolation-filters="sRGB">
+            <feGaussianBlur stdDeviation="2.6"/>
+          </filter>
         </defs>
         <g id="rowNumbers"></g>
         <g id="grid"></g>
@@ -2239,6 +2271,80 @@ function breakFrontierMirrorWithMarculus(boundaryLevel, userId){
   addChroniconEvent(`${user.name} brise le Speculum avec Marculus en ${locusRef(Math.round(user.current.row), user.current.col)}.`);
   render();
 }
+
+function attachVideoAlphaCanvas(video, options={}){
+  if(!video || video.dataset.alphaCanvasAttached === "1") return;
+  video.dataset.alphaCanvasAttached = "1";
+  const wrap = video.parentElement;
+  if(!wrap) return;
+
+  const canvas = document.createElement("canvas");
+  canvas.className = "video-alpha-canvas";
+  canvas.setAttribute("aria-hidden", "true");
+  wrap.appendChild(canvas);
+  wrap.classList.add("video-alpha-ready");
+
+  const context = canvas.getContext("2d", { willReadFrequently:true });
+  let raf = null;
+  let active = true;
+  const threshold = options.threshold ?? 34;
+  const softness = options.softness ?? 30;
+
+  const draw = () => {
+    if(!active || !video.isConnected || !canvas.isConnected) return;
+    const rect = wrap.getBoundingClientRect();
+    const width = Math.max(1, Math.round(rect.width || video.videoWidth || 64));
+    const height = Math.max(1, Math.round(rect.height || video.videoHeight || 64));
+    if(canvas.width !== width || canvas.height !== height){
+      canvas.width = width;
+      canvas.height = height;
+    }
+
+    try{
+      context.clearRect(0,0,width,height);
+      if(video.readyState >= 2){
+        context.drawImage(video,0,0,width,height);
+        const frame = context.getImageData(0,0,width,height);
+        const data = frame.data;
+        for(let i=0;i<data.length;i+=4){
+          const r = data[i], g = data[i+1], b = data[i+2];
+          const luminance = (r + g + b) / 3;
+          const max = Math.max(r,g,b);
+          const min = Math.min(r,g,b);
+          if(luminance < threshold && (max - min) < 24){
+            data[i+3] = 0;
+          }else if(luminance < threshold + softness && (max - min) < 34){
+            data[i+3] = Math.round(data[i+3] * ((luminance - threshold) / softness));
+          }
+        }
+        context.putImageData(frame,0,0);
+      }
+    }catch{
+      wrap.classList.remove("video-alpha-ready");
+      active = false;
+      return;
+    }
+    raf = requestAnimationFrame(draw);
+  };
+
+  const start = () => {
+    if(raf === null){
+      active = true;
+      raf = requestAnimationFrame(draw);
+    }
+  };
+  const stop = () => {
+    if(raf !== null){
+      cancelAnimationFrame(raf);
+      raf = null;
+    }
+  };
+  video.addEventListener("play", start);
+  video.addEventListener("pause", stop);
+  video.addEventListener("ended", stop);
+  start();
+}
+
 function ensureFrontierReflectionEl(){
   if(frontierReflectionEl) return frontierReflectionEl;
 
@@ -2260,6 +2366,7 @@ function ensureFrontierReflectionEl(){
   hint.textContent = "";
 
   wrap.appendChild(video);
+  attachVideoAlphaCanvas(video, { threshold:32, softness:34 });
   wrap.appendChild(hint);
   wrap.addEventListener("click", (event) => {
     event.preventDefault();
@@ -2582,8 +2689,9 @@ function triggerVaporIfNeeded(user,row,col){
   return true;
 }
 
-function snapshot(){
+function snapshot(actorId = currentUser()?.id){
   return {
+    actorId,
     scroll,
     activeUserId,
     activeTool,
@@ -2909,6 +3017,7 @@ function ensureAquilaVideoElement(aquilaId){
   video.setAttribute('playsinline', '');
   video.setAttribute('webkit-playsinline', '');
   wrap.appendChild(video);
+  attachVideoAlphaCanvas(video, { threshold:34, softness:34 });
   aquilaVideoLayer.appendChild(wrap);
   aquilaVideoEls[aquilaId] = wrap;
   const playPromise = video.play();
@@ -3015,13 +3124,76 @@ function renderAquilas(){
   }
 }
 
+function restoreOwnAction(state, actorId){
+  if(!state || !actorId || !state.users?.[actorId]) return false;
+  const savedUser = state.users[actorId];
+  const user = users[actorId];
+  if(!user) return false;
+
+  const keepNonOwned = (current, previous) => [
+    ...current.filter(item => item.owner !== actorId),
+    ...previous.filter(item => item.owner === actorId).map(item => ({...item}))
+  ];
+
+  user.current = {...savedUser.current};
+  user.filled = new Set(savedUser.filled || []);
+  user.murusStock = savedUser.murusStock || 0;
+  user.fossaStock = savedUser.fossaStock || 0;
+  user.marculusStock = savedUser.marculusStock || 0;
+  user.scalaStock = savedUser.scalaStock || 0;
+  user.costulaStock = savedUser.costulaStock || 0;
+  user.exVotoStock = savedUser.exVotoStock || 0;
+  user.negroniStock = savedUser.negroniStock || 0;
+  user.negroniEffect = savedUser.negroniEffect || 0;
+  user.ft = savedUser.ft || 0;
+
+  placedWalls = keepNonOwned(placedWalls, state.placedWalls || []);
+  placedFossae = [
+    ...placedFossae.filter(item => item.owner !== actorId),
+    ...(state.placedFossae || [])
+      .filter(item => item.owner === actorId)
+      .map(item => ({...item, zoneCenter:item.zoneCenter ? {...item.zoneCenter} : null}))
+  ];
+  placedScalas = keepNonOwned(placedScalas, state.placedScalas || []);
+  placedExVotos = keepNonOwned(placedExVotos, state.placedExVotos || []);
+  activeCatenas = [
+    ...activeCatenas.filter(item => item.owner !== actorId),
+    ...(state.activeCatenas || [])
+      .filter(item => item.owner === actorId)
+      .map(item => ({...item, pair:[...item.pair]}))
+  ];
+
+  pendingFossaId = (state.pendingFossaId && (state.placedFossae || []).some(item => item.id === state.pendingFossaId && item.owner === actorId)) ? state.pendingFossaId : null;
+  if(pendingFossaId) activeTool = "fossaZone";
+  else if(activeTool === "fossaZone") activeTool = "move";
+
+  restartState = state.restartState && state.restartState.userId === actorId ? {...state.restartState} : null;
+  revealPossibleMoves = false;
+  noticeText = `retro : ${user.name.toLowerCase()} annule sa dernière action`;
+  addChroniconEvent(`${user.name} annule sa dernière action.`);
+  return true;
+}
+
 function pushUndo(){
-  undoStack.push(snapshot());
+  const actorId = currentUser()?.id;
+  if(!actorId) return;
+  undoStack.push(snapshot(actorId));
   if(undoStack.length > 10) undoStack.shift();
 }
 function retro(){
   if(!undoStack.length || animState) return;
-  restore(undoStack.pop());
+  const actorId = currentUser()?.id;
+  if(!actorId) return;
+
+  for(let index = undoStack.length - 1; index >= 0; index -= 1){
+    const state = undoStack[index];
+    if(state.actorId !== actorId) continue;
+    undoStack.splice(index, 1);
+    if(restoreOwnAction(state, actorId)) render();
+    return;
+  }
+
+  noticeText = "retro : aucune action personnelle à annuler";
   render();
 }
 
@@ -5187,6 +5359,7 @@ function ensureTokenVideoElement(userId){
 
   wrap.appendChild(label);
   wrap.appendChild(video);
+  attachVideoAlphaCanvas(video, { threshold:34, softness:34 });
   tokenVideoLayer.appendChild(wrap);
   tokenVideoEls[userId] = wrap;
   const playPromise = video.play();
@@ -5328,6 +5501,7 @@ function ensureSolidusVideoElement(id){
   video.setAttribute("playsinline", "");
   video.setAttribute("webkit-playsinline", "");
   wrap.appendChild(video);
+  attachVideoAlphaCanvas(video, { threshold:36, softness:34 });
 
   solidusVideoLayer.appendChild(wrap);
   solidusVideoEls[id] = wrap;
@@ -5427,6 +5601,7 @@ function renderAbyssus(){
 
       const fogA = document.createElementNS("http://www.w3.org/2000/svg","ellipse");
       fogA.setAttribute("class", "abyss-fog-a");
+      fogA.setAttribute("filter", "url(#abyssBlur14)");
       fogA.setAttribute("cx", center.x);
       fogA.setAttribute("cy", center.y + 2);
       fogA.setAttribute("rx", width * 0.52);
@@ -5435,6 +5610,7 @@ function renderAbyssus(){
 
       const fogB = document.createElementNS("http://www.w3.org/2000/svg","ellipse");
       fogB.setAttribute("class", "abyss-fog-b");
+      fogB.setAttribute("filter", "url(#abyssBlur10)");
       fogB.setAttribute("cx", center.x - width * 0.03);
       fogB.setAttribute("cy", center.y + 4);
       fogB.setAttribute("rx", width * 0.42);
@@ -5443,6 +5619,7 @@ function renderAbyssus(){
 
       const fogC = document.createElementNS("http://www.w3.org/2000/svg","ellipse");
       fogC.setAttribute("class", "abyss-fog-c");
+      fogC.setAttribute("filter", "url(#abyssBlur6)");
       fogC.setAttribute("cx", center.x + width * 0.02);
       fogC.setAttribute("cy", center.y + 5);
       fogC.setAttribute("rx", width * 0.28);
@@ -5451,6 +5628,7 @@ function renderAbyssus(){
 
       const wisp1 = document.createElementNS("http://www.w3.org/2000/svg","ellipse");
       wisp1.setAttribute("class", "abyss-fog-wisp");
+      wisp1.setAttribute("filter", "url(#abyssBlur9)");
       wisp1.setAttribute("cx", center.x - width * 0.18);
       wisp1.setAttribute("cy", center.y - height * 0.08);
       wisp1.setAttribute("rx", width * 0.18);
@@ -5459,6 +5637,7 @@ function renderAbyssus(){
 
       const wisp2 = document.createElementNS("http://www.w3.org/2000/svg","ellipse");
       wisp2.setAttribute("class", "abyss-fog-wisp");
+      wisp2.setAttribute("filter", "url(#abyssBlur9)");
       wisp2.setAttribute("cx", center.x + width * 0.16);
       wisp2.setAttribute("cy", center.y + height * 0.03);
       wisp2.setAttribute("rx", width * 0.16);
@@ -5893,6 +6072,19 @@ controlCarousel.addEventListener("wheel", (event) => {
   controlCarousel.scrollTo({ top: cards[targetIndex].offsetTop, behavior: 'smooth' });
   controlCarouselLockedUntil = now + 240;
 }, {passive:false});
+
+
+function containPanelScroll(element){
+  if(!element) return;
+  ["wheel", "touchstart", "touchmove", "pointerdown", "pointermove"].forEach(type => {
+    element.addEventListener(type, (event) => {
+      event.stopPropagation();
+    }, { passive:type !== "wheel" });
+  });
+}
+containPanelScroll(controlCarousel);
+containPanelScroll(document.querySelector(".arca-content"));
+containPanelScroll(document.querySelector(".chronicon-content"));
 
 boardWrap.addEventListener("wheel", (event) => {
   event.preventDefault();
