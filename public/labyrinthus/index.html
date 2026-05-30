@@ -9320,7 +9320,17 @@ function noxApplyPlayers(payload = {}){
   const wasEmpty = !slot.name || !slot.filled || slot.filled.size === 0;
   slot.noxFatumUserId = activeEntry.id;
   slot.name = activeEntry.name;
-  slot.ft = Math.max(500, Number(activeEntry.score) || slot.ft || 0);
+  const incomingScore = Number(activeEntry.score);
+  if(wasEmpty){
+    const baseScore = Number.isFinite(incomingScore) ? incomingScore : 0;
+    const testGrant = Math.max(0, 500 - baseScore);
+    slot.ft = baseScore + testGrant;
+    if(testGrant > 0 && activeEntry.id) noxRequestFatumDelta(activeEntry.id, testGrant, "labyrinthus_test_grant");
+  }else if(Number.isFinite(incomingScore)){
+    slot.ft = incomingScore;
+  }else{
+    slot.ft = Number(slot.ft) || 0;
+  }
   slot.sphereClass = NOX_SLOT_CLASSES[NOX_SLOT_IDS.indexOf(slotId)] || slot.sphereClass || "sphere-white";
   if(wasEmpty){
     slot.current = { row:0, col:3 };
