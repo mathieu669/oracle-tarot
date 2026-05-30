@@ -2513,6 +2513,191 @@
   }
 }
 
+
+
+/* V62: Arca info panel is now inside the fullscreen overlay, same structural model as Chronicon replay */
+.arca-panel.open .arca-content.control-carousel-wrap{
+  position:fixed !important;
+  inset:0 !important;
+  width:100dvw !important;
+  height:100dvh !important;
+  min-width:100dvw !important;
+  min-height:100dvh !important;
+  max-width:none !important;
+  max-height:none !important;
+  display:flex !important;
+  flex-direction:column !important;
+  gap:14px !important;
+  box-sizing:border-box !important;
+  padding:calc(env(safe-area-inset-top, 0px) + 72px) 20px calc(env(safe-area-inset-bottom, 0px) + 20px) 20px !important;
+  margin:0 !important;
+  overflow:hidden !important;
+  opacity:1 !important;
+  visibility:visible !important;
+  pointer-events:auto !important;
+  background:rgba(0,0,0,.96) !important;
+  border:0 !important;
+  border-radius:0 !important;
+  transform:none !important;
+  z-index:2147483001 !important;
+  touch-action:none !important;
+}
+.arca-panel.open .arca-content.control-carousel-wrap::before{
+  content:"ARCA" !important;
+  position:fixed !important;
+  left:20px !important;
+  top:calc(env(safe-area-inset-top, 0px) + 24px) !important;
+  z-index:2147483003 !important;
+  font-family:"Inter",sans-serif !important;
+  font-size:12px !important;
+  letter-spacing:.22em !important;
+  color:rgba(255,255,255,.75) !important;
+  pointer-events:none !important;
+}
+.arca-panel.open .arca-content.control-carousel-wrap .lab-overlay-close{
+  position:fixed !important;
+  top:calc(env(safe-area-inset-top, 0px) + 16px) !important;
+  right:16px !important;
+  width:42px !important;
+  height:42px !important;
+  min-width:42px !important;
+  min-height:42px !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  z-index:2147483004 !important;
+  background:#000 !important;
+  color:#fff !important;
+  border:1px solid rgba(255,255,255,.58) !important;
+  border-radius:0 !important;
+  font-family:"Inter",sans-serif !important;
+  font-size:26px !important;
+  line-height:1 !important;
+  pointer-events:auto !important;
+  touch-action:manipulation !important;
+  -webkit-user-select:none !important;
+  user-select:none !important;
+}
+.arca-panel.open .arca-content.control-carousel-wrap .control-carousel{
+  flex:0 0 43dvh !important;
+  display:grid !important;
+  grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+  grid-auto-rows:minmax(118px, auto) !important;
+  grid-auto-flow:row !important;
+  gap:12px !important;
+  width:100% !important;
+  max-width:720px !important;
+  height:auto !important;
+  max-height:43dvh !important;
+  margin:0 auto !important;
+  padding:0 0 12px 0 !important;
+  box-sizing:border-box !important;
+  overflow-x:hidden !important;
+  overflow-y:auto !important;
+  background:transparent !important;
+  scrollbar-width:none !important;
+  -ms-overflow-style:none !important;
+  -webkit-overflow-scrolling:touch !important;
+  touch-action:pan-y !important;
+}
+.arca-panel.open .arca-content.control-carousel-wrap .control-carousel::-webkit-scrollbar{ display:none !important; }
+.arca-panel.open .control-card{
+  width:auto !important;
+  min-width:0 !important;
+  min-height:118px !important;
+  height:auto !important;
+  max-height:none !important;
+  box-sizing:border-box !important;
+  display:flex !important;
+  flex-direction:column !important;
+  align-items:center !important;
+  justify-content:center !important;
+  padding:10px !important;
+  border-radius:0 !important;
+  transform:none !important;
+  pointer-events:auto !important;
+  touch-action:manipulation !important;
+}
+.arca-panel.open .arca-explain{
+  position:relative !important;
+  left:auto !important;
+  right:auto !important;
+  top:auto !important;
+  bottom:auto !important;
+  transform:none !important;
+  flex:1 1 auto !important;
+  width:100% !important;
+  max-width:720px !important;
+  min-height:180px !important;
+  height:auto !important;
+  max-height:none !important;
+  margin:0 auto !important;
+  box-sizing:border-box !important;
+  display:flex !important;
+  flex-direction:column !important;
+  opacity:1 !important;
+  visibility:visible !important;
+  pointer-events:auto !important;
+  overflow:auto !important;
+  padding:18px !important;
+  background:rgba(0,0,0,.92) !important;
+  color:#fff !important;
+  border:1px solid rgba(255,255,255,.24) !important;
+  border-radius:0 !important;
+  font-family:"Inter",sans-serif !important;
+  font-size:14px !important;
+  line-height:1.42 !important;
+  z-index:auto !important;
+  -webkit-overflow-scrolling:touch !important;
+  touch-action:pan-y !important;
+}
+.arca-panel.open .arca-explain h3{
+  flex:0 0 auto !important;
+  margin:0 0 10px !important;
+  font-family:"Inter",sans-serif !important;
+  font-size:13px !important;
+  letter-spacing:.18em !important;
+  text-transform:uppercase !important;
+}
+.arca-panel.open .arca-explain p{
+  flex:0 0 auto !important;
+  margin:0 0 10px !important;
+}
+.arca-panel.open .arca-choose-btn{
+  flex:0 0 auto !important;
+  margin-top:auto !important;
+  width:100% !important;
+  min-height:44px !important;
+  border:1px solid rgba(255,255,255,.72) !important;
+  background:rgba(255,255,255,.08) !important;
+  color:rgba(255,255,255,.42) !important;
+  border-radius:0 !important;
+  font-family:"Inter",sans-serif !important;
+  font-size:12px !important;
+  letter-spacing:.16em !important;
+  text-transform:uppercase !important;
+  touch-action:manipulation !important;
+}
+.arca-panel.open .arca-choose-btn.visible{
+  display:block !important;
+  background:#fff !important;
+  color:#000 !important;
+}
+@media(max-width:390px){
+  .arca-panel.open .arca-content.control-carousel-wrap{
+    padding:calc(env(safe-area-inset-top, 0px) + 66px) 14px calc(env(safe-area-inset-bottom, 0px) + 14px) 14px !important;
+    gap:12px !important;
+  }
+  .arca-panel.open .arca-content.control-carousel-wrap .control-carousel{
+    flex-basis:42dvh !important;
+    max-height:42dvh !important;
+    gap:10px !important;
+    grid-auto-rows:minmax(106px, auto) !important;
+  }
+  .arca-panel.open .control-card{ min-height:106px !important; padding:8px !important; }
+  .arca-panel.open .arca-explain{ min-height:170px !important; padding:14px !important; }
+}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
 </head>
@@ -2741,7 +2926,8 @@
               <button class="info-btn" data-info-key="negroni" aria-label="Informations Negroni" title="Informations Negroni"><svg viewBox="0 0 20 20" aria-hidden="true"><circle class="glyph" cx="10" cy="10" r="7.2"/><path class="glyph" d="M10 8.1v4.6"/><path class="glyph" d="M10 5.6h.01"/></svg></button>
             </div>
           </div></div>
-        </div><div class="arca-explain" id="arcaExplain"><h3>Arca</h3><p>Sélectionner un élément dans la grille pour afficher son usage, puis valider l’achat avec « choisir ».</p><button class="arca-choose-btn" id="arcaChooseBtn" type="button">choisir</button></div>
+          <div class="arca-explain" id="arcaExplain"><h3>Arca</h3><p>Sélectionner un élément dans la grille pour afficher son usage, puis valider l’achat avec « choisir ».</p><button class="arca-choose-btn" id="arcaChooseBtn" type="button">choisir</button></div>
+        </div>
       </div>
 
       <div class="chronicon-panel">
