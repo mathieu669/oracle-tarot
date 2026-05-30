@@ -19,6 +19,7 @@ const ARCHIVES_FILE = path.join(DATA_DIR, "archives.json");
 const FATUM_USERS_FILE = path.join(DATA_DIR, "fatum-users.json");
 const LABYRINTHUS_CHRONICON_FILE = path.join(DATA_DIR, "labyrinthus-chronicon.json");
 const LABYRINTHUS_EXVOTOS_FILE = path.join(DATA_DIR, "labyrinthus-exvotos.json");
+const LABYRINTHUS_STATE_FILE = path.join(DATA_DIR, "labyrinthus-state.json");
 
 function ensureDataDir() {
   if (!fs.existsSync(DATA_DIR)) {
@@ -79,6 +80,26 @@ function writeJsonArrayToServer(filePath, values, maxItems = 500) {
   fs.writeFileSync(filePath, JSON.stringify(safeValues, null, 2), "utf8");
 
   return safeValues;
+}
+
+function readJsonObjectFromServer(filePath) {
+  try {
+    ensureDataDir();
+    if (!fs.existsSync(filePath)) return null;
+    const raw = fs.readFileSync(filePath, "utf8");
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : null;
+  } catch (error) {
+    console.error("JSON object read error:", filePath, error);
+    return null;
+  }
+}
+
+function writeJsonObjectToServer(filePath, value) {
+  ensureDataDir();
+  const safeValue = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  fs.writeFileSync(filePath, JSON.stringify(safeValue, null, 2), "utf8");
+  return safeValue;
 }
 
 function contextSecretsToPromptText(secrets) {
@@ -183,6 +204,14 @@ function mapLabyrinthusExVotoFromDb(row) {
     dataUrl: row.data_url || "",
     openedAt: row.opened_at || null,
     openedBy: row.opened_by || ""
+  };
+}
+
+function mapLabyrinthusStateFromDb(row) {
+  return {
+    id: row.id || "current",
+    updatedAt: row.updated_at || row.created_at || null,
+    state: row.state && typeof row.state === "object" ? row.state : null
   };
 }
 
@@ -320,6 +349,42 @@ async function openLabyrinthusExVoto(id, openedBy = "") {
   const next = values.map((entry) => entry.id === safeId ? { ...entry, openedAt, openedBy } : entry);
   writeJsonArrayToServer(LABYRINTHUS_EXVOTOS_FILE, next, 500);
   return next.find(entry => entry.id === safeId) || null;
+}
+
+async function readLabyrinthusState() {
+  if (isSupabaseEnabled()) {
+    try {
+      const rows = await supabaseRequest("nox_labyrinthus_state?select=*&id=eq.current&limit=1");
+      const mapped = rows?.[0] ? mapLabyrinthusStateFromDb(rows[0]) : null;
+      if (mapped?.state) return mapped;
+    } catch (error) {
+      console.error("Labyrinthus state Supabase read error:", error);
+    }
+  }
+
+  const localState = readJsonObjectFromServer(LABYRINTHUS_STATE_FILE);
+  return localState ? { id:"current", updatedAt:localState.updatedAt || null, state:localState.state || localState } : { id:"current", updatedAt:null, state:null };
+}
+
+async function writeLabyrinthusState(state) {
+  const safeState = state && typeof state === "object" && !Array.isArray(state) ? state : null;
+  if (!safeState) throw new Error("Invalid Labyrinthus state payload.");
+  const updatedAt = new Date().toISOString();
+
+  if (isSupabaseEnabled()) {
+    try {
+      const rows = await supabaseRequest("nox_labyrinthus_state?on_conflict=id", {
+        method: "POST",
+        headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+        body: JSON.stringify({ id: "current", updated_at: updatedAt, state: safeState })
+      });
+      return rows?.[0] ? mapLabyrinthusStateFromDb(rows[0]) : { id:"current", updatedAt, state:safeState };
+    } catch (error) {
+      console.error("Labyrinthus state Supabase write error:", error);
+    }
+  }
+
+  return writeJsonObjectToServer(LABYRINTHUS_STATE_FILE, { id:"current", updatedAt, state:safeState });
 }
 
 async function readContextSecrets() {
@@ -961,7 +1026,7 @@ Générez aussi un score Fatum en points, entre 0 et 100 : il mesure la densité
 
 
 
-app.use(["/api/archives", "/api/fatum-users", "/api/labyrinthus-chronicon", "/api/labyrinthus-exvotos", "/api/memory-status"], (req, res, next) => {
+app.use(["/api/archives", "/api/fatum-users", "/api/labyrinthus-chronicon", "/api/labyrinthus-exvotos", "/api/labyrinthus-state", "/api/memory-status"], (req, res, next) => {
   res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
   res.set("Pragma", "no-cache");
   res.set("Expires", "0");
@@ -1063,6 +1128,30 @@ app.patch("/api/labyrinthus-exvotos/:id/open", async (req, res) => {
   } catch (error) {
     console.error("Labyrinthus ex voto open error:", error);
     res.status(500).json({ error: "Erreur pendant l’ouverture de l’Ex voto." });
+  }
+});
+
+app.get("/api/labyrinthus-state", async (req, res) => {
+  try {
+    const state = await readLabyrinthusState();
+    res.json({
+      state: state?.state || null,
+      updatedAt: state?.updatedAt || null,
+      storage: isSupabaseEnabled() ? "supabase:nox_labyrinthus_state" : LABYRINTHUS_STATE_FILE
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Erreur pendant la lecture de l’état Labyrinthus." });
+  }
+});
+
+app.put("/api/labyrinthus-state", async (req, res) => {
+  try {
+    const saved = await writeLabyrinthusState(req.body?.state);
+    res.json({ state: saved?.state || null, updatedAt: saved?.updatedAt || null });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Erreur pendant l’enregistrement de l’état Labyrinthus." });
   }
 });
 

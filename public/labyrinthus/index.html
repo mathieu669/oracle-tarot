@@ -1316,6 +1316,76 @@
     }
   }
 
+
+  /* V50 UI simplification and modal panels */
+  .hud,
+  .notice{ display:none !important; }
+  .sound-toggle{ z-index:88 !important; pointer-events:auto !important; }
+  .sound-toggle button,
+  .sound-toggle svg,
+  .sound-toggle path{ pointer-events:auto; }
+  .left-stack{ z-index:72 !important; pointer-events:auto; }
+  .control-panel .control-carousel-wrap,
+  .chronicon-panel .chronicon-content{
+    display:none !important;
+    opacity:0 !important;
+    pointer-events:none !important;
+    transform:none !important;
+  }
+  .control-panel.open .control-carousel-wrap,
+  .chronicon-panel.open .chronicon-content{
+    display:block !important;
+    opacity:1 !important;
+    pointer-events:auto !important;
+    position:absolute;
+    top:48px;
+    left:0;
+    width:min(390px, calc(100vw - 24px));
+    max-height:min(72vh, 560px);
+    overflow:auto;
+    padding:12px;
+    border:1px solid var(--panelBorder);
+    border-radius:18px;
+    background:rgba(0,0,0,.86);
+    backdrop-filter:blur(10px);
+    box-shadow:0 18px 60px rgba(0,0,0,.45);
+    -webkit-overflow-scrolling:touch;
+    touch-action:pan-y;
+  }
+  .control-panel.open .control-carousel{
+    display:grid;
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+    gap:10px;
+    overflow:visible;
+    max-height:none;
+    padding:0;
+  }
+  .control-panel.open .control-card{
+    width:auto;
+    min-height:104px;
+    height:auto;
+    scroll-snap-align:none;
+  }
+  .chronicon-panel.open .chronicon-content{
+    left:0;
+    width:min(430px, calc(100vw - 24px));
+  }
+  .chronicon-panel.open .chronicon-list{
+    max-height:calc(min(72vh, 560px) - 24px);
+    overflow:auto;
+  }
+  @media (max-width:520px){
+    .control-panel.open .control-carousel-wrap,
+    .chronicon-panel.open .chronicon-content{
+      width:calc(100vw - 18px);
+      max-height:68vh;
+      padding:10px;
+    }
+    .control-panel.open .control-carousel{ grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; }
+    .control-panel.open .control-title{ font-size:10px; }
+    .control-panel.open .control-cost{ font-size:9px; }
+  }
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
 </head>
@@ -2022,6 +2092,66 @@ function addChroniconEvent(text){
   if(chroniconEntries.length > CHRONICON_MAX_ENTRIES) chroniconEntries = chroniconEntries.slice(0, CHRONICON_MAX_ENTRIES);
   renderChronicon();
   persistChroniconEvent(entry);
+  scheduleLabyrinthusStateSave('chronicon');
+}
+
+let labyrinthusStateRemoteReady = false;
+let labyrinthusStateSyncTimer = null;
+let labyrinthusStateSyncQueue = Promise.resolve();
+let labyrinthusStateRestoring = false;
+
+function safeLabyrinthusStateSnapshot(){
+  try{
+    const state = snapshot(currentUser()?.id);
+    state.persistedAt = new Date().toISOString();
+    return state;
+  }catch(error){
+    console.warn("Labyrinthus state snapshot skipped:", error);
+    return null;
+  }
+}
+
+async function loadLabyrinthusStateFromServer(){
+  try{
+    const response = await fetch('/api/labyrinthus-state', { cache:'no-store' });
+    if(!response.ok) throw new Error('state unavailable');
+    const data = await response.json();
+    if(data && data.state && typeof data.state === 'object'){
+      labyrinthusStateRestoring = true;
+      restore(data.state);
+      labyrinthusStateRestoring = false;
+      noticeText = 'dimension current synchronisée';
+    }
+    labyrinthusStateRemoteReady = true;
+  }catch(error){
+    labyrinthusStateRestoring = false;
+    labyrinthusStateRemoteReady = true;
+    console.warn('Labyrinthus state remote load skipped:', error);
+  }
+}
+
+function scheduleLabyrinthusStateSave(reason = 'update'){
+  if(!labyrinthusStateRemoteReady || labyrinthusStateRestoring) return;
+  if(labyrinthusStateSyncTimer) clearTimeout(labyrinthusStateSyncTimer);
+  labyrinthusStateSyncTimer = setTimeout(() => persistLabyrinthusState(reason), 450);
+}
+
+function persistLabyrinthusState(reason = 'update'){
+  if(!labyrinthusStateRemoteReady || labyrinthusStateRestoring) return;
+  const state = safeLabyrinthusStateSnapshot();
+  if(!state) return;
+  labyrinthusStateSyncQueue = labyrinthusStateSyncQueue.catch(() => {}).then(async () => {
+    try{
+      const response = await fetch('/api/labyrinthus-state', {
+        method:'PUT',
+        headers:{ 'Content-Type':'application/json' },
+        body:JSON.stringify({ state, reason })
+      });
+      if(!response.ok) throw new Error('state write failed');
+    }catch(error){
+      console.warn('Labyrinthus state remote write skipped:', error);
+    }
+  });
 }
 
 function normalizeExVotoEntries(entries){
@@ -6429,6 +6559,40 @@ function switchUser(id){
   render();
 }
 
+function closeLabyrinthusOverlays(except = null){
+  if(except !== 'arca' && arcaPanel) arcaPanel.classList.remove('open', 'held');
+  const chroniconPanel = document.querySelector('.chronicon-panel');
+  if(except !== 'chronicon' && chroniconPanel) chroniconPanel.classList.remove('open');
+}
+
+function toggleArcaOverlay(event){
+  if(event){ event.preventDefault(); event.stopPropagation(); }
+  const willOpen = arcaPanel && !arcaPanel.classList.contains('open');
+  closeLabyrinthusOverlays(willOpen ? 'arca' : null);
+  if(arcaPanel) arcaPanel.classList.toggle('open', !!willOpen);
+}
+
+function toggleChroniconOverlay(event){
+  if(event){ event.preventDefault(); event.stopPropagation(); }
+  const panel = document.querySelector('.chronicon-panel');
+  const willOpen = panel && !panel.classList.contains('open');
+  closeLabyrinthusOverlays(willOpen ? 'chronicon' : null);
+  if(panel) panel.classList.toggle('open', !!willOpen);
+}
+
+if(arcaTab){
+  arcaTab.addEventListener('click', toggleArcaOverlay);
+  arcaTab.addEventListener('pointerup', (event) => { if(event.pointerType !== 'mouse') toggleArcaOverlay(event); }, {passive:false});
+}
+if(chroniconTab){
+  chroniconTab.addEventListener('click', toggleChroniconOverlay);
+  chroniconTab.addEventListener('pointerup', (event) => { if(event.pointerType !== 'mouse') toggleChroniconOverlay(event); }, {passive:false});
+}
+
+boardWrap.addEventListener('pointerdown', (event) => {
+  if(!event.target?.closest?.('.left-stack,.sound-toggle,.mini-rail,.user-panel,.info-modal,.exvoto-modal')) closeLabyrinthusOverlays();
+}, {capture:true, passive:true});
+
 controlCarousel.addEventListener("wheel", (event) => {
   event.preventDefault();
   event.stopPropagation();
@@ -6521,6 +6685,7 @@ let globalTouchTapState = null;
 
 document.addEventListener("pointerdown", (event) => {
   if(event.pointerType !== "touch") return;
+  if(event.target?.closest?.(".sound-toggle,.mini-rail,.user-panel,.panel-tab,.info-modal,.exvoto-modal")) return;
   globalTouchTapState = {
     pointerId:event.pointerId,
     startX:event.clientX,
@@ -6530,6 +6695,7 @@ document.addEventListener("pointerdown", (event) => {
 }, true);
 
 document.addEventListener("pointerup", (event) => {
+  if(event.target?.closest?.(".sound-toggle,.mini-rail,.user-panel,.panel-tab,.info-modal,.exvoto-modal")) { globalTouchTapState = null; return; }
   const state = globalTouchTapState;
   if(!state || event.pointerId !== state.pointerId || event.pointerType !== "touch") return;
   globalTouchTapState = null;
@@ -6754,7 +6920,7 @@ function returnToPlayerSquareAfterPlacement(user){
 
 function keepArcaOpenForTouch(){
   if(!arcaPanel) return;
-  arcaPanel.classList.add("held");
+  arcaPanel.classList.add("open", "held");
 }
 if(arcaPanel){
   ["pointerdown","touchstart","pointerup","click"].forEach(type => {
@@ -7193,24 +7359,40 @@ bindUserSwitchButton(userAButton, "A");
 bindUserSwitchButton(userBButton, "B");
 bindUserSwitchButton(userCButton, "C");
 bindUserSwitchButton(userDButton, "D");
-soundToggleBtn.addEventListener("click", (event) => {
-  event.preventDefault();
-  event.stopPropagation();
+function toggleSoundEnabled(event){
+  if(event){ event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation?.(); }
   soundEnabled = !soundEnabled;
   if(soundEnabled) ensureAudioContext();
   saveSoundPreference();
   updateSoundButton();
-});
-
-musicToggleBtn.addEventListener("click", (event) => {
-  event.preventDefault();
-  event.stopPropagation();
+}
+function toggleMusicEnabled(event){
+  if(event){ event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation?.(); }
   musicEnabled = !musicEnabled;
   if(musicEnabled) ensureAudioContext();
   else stopAmbience();
   saveMusicPreference();
   updateMusicButton();
-});
+}
+function bindHudToggleButton(button, handler){
+  if(!button) return;
+  let lastTouchToggleAt = 0;
+  button.addEventListener("pointerup", (event) => {
+    if(event.pointerType === "mouse") return;
+    lastTouchToggleAt = performance.now();
+    handler(event);
+  }, {capture:true, passive:false});
+  button.addEventListener("click", (event) => {
+    if(performance.now() - lastTouchToggleAt < 420){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
+    handler(event);
+  }, {capture:true});
+}
+bindHudToggleButton(soundToggleBtn, toggleSoundEnabled);
+bindHudToggleButton(musicToggleBtn, toggleMusicEnabled);
 
 zoomInBtn.addEventListener("click", (event) => {
   event.preventDefault();
@@ -7295,6 +7477,7 @@ function noxApplyPlayers(payload = {}){
   const shouldCenterOnInit = payload && payload.centerOnInit === true;
   if(shouldCenterOnInit && typeof centerViewOnActiveUser === "function") centerViewOnActiveUser(false);
   if(typeof render === "function") render();
+  scheduleLabyrinthusStateSave('players');
 }
 
 window.addEventListener("message", (event) => {
@@ -7326,9 +7509,12 @@ if(window.parent){
 initZoom();
 loadSoundPreference();
 document.addEventListener("pointerdown", () => { if(soundEnabled) ensureAudioContext(); }, { passive:true });
-loadChroniconFromServer();
-loadExVotosFromServer();
-render();
+(async function bootLabyrinthusCurrentDimension(){
+  await loadLabyrinthusStateFromServer();
+  await loadChroniconFromServer();
+  await loadExVotosFromServer();
+  render();
+})();
 
 // Deep space
 const canvas = document.getElementById("space");

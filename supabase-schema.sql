@@ -75,3 +75,15 @@ create index if not exists nox_labyrinthus_exvotos_opened_at_idx
 on public.nox_labyrinthus_exvotos (opened_at);
 
 alter table public.nox_labyrinthus_exvotos enable row level security;
+
+create table if not exists public.nox_labyrinthus_state (
+  id text primary key default 'current',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  state jsonb not null default '{}'::jsonb
+);
+
+create index if not exists nox_labyrinthus_state_updated_at_idx
+on public.nox_labyrinthus_state (updated_at desc);
+
+alter table public.nox_labyrinthus_state enable row level security;
