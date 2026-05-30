@@ -2698,6 +2698,93 @@
   .arca-panel.open .arca-explain{ min-height:170px !important; padding:14px !important; }
 }
 
+
+/* V63: Arca final mobile layout — contained info panel, framed carousel, inline choose button */
+.arca-panel.open .arca-content.control-carousel-wrap{
+  display:flex !important;
+  flex-direction:column !important;
+  gap:12px !important;
+  overflow:hidden !important;
+  padding:calc(env(safe-area-inset-top, 0px) + 70px) 20px calc(env(safe-area-inset-bottom, 0px) + 16px) 20px !important;
+}
+.arca-panel.open .arca-content.control-carousel-wrap .control-carousel{
+  flex:0 0 40dvh !important;
+  max-height:40dvh !important;
+  width:100% !important;
+  max-width:720px !important;
+  margin:0 auto !important;
+  padding:8px !important;
+  border:2px solid rgba(255,255,255,.84) !important;
+  box-sizing:border-box !important;
+  display:grid !important;
+  grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+  grid-auto-rows:minmax(96px, 1fr) !important;
+  gap:10px !important;
+  overflow-x:hidden !important;
+  overflow-y:auto !important;
+  -webkit-overflow-scrolling:touch !important;
+  scrollbar-width:none !important;
+  touch-action:pan-y !important;
+}
+.arca-panel.open .control-card{
+  min-height:96px !important;
+  padding:8px !important;
+}
+.arca-panel.open .control-card .asset-preview-wrap{ transform:scale(.78) !important; transform-origin:center !important; }
+.arca-panel.open .arca-explain{
+  position:relative !important;
+  left:auto !important;
+  right:auto !important;
+  top:auto !important;
+  bottom:auto !important;
+  transform:none !important;
+  flex:1 1 0 !important;
+  min-height:0 !important;
+  max-height:none !important;
+  height:auto !important;
+  width:100% !important;
+  max-width:720px !important;
+  margin:0 auto !important;
+  box-sizing:border-box !important;
+  overflow:auto !important;
+  padding:16px !important;
+  display:flex !important;
+  flex-direction:column !important;
+}
+.arca-panel.open .arca-explain .arca-choose-btn{ display:none !important; }
+.arca-inline-choose{
+  display:block !important;
+  width:100% !important;
+  min-height:42px !important;
+  margin:0 !important;
+  border:1px solid rgba(255,255,255,.78) !important;
+  background:#fff !important;
+  color:#000 !important;
+  border-radius:0 !important;
+  font-family:"Inter",sans-serif !important;
+  font-size:12px !important;
+  letter-spacing:.16em !important;
+  text-transform:uppercase !important;
+  touch-action:manipulation !important;
+  box-sizing:border-box !important;
+}
+@media(max-width:390px){
+  .arca-panel.open .arca-content.control-carousel-wrap{
+    padding:calc(env(safe-area-inset-top, 0px) + 64px) 14px calc(env(safe-area-inset-bottom, 0px) + 14px) 14px !important;
+    gap:10px !important;
+  }
+  .arca-panel.open .arca-content.control-carousel-wrap .control-carousel{
+    flex-basis:38dvh !important;
+    max-height:38dvh !important;
+    grid-auto-rows:minmax(88px, 1fr) !important;
+    gap:8px !important;
+    padding:6px !important;
+  }
+  .arca-panel.open .control-card{ min-height:88px !important; padding:6px !important; }
+  .arca-panel.open .control-card .asset-preview-wrap{ transform:scale(.70) !important; }
+  .arca-panel.open .arca-explain{ padding:14px !important; font-size:13px !important; }
+}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
 </head>
@@ -7918,7 +8005,7 @@ function switchUser(id){
 }
 
 function closeLabyrinthusOverlays(except = null){
-  if(except !== 'arca' && arcaPanel) arcaPanel.classList.remove('open', 'held');
+  if(except !== 'arca' && arcaPanel){ document.querySelectorAll('.arca-inline-choose').forEach(button => button.remove()); arcaPanel.classList.remove('open', 'held'); }
   const chroniconPanel = document.querySelector('.chronicon-panel');
   if(except !== 'chronicon' && chroniconPanel) chroniconPanel.classList.remove('open');
 }
@@ -7974,6 +8061,17 @@ function arcaKeyFromCard(card){
   if(!card || !card.id) return null;
   return card.id.replace(/Card$/, '').toLowerCase();
 }
+function placeArcaInlineChoose(card){
+  document.querySelectorAll('.arca-inline-choose').forEach(button => button.remove());
+  if(!card) return;
+  const inlineChoose = document.createElement('button');
+  inlineChoose.type = 'button';
+  inlineChoose.className = 'arca-inline-choose';
+  inlineChoose.textContent = 'choisir';
+  inlineChoose.addEventListener('click', confirmArcaChoice);
+  bindMobileTapActivation(inlineChoose);
+  card.insertAdjacentElement('afterend', inlineChoose);
+}
 function selectArcaCard(card){
   if(!card) return;
   selectedArcaCard = card;
@@ -7981,15 +8079,10 @@ function selectArcaCard(card){
   const key = arcaKeyFromCard(card);
   const info = INFO_CONTENT[ARCA_INFO_KEYS[key]] || {title:key || 'Arca', body:''};
   const explain = document.getElementById('arcaExplain');
-  const choose = document.getElementById('arcaChooseBtn');
   if(explain){
-    explain.querySelector('h3')?.remove();
-    explain.querySelector('p')?.remove();
-    explain.innerHTML = `<h3>${escapeHtml(info.title)}</h3><p>Les Arcas permettent d’acheter puis d’activer un élément de jeu.</p><p>${escapeHtml(info.body).replace(/\n/g, '<br>')}</p><button class="arca-choose-btn visible" id="arcaChooseBtn" type="button">choisir</button>`;
-    const chooseBtn = document.getElementById('arcaChooseBtn');
-    chooseBtn?.addEventListener('click', confirmArcaChoice);
-    if(chooseBtn) bindMobileTapActivation(chooseBtn);
+    explain.innerHTML = `<h3>${escapeHtml(info.title)}</h3><p>Les Arcas permettent d’acheter puis d’activer un élément de jeu.</p><p>${escapeHtml(info.body).replace(/\n/g, '<br>')}</p>`;
   }
+  placeArcaInlineChoose(card);
 }
 function confirmArcaChoice(event){
   event?.preventDefault?.();
@@ -8000,7 +8093,7 @@ function confirmArcaChoice(event){
   arcaPurchaseConfirming = false;
   if(arcaPanel) arcaPanel.classList.remove('open', 'held');
 }
-function closeArcaOverlay(){ if(arcaPanel) arcaPanel.classList.remove('open','held'); }
+function closeArcaOverlay(){ document.querySelectorAll('.arca-inline-choose').forEach(button => button.remove()); if(arcaPanel) arcaPanel.classList.remove('open','held'); }
 function closeChroniconOverlay(){ document.querySelector('.chronicon-panel')?.classList.remove('open'); }
 
 if(arcaTab){
