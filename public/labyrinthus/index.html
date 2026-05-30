@@ -2855,6 +2855,70 @@
   }
 }
 
+
+
+/* V66: Arca choose/info layout, active tool indicator, fatum/solidus display, Chronicon replay layout */
+.left-stack .lab-reset-btn{ order:3; }
+.left-stack .lab-solidus-display{ order:4; }
+.left-stack .lab-fatum-display{ order:5; }
+.lab-fatum-display{ border:0 !important; background:transparent !important; min-height:18px !important; font-size:13px !important; }
+.lab-solidus-display{ width:44px; height:32px; display:flex; align-items:center; justify-content:center; pointer-events:none; }
+.lab-solidus-display svg, .lab-solidus-display img{ width:28px !important; height:28px !important; display:block; object-fit:contain; }
+.active-arca-indicator{
+  position:fixed; top:calc(env(safe-area-inset-top, 0px) + 42px); left:50%; transform:translateX(-50%);
+  z-index:86; width:58px; height:46px; display:none; align-items:center; justify-content:center; pointer-events:none;
+}
+.active-arca-indicator.visible{ display:flex; }
+.active-arca-indicator .asset-preview-wrap, .active-arca-indicator svg, .active-arca-indicator img{ max-width:54px !important; max-height:42px !important; width:54px !important; height:42px !important; border:0 !important; background:transparent !important; object-fit:contain !important; }
+.arca-panel.open .control-carousel{ border-radius:14px !important; }
+.arca-panel.open .control-card{ border-radius:12px !important; }
+.arca-panel.open .lab-overlay-close, .chronicon-panel.open .lab-overlay-close{ border-radius:12px !important; }
+.arca-panel.open .arca-content.control-carousel-wrap{ gap:10px !important; }
+.arca-choose-row{ display:none; width:100%; max-width:720px; margin:0 auto; }
+.arca-panel.open .arca-choose-row{ display:block !important; }
+.arca-panel.open .arca-choose-btn{
+  display:none !important; width:calc((100% - 10px) / 2) !important; min-height:40px !important; margin:0 !important;
+  border-radius:10px !important; border:1px solid rgba(255,255,255,.78) !important; background:rgba(255,255,255,.08) !important;
+  color:rgba(255,255,255,.42) !important; font-family:"Inter",sans-serif !important; font-size:12px !important; letter-spacing:.16em !important; text-transform:uppercase !important;
+}
+.arca-panel.open .arca-choose-btn.visible{ display:block !important; background:#fff !important; color:#000 !important; }
+.arca-panel.open .arca-explain{
+  height:clamp(118px, 22dvh, 180px) !important; max-height:clamp(118px, 22dvh, 180px) !important;
+  border-radius:14px !important; overflow:auto !important; padding:14px !important;
+}
+.arca-panel.open .arca-explain .arca-choose-btn{ display:none !important; }
+.arca-panel.open .info-btn{ display:none !important; }
+@media(max-width:390px){
+  .arca-panel.open .arca-content.control-carousel-wrap .control-carousel{ flex-basis:37dvh !important; max-height:37dvh !important; }
+  .arca-panel.open .arca-explain{ height:clamp(108px, 20dvh, 158px) !important; max-height:clamp(108px, 20dvh, 158px) !important; padding:12px !important; }
+  .arca-panel.open .arca-choose-btn{ min-height:36px !important; font-size:11px !important; }
+}
+.chronicon-title{
+  position:fixed; top:28px; right:82px; z-index:1002; color:rgba(255,255,255,.86);
+  font-family:"Inter",sans-serif; font-size:13px; letter-spacing:.22em; text-transform:uppercase;
+}
+.chronicon-panel.open .chronicon-content{ flex-direction:column !important; gap:12px !important; padding:74px 20px calc(env(safe-area-inset-bottom, 0px) + 18px) !important; overflow:hidden !important; }
+.chronicon-panel.open .chronicon-list{
+  flex:0 0 30dvh !important; width:100% !important; max-width:720px !important; margin:0 auto !important;
+  border:1px solid rgba(255,255,255,.38) !important; border-radius:14px !important; padding:10px !important; overflow:auto !important;
+}
+.chronicon-panel.open .chronicon-item{
+  display:block; width:100%; box-sizing:border-box; border:1px solid rgba(255,255,255,.36) !important; border-radius:10px !important;
+  margin:0 0 8px 0 !important; padding:10px !important; background:rgba(0,0,0,.35); cursor:pointer;
+}
+.chronicon-panel.open .chronicon-item.selected{ background:#fff !important; color:#000 !important; }
+.chronicon-panel.open .chronicon-item.selected .chronicon-time,
+.chronicon-panel.open .chronicon-item.selected .chronicon-text{ color:#000 !important; }
+.chronicon-panel.open .chronicon-replay{
+  flex:1 1 0 !important; width:100% !important; max-width:720px !important; min-height:0 !important; margin:0 auto !important;
+  border:1px solid rgba(255,255,255,.38) !important; border-radius:14px !important; padding:14px !important; overflow:auto !important; box-sizing:border-box !important;
+}
+@media(max-width:390px){
+  .chronicon-panel.open .chronicon-list{ flex-basis:26dvh !important; }
+  .chronicon-panel.open .chronicon-content{ padding-left:14px !important; padding-right:14px !important; }
+  .chronicon-title{ top:30px; right:78px; font-size:12px; }
+}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
 </head>
@@ -2882,6 +2946,8 @@
           </svg>
         </button>
       </div>
+
+      <div class="active-arca-indicator" id="activeArcaIndicator" aria-hidden="true"></div>
 
       <div class="mini-rail" id="miniRail">
         <button class="mini-btn" id="zoomInBtn" title="Zoom avant" aria-label="Zoom avant">+</button>
@@ -3083,19 +3149,20 @@
               <button class="info-btn" data-info-key="negroni" aria-label="Informations Negroni" title="Informations Negroni"><svg viewBox="0 0 20 20" aria-hidden="true"><circle class="glyph" cx="10" cy="10" r="7.2"/><path class="glyph" d="M10 8.1v4.6"/><path class="glyph" d="M10 5.6h.01"/></svg></button>
             </div>
           </div></div>
-          <div class="arca-explain" id="arcaExplain"><h3>Arca</h3><p>Sélectionner un élément dans la grille pour afficher son usage, puis valider l’achat avec « choisir ».</p><button class="arca-choose-btn" id="arcaChooseBtn" type="button">choisir</button></div>
+          <div class="arca-choose-row"><button class="arca-choose-btn" id="arcaChooseBtn" type="button">choisir</button></div>
+          <div class="arca-explain" id="arcaExplain"><h3>Arca</h3><p>Sélectionner un élément dans la grille pour afficher son usage, puis valider l’achat avec « choisir ».</p></div>
         </div>
       </div>
 
       <div class="chronicon-panel">
         <button class="panel-tab" id="chroniconTab" type="button" aria-label="Chronicon"><img src="/labyrinthus/assets/ui/chronicon.png" alt=""></button>
-        <div class="chronicon-content"><button class="lab-overlay-close" id="chroniconOverlayClose" type="button" aria-label="Fermer">×</button>
+        <div class="chronicon-content"><div class="chronicon-title">Chronicon</div><button class="lab-overlay-close" id="chroniconOverlayClose" type="button" aria-label="Fermer">×</button>
           <div class="chronicon-list" id="chroniconList">
             <div class="chronicon-empty">Aucun événement.</div>
           </div><div class="chronicon-replay" id="chroniconReplay"><h3>Replay</h3><p>Sélectionner une entrée du Chronicon.</p></div>
         </div>
       </div>
-      <div class="lab-fatum-display" id="labFatumDisplay">0 Ft</div><button class="lab-reset-btn" id="labResetBtn" type="button" aria-label="Reset Labyrinthus">↺</button>
+      <button class="lab-reset-btn" id="labResetBtn" type="button" aria-label="Reset Labyrinthus">↺</button><div class="lab-solidus-display" id="labSolidusDisplay" aria-hidden="true"></div><div class="lab-fatum-display" id="labFatumDisplay">0 Ft</div>
 
       <div class="user-panel">
         <div class="user-switch-row">
@@ -7883,10 +7950,54 @@ function renderMoneyEffects(){
   }
 }
 
+function updateActiveArcaIndicator(){
+  const holder = document.getElementById('activeArcaIndicator');
+  if(!holder) return;
+  const user = currentUser();
+  const toolToCard = {
+    murus:'murusCard', fossa:'fossaCard', fossaZone:'fossaCard', catenaSelect1:'catenaCard', catenaSelect2:'catenaCard',
+    marculus:'marculusCard', scala:'scalaCard', costula:'costulaCard', exvoto:'exVotoCard', negroni:'negroniCard'
+  };
+  const stocked = user && (
+    (activeTool === 'murus' && user.murusStock > 0) ||
+    (activeTool === 'fossa' && user.fossaStock > 0) || activeTool === 'fossaZone' ||
+    (activeTool === 'marculus' && user.marculusStock > 0) ||
+    (activeTool === 'scala' && user.scalaStock > 0) ||
+    (activeTool === 'costula' && user.costulaStock > 0) ||
+    (activeTool === 'exvoto' && user.exVotoStock > 0) ||
+    (activeTool === 'negroni' && user.negroniStock > 0) ||
+    activeTool === 'catenaSelect1' || activeTool === 'catenaSelect2'
+  );
+  const cardId = stocked ? toolToCard[activeTool] : null;
+  if(!cardId){
+    holder.classList.remove('visible');
+    holder.innerHTML = '';
+    return;
+  }
+  const icon = document.getElementById(cardId)?.querySelector('.asset-preview-wrap');
+  holder.innerHTML = icon ? icon.innerHTML : '';
+  holder.classList.add('visible');
+}
+
+function initLabSolidusDisplay(){
+  const holder = document.getElementById('labSolidusDisplay');
+  if(!holder || holder.dataset.ready === '1') return;
+  holder.dataset.ready = '1';
+  if(window.lottie){
+    try{
+      window.lottie.loadAnimation({ container:holder, renderer:'svg', loop:true, autoplay:true, path:'/labyrinthus/assets/lottie/solidus-white.json' });
+      return;
+    }catch(error){ console.warn('solidus display lottie skipped', error); }
+  }
+  holder.innerHTML = '<img src="/labyrinthus/assets/solidus-sprite.png" alt="">';
+}
+
 function updatePanels(){
   const user = currentUser();
   const labFatumDisplay = document.getElementById("labFatumDisplay");
   if(labFatumDisplay && user) labFatumDisplay.textContent = `${Math.round(Number(user.ft)||0)} Ft`;
+  initLabSolidusDisplay();
+  updateActiveArcaIndicator();
 
   const arcaHeld = (
     (activeTool === "murus" && user.murusStock > 0) ||
@@ -8144,12 +8255,11 @@ function selectArcaCard(card){
   const info = INFO_CONTENT[ARCA_INFO_KEYS[key]] || {title:key || 'Arca', body:''};
   const explain = document.getElementById('arcaExplain');
   if(explain){
-    explain.innerHTML = `<button class="arca-choose-btn visible" id="arcaChooseBtn" type="button">choisir</button><h3>${escapeHtml(info.title)}</h3><p>Les Arcas permettent d’acheter puis d’activer un élément de jeu.</p><p>${escapeHtml(info.body).replace(/\n/g, '<br>')}</p>`;
-    const chooseButton = explain.querySelector('#arcaChooseBtn');
-    if(chooseButton){
-      chooseButton.addEventListener('click', confirmArcaChoice);
-      bindMobileTapActivation(chooseButton);
-    }
+    explain.innerHTML = `<h3>${escapeHtml(info.title)}</h3><p>Les Arcas permettent d’acheter puis d’activer un élément de jeu.</p><p>${escapeHtml(info.body).replace(/\n/g, '<br>')}</p>`;
+  }
+  const chooseButton = document.getElementById('arcaChooseBtn');
+  if(chooseButton){
+    chooseButton.classList.add('visible');
   }
   placeArcaInlineChoose(card);
 }
@@ -8162,7 +8272,13 @@ function confirmArcaChoice(event){
   arcaPurchaseConfirming = false;
   if(arcaPanel) arcaPanel.classList.remove('open', 'held');
 }
-function closeArcaOverlay(){ document.querySelectorAll('.arca-inline-choose').forEach(button => button.remove()); if(arcaPanel) arcaPanel.classList.remove('open','held'); }
+function closeArcaOverlay(){
+  document.querySelectorAll('.arca-inline-choose').forEach(button => button.remove());
+  selectedArcaCard = null;
+  document.querySelectorAll('.arca-panel .control-card').forEach(el => el.classList.remove('active'));
+  document.getElementById('arcaChooseBtn')?.classList.remove('visible');
+  if(arcaPanel) arcaPanel.classList.remove('open','held');
+}
 function closeChroniconOverlay(){ document.querySelector('.chronicon-panel')?.classList.remove('open'); }
 
 if(arcaTab){
@@ -8177,6 +8293,12 @@ if(chroniconTab){
 boardWrap.addEventListener('pointerdown', (event) => {
   if(!event.target?.closest?.('.left-stack,.sound-toggle,.mini-rail,.user-panel,.info-modal,.exvoto-modal')) closeLabyrinthusOverlays();
 }, {capture:true, passive:true});
+
+const arcaChooseBtn = document.getElementById('arcaChooseBtn');
+if(arcaChooseBtn){
+  arcaChooseBtn.addEventListener('click', confirmArcaChoice);
+  bindMobileTapActivation?.(arcaChooseBtn);
+}
 
 controlCarousel.addEventListener("wheel", (event) => {
   event.preventDefault();
