@@ -1386,6 +1386,36 @@
     .control-panel.open .control-cost{ font-size:9px; }
   }
 
+
+/* V51 layout overrides */
+.user-panel, .hud, .notice{ display:none !important; }
+.board-wrap{ padding-bottom:0 !important; }
+.sound-toggle{ z-index:80; pointer-events:auto; }
+.left-stack{ z-index:70; gap:8px; }
+.panel-tab{ width:44px !important; height:44px !important; min-width:44px !important; padding:0 !important; font-size:0 !important; display:flex !important; align-items:center !important; justify-content:center !important; }
+.panel-tab img{ width:25px; height:25px; object-fit:contain; filter:invert(1); pointer-events:none; }
+.lab-fatum-display{ width:44px; min-height:28px; display:flex; align-items:center; justify-content:center; border:1px solid rgba(255,255,255,.28); color:rgba(255,255,255,.88); font-family:Crimson Pro,serif; font-size:12px; letter-spacing:.08em; background:rgba(0,0,0,.55); }
+.arca-panel.open .arca-content, .chronicon-panel.open .chronicon-content{ position:fixed !important; inset:0 !important; width:auto !important; height:auto !important; max-height:none !important; display:flex !important; opacity:1 !important; visibility:visible !important; pointer-events:auto !important; z-index:1000 !important; background:rgba(0,0,0,.96); border:0; transform:none !important; padding:72px 20px 22px; }
+.arca-panel.open .arca-content{ flex-direction:column; gap:18px; }
+.chronicon-panel.open .chronicon-content{ flex-direction:row; gap:18px; }
+.lab-overlay-close{ position:fixed; top:18px; right:18px; z-index:1002; width:42px; height:42px; border:1px solid rgba(255,255,255,.55); background:#000; color:#fff; font-size:24px; line-height:1; display:none; align-items:center; justify-content:center; }
+.arca-panel.open .lab-overlay-close, .chronicon-panel.open .lab-overlay-close{ display:flex; }
+.arca-panel.open .control-carousel-wrap{ overflow:auto !important; }
+.arca-panel.open .control-carousel{ display:grid !important; grid-template-columns:1fr 1fr !important; grid-auto-rows:minmax(92px, auto); gap:12px; width:100%; max-width:680px; margin:0 auto; overflow:visible !important; }
+.arca-panel.open .control-card{ width:auto !important; min-height:92px; transform:none !important; }
+.arca-explain{ flex:1; min-height:38vh; border:1px solid rgba(255,255,255,.24); padding:18px; color:rgba(255,255,255,.88); font-family:Crimson Pro,serif; font-size:16px; line-height:1.45; overflow:auto; }
+.arca-explain h3{ margin:.2em 0 .6em; letter-spacing:.14em; text-transform:uppercase; }
+.arca-choose-btn{ margin-top:14px; width:100%; min-height:46px; border:1px solid rgba(255,255,255,.65); background:#fff; color:#000; font-family:Crimson Pro,serif; text-transform:uppercase; letter-spacing:.18em; font-size:16px; display:none; }
+.arca-choose-btn.visible{ display:block; }
+.chronicon-panel.open .chronicon-list{ flex:1; width:50%; overflow:auto; border:1px solid rgba(255,255,255,.22); padding:12px; }
+.chronicon-replay{ flex:1; width:50%; border:1px solid rgba(255,255,255,.22); padding:14px; color:#fff; font-family:Crimson Pro,serif; overflow:auto; }
+.chronicon-replay-grid{ display:grid; grid-template-columns:repeat(5, 28px); grid-template-rows:repeat(8, 22px); gap:2px; margin:12px auto; width:max-content; transform:scale(.95); transform-origin:center; }
+.chronicon-replay-cell{ border:1px solid rgba(255,255,255,.24); background:rgba(255,255,255,.04); }
+.chronicon-replay-cell.hit{ background:#fff; }
+.chronicon-item{ cursor:pointer; }
+.chronicon-item.selected{ background:rgba(255,255,255,.12); }
+@media(max-width:700px){ .chronicon-panel.open .chronicon-content{ flex-direction:column; } .chronicon-panel.open .chronicon-list,.chronicon-replay{ width:auto; min-height:0; } .arca-panel.open .control-carousel{ grid-template-columns:1fr 1fr !important; } }
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
 </head>
@@ -1473,8 +1503,8 @@
 
       <div class="left-stack">
       <div class="control-panel arca-panel">
-        <button class="panel-tab" id="arcaTab" type="button">Arca</button>
-        <div class="control-carousel-wrap arca-content">
+        <button class="panel-tab" id="arcaTab" type="button" aria-label="Arca"><img src="/labyrinthus/assets/ui/arca.png" alt=""></button>
+        <div class="control-carousel-wrap arca-content"><button class="lab-overlay-close" id="arcaOverlayClose" type="button" aria-label="Fermer">×</button>
         <div class="control-carousel" id="controlCarousel">
           <div class="control-card" id="murusCard" title="Acheter un Murus">
             <div class="rotate-btn" id="rotateBtn" title="Rotation">↻</div>
@@ -1614,17 +1644,18 @@
               <button class="info-btn" data-info-key="negroni" aria-label="Informations Negroni" title="Informations Negroni"><svg viewBox="0 0 20 20" aria-hidden="true"><circle class="glyph" cx="10" cy="10" r="7.2"/><path class="glyph" d="M10 8.1v4.6"/><path class="glyph" d="M10 5.6h.01"/></svg></button>
             </div>
           </div></div>
-        </div>
+        </div><div class="arca-explain" id="arcaExplain"><h3>Arca</h3><p>Sélectionner un élément dans la grille pour afficher son usage, puis valider l’achat avec « choisir ».</p><button class="arca-choose-btn" id="arcaChooseBtn" type="button">choisir</button></div>
       </div>
 
       <div class="chronicon-panel">
-        <button class="panel-tab" id="chroniconTab" type="button">Chronicon</button>
-        <div class="chronicon-content">
+        <button class="panel-tab" id="chroniconTab" type="button" aria-label="Chronicon"><img src="/labyrinthus/assets/ui/chronicon.png" alt=""></button>
+        <div class="chronicon-content"><button class="lab-overlay-close" id="chroniconOverlayClose" type="button" aria-label="Fermer">×</button>
           <div class="chronicon-list" id="chroniconList">
             <div class="chronicon-empty">Aucun événement.</div>
-          </div>
+          </div><div class="chronicon-replay" id="chroniconReplay"><h3>Replay</h3><p>Sélectionner une entrée du Chronicon.</p></div>
         </div>
       </div>
+      <div class="lab-fatum-display" id="labFatumDisplay">0 Ft</div>
 
       <div class="user-panel">
         <div class="user-switch-row">
@@ -1915,12 +1946,12 @@ const balanceC = document.getElementById("balanceC");
 const balanceD = document.getElementById("balanceD");
 
 const horizonY = 76;
-const floorY = 500;
+const floorY = 560;
 const topWidth = 88;
 const bottomWidth = 286;
 const centerX = 200;
 
-let scroll = 15.2;
+let scroll = 0;
 let activeUserId = "A";
 let activeTool = "move"; // move | murus | fossa | marculus | scala | costula | exvoto | negroni | fossaZone | restartSelect | catenaSelect1 | catenaSelect2
 let murusOrientation = "horizontal"; // horizontal = bottom, vertical = right
@@ -1934,7 +1965,7 @@ let pendingFossaId = null;
 let restartState = null; // {userId,targetRow}
 let animState = null; // move or fossa animation state
 let undoStack = [];
-let noticeText = "test : joueurs en ligne 20 de deserto";
+let noticeText = "";
 let revealPossibleMoves = false;
 let hoverRowNumber = null;
 let triggeredVapors = new Set();
@@ -2227,13 +2258,30 @@ function renderChronicon(){
     chroniconList.innerHTML = '<div class="chronicon-empty">Aucun événement.</div>';
     return;
   }
-  chroniconList.innerHTML = chroniconEntries.map(entry => `
-    <div class="chronicon-item">
+  chroniconList.innerHTML = chroniconEntries.map((entry, index) => `
+    <div class="chronicon-item" data-chronicon-index="${index}">
       <div class="chronicon-time">${escapeHtml(entry.timestamp)}</div>
       <div class="chronicon-text">${escapeHtml(entry.text)}</div>
     </div>
   `).join("");
 }
+function renderChroniconReplay(entry, index){
+  const target = document.getElementById("chroniconReplay");
+  if(!target || !entry) return;
+  const match = String(entry.text || "").match(/([0-9]+)[–-]([0-9]+)/);
+  const row = match ? Number(match[1]) : Math.round(currentUser()?.current?.row || 0);
+  const col = match ? Number(match[2]) : Math.round(currentUser()?.current?.col || 0);
+  const cells = [];
+  for(let r=0;r<8;r++){
+    for(let c=0;c<5;c++){
+      const hit = c === col && r === 4;
+      cells.push(`<div class="chronicon-replay-cell${hit ? " hit" : ""}"></div>`);
+    }
+  }
+  target.innerHTML = `<h3>Replay</h3><p>${escapeHtml(entry.timestamp || "")}</p><p>${escapeHtml(entry.text || "")}</p><div class="chronicon-replay-grid">${cells.join("")}</div><p>Locus de référence : ${Number.isFinite(row) ? row : "—"}-${Number.isFinite(col) ? col : "—"}</p>`;
+  chroniconList?.querySelectorAll(".chronicon-item").forEach(el => el.classList.toggle("selected", Number(el.dataset.chroniconIndex) === index));
+}
+
 
 function showInfoModal(key){
   const info = INFO_CONTENT[key];
@@ -2495,7 +2543,21 @@ const users = {
   }
 };
 
-function userList(){ return [users.A, users.B, users.C, users.D]; }
+(function initializeLivePlayersOnly(){
+  const defaultStart = { row:0, col:3 };
+  users.A.name = "";
+  users.A.current = {...defaultStart};
+  users.A.filled = new Set(["0-3"]);
+  users.A.noxActive = false;
+  ["B","C","D"].forEach(id => {
+    users[id].name = "";
+    users[id].current = {...defaultStart};
+    users[id].filled = new Set();
+    users[id].noxActive = false;
+  });
+})();
+
+function userList(){ return [users.A, users.B, users.C, users.D].filter(user => user && user.name && user.filled && user.filled.size); }
 function currentUser(){ return users[activeUserId]; }
 function key(row,col){ return `${row}-${col}`; }
 function wallKey(row,col,side){ return `${row}-${col}-${side}`; }
@@ -3288,6 +3350,15 @@ function restore(state){
     requestAnimationFrame(stepMoneyBursts);
   }
   wallBreakFx = (state.wallBreakFx || []).map(v => ({...v, wall:{...v.wall}}));
+  ["A","B","C","D"].forEach(id => {
+    const slot = users[id];
+    if(slot && !slot.noxFatumUserId && ["Jonathan","Mathieu","Rémi","Jean-Philippe"].includes(slot.name)){
+      slot.name = "";
+      slot.filled = new Set();
+      slot.current = {row:0,col:3};
+    }
+  });
+  if(!currentUser() || !currentUser().name){ activeUserId = userList()[0]?.id || "A"; }
   if(wallBreakFx.length && !wallBreakAnimating){
     wallBreakAnimating = true;
     requestAnimationFrame(stepWallBreakFx);
@@ -5833,8 +5904,9 @@ const SOLIDUS_VALUES = [10,20,30];
 
 function playerAbbrev(userId){
   const name = users[userId]?.name || userId;
-  return `${Array.from(name).slice(0,3).join("")}.`;
+  return `${String(name).slice(0,3)}.`;
 }
+
 
 function ensureTokenVideoElement(userId){
   if(tokenVideoEls[userId]) return tokenVideoEls[userId];
@@ -6373,6 +6445,8 @@ function renderMoneyEffects(){
 
 function updatePanels(){
   const user = currentUser();
+  const labFatumDisplay = document.getElementById("labFatumDisplay");
+  if(labFatumDisplay && user) labFatumDisplay.textContent = `${Math.round(Number(user.ft)||0)} Ft`;
 
   const arcaHeld = (
     (activeTool === "murus" && user.murusStock > 0) ||
@@ -6430,6 +6504,7 @@ function updatePanels(){
   if(animState && animState.type === "move") toolLabel = "déplacement";
   if(animState && animState.type === "negroniMove") toolLabel = "negroni";
 
+  if(!user || !user.filled) return;
   const count = user.filled.size;
   const aquila = aquilaForUser(user.id);
   countEl.textContent = String(count).padStart(2,"0");
@@ -6580,6 +6655,41 @@ function toggleChroniconOverlay(event){
   if(panel) panel.classList.toggle('open', !!willOpen);
 }
 
+
+const ARCA_INFO_KEYS = { murus:"murus", fossa:"fossa", catena:"catena", marculus:"marculus", scala:"scala", costula:"costula", negroni:"negroni", exvoto:"exvoto" };
+let selectedArcaCard = null;
+let arcaPurchaseConfirming = false;
+function arcaKeyFromCard(card){
+  if(!card || !card.id) return null;
+  return card.id.replace(/Card$/, '').toLowerCase();
+}
+function selectArcaCard(card){
+  if(!card) return;
+  selectedArcaCard = card;
+  document.querySelectorAll('.arca-panel .control-card').forEach(el => el.classList.toggle('active', el === card));
+  const key = arcaKeyFromCard(card);
+  const info = INFO_CONTENT[ARCA_INFO_KEYS[key]] || {title:key || 'Arca', body:''};
+  const explain = document.getElementById('arcaExplain');
+  const choose = document.getElementById('arcaChooseBtn');
+  if(explain){
+    explain.querySelector('h3')?.remove();
+    explain.querySelector('p')?.remove();
+    explain.innerHTML = `<h3>${escapeHtml(info.title)}</h3><p>Les Arcas permettent d’acheter puis d’activer un élément de jeu.</p><p>${escapeHtml(info.body).replace(/\n/g, '<br>')}</p><button class="arca-choose-btn visible" id="arcaChooseBtn" type="button">choisir</button>`;
+    document.getElementById('arcaChooseBtn')?.addEventListener('click', confirmArcaChoice);
+  }
+}
+function confirmArcaChoice(event){
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  if(!selectedArcaCard) return;
+  arcaPurchaseConfirming = true;
+  selectedArcaCard.dispatchEvent(new MouseEvent('click', {bubbles:true, cancelable:true, view:window}));
+  arcaPurchaseConfirming = false;
+  if(arcaPanel) arcaPanel.classList.remove('open', 'held');
+}
+function closeArcaOverlay(){ if(arcaPanel) arcaPanel.classList.remove('open','held'); }
+function closeChroniconOverlay(){ document.querySelector('.chronicon-panel')?.classList.remove('open'); }
+
 if(arcaTab){
   arcaTab.addEventListener('click', toggleArcaOverlay);
   arcaTab.addEventListener('pointerup', (event) => { if(event.pointerType !== 'mouse') toggleArcaOverlay(event); }, {passive:false});
@@ -6638,6 +6748,27 @@ function containPanelScroll(element){
   });
 }
 containPanelScroll(controlCarousel);
+
+if(arcaPanel){
+  arcaPanel.querySelectorAll('.control-card').forEach(card => {
+    card.addEventListener('click', (event) => {
+      if(arcaPanel.classList.contains('open') && !arcaPurchaseConfirming){
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        selectArcaCard(card);
+      }
+    }, true);
+  });
+}
+document.getElementById('arcaOverlayClose')?.addEventListener('click', (event)=>{ event.preventDefault(); closeArcaOverlay(); });
+document.getElementById('chroniconOverlayClose')?.addEventListener('click', (event)=>{ event.preventDefault(); closeChroniconOverlay(); });
+chroniconList?.addEventListener('click', (event)=>{
+  const item = event.target?.closest?.('.chronicon-item');
+  if(!item) return;
+  const index = Number(item.dataset.chroniconIndex);
+  renderChroniconReplay(chroniconEntries[index], index);
+});
+
 containPanelScroll(document.querySelector(".arca-content"));
 containPanelScroll(document.querySelector(".chronicon-content"));
 
@@ -7449,33 +7580,39 @@ function noxApplyPlayers(payload = {}){
   const incomingUsers = Array.isArray(payload.users) ? payload.users : [];
   noxSupabaseUsers = incomingUsers;
   noxActiveFatumUser = payload.activeUser || null;
-  const sortedUsers = incomingUsers
-    .filter((entry) => entry && entry.id && entry.name)
-    .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "fr", { sensitivity:"base" }))
-    .slice(0, NOX_SLOT_IDS.length);
+  const activeEntry = (payload.activeUser && payload.activeUser.id) ? payload.activeUser : incomingUsers.find(entry => entry && entry.id && entry.name);
+  if(!activeEntry) return;
 
-  sortedUsers.forEach((entry, index) => {
-    const slotId = NOX_SLOT_IDS[index];
-    const slot = users[slotId];
-    if(!slot) return;
-    slot.noxFatumUserId = entry.id;
-    slot.name = entry.name;
-    slot.ft = Number(entry.score) || 0;
-    slot.sphereClass = NOX_SLOT_CLASSES[index] || slot.sphereClass;
-    slot.current = slot.current || { row:20, col:NOX_SLOT_COLUMNS[index] || index };
-    slot.current.row = Number.isFinite(Number(slot.current.row)) ? Number(slot.current.row) : 20;
-    slot.current.col = Number.isFinite(Number(slot.current.col)) ? Number(slot.current.col) : (NOX_SLOT_COLUMNS[index] || index);
-    slot.filled = slot.filled instanceof Set ? slot.filled : new Set([`${slot.current.row}-${slot.current.col}`]);
+  ["A","B","C","D"].forEach(id => {
+    const slot = users[id];
+    if(slot && !slot.noxFatumUserId && ["Jonathan","Mathieu","Rémi","Jean-Philippe"].includes(slot.name)){
+      slot.name = "";
+      slot.filled = new Set();
+      slot.current = {row:0,col:3};
+    }
   });
 
-  const activeIndex = sortedUsers.findIndex((entry) => entry.id === payload.activeUser?.id);
-  if(activeIndex >= 0 && NOX_SLOT_IDS[activeIndex]) activeUserId = NOX_SLOT_IDS[activeIndex];
-  else if(sortedUsers[0]) activeUserId = NOX_SLOT_IDS[0];
+  let slotId = NOX_SLOT_IDS.find(id => users[id]?.noxFatumUserId === activeEntry.id);
+  if(!slotId) slotId = NOX_SLOT_IDS.find(id => !users[id]?.name && (!users[id]?.filled || users[id].filled.size === 0));
+  if(!slotId) slotId = "A";
+  const slot = users[slotId];
+  const wasEmpty = !slot.name || !slot.filled || slot.filled.size === 0;
+  slot.noxFatumUserId = activeEntry.id;
+  slot.name = activeEntry.name;
+  slot.ft = Number(activeEntry.score) || slot.ft || 0;
+  slot.sphereClass = NOX_SLOT_CLASSES[NOX_SLOT_IDS.indexOf(slotId)] || slot.sphereClass || "sphere-white";
+  if(wasEmpty){
+    slot.current = { row:0, col:3 };
+    slot.filled = new Set(["0-3"]);
+    addChroniconEvent(`${slot.name} entre dans Labyrinthus en 0-3.`);
+  }else{
+    slot.current = slot.current || { row:0, col:3 };
+    slot.filled = slot.filled instanceof Set ? slot.filled : new Set([`${slot.current.row}-${slot.current.col}`]);
+  }
+  activeUserId = slotId;
 
   if(typeof updateUserTabs === "function") updateUserTabs();
   if(typeof updateHud === "function") updateHud();
-  const shouldCenterOnInit = payload && payload.centerOnInit === true;
-  if(shouldCenterOnInit && typeof centerViewOnActiveUser === "function") centerViewOnActiveUser(false);
   if(typeof render === "function") render();
   scheduleLabyrinthusStateSave('players');
 }
