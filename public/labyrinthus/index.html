@@ -1438,6 +1438,145 @@
 .sound-toggle button,.mini-rail button{ pointer-events:auto !important; touch-action:manipulation !important; }
 .board-wrap{ touch-action:none; }
 
+
+
+/* V53: foreground overlays, vertical Arca carousel, reset control */
+.sound-toggle,
+.mini-rail{ z-index:8200 !important; }
+.left-stack{ z-index:8300 !important; }
+.arca-panel.open .arca-content,
+.chronicon-panel.open .chronicon-content{
+  position:fixed !important;
+  inset:0 !important;
+  width:100vw !important;
+  height:100dvh !important;
+  max-height:none !important;
+  z-index:12000 !important;
+  background:#000 !important;
+  border:0 !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  padding:72px 18px 20px !important;
+  box-sizing:border-box !important;
+  display:flex !important;
+  opacity:1 !important;
+  visibility:visible !important;
+  pointer-events:auto !important;
+  overflow:hidden !important;
+  transform:none !important;
+}
+.lab-overlay-close{
+  z-index:12010 !important;
+  position:fixed !important;
+  top:18px !important;
+  right:18px !important;
+}
+.arca-panel.open .arca-content{
+  display:block !important;
+  padding-top:72px !important;
+  padding-bottom:50vh !important;
+  overflow:hidden !important;
+}
+.arca-panel.open .control-carousel-wrap{
+  position:relative !important;
+  inset:auto !important;
+  display:block !important;
+  width:100% !important;
+  height:calc(50dvh - 84px) !important;
+  max-height:none !important;
+  overflow-y:auto !important;
+  overflow-x:hidden !important;
+  padding:0 4px 12px !important;
+  background:transparent !important;
+  border:0 !important;
+  box-shadow:none !important;
+  -webkit-overflow-scrolling:touch !important;
+  touch-action:pan-y !important;
+}
+.arca-panel.open .control-carousel{
+  display:grid !important;
+  grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+  grid-auto-rows:calc((50dvh - 108px) / 2) !important;
+  gap:12px !important;
+  width:100% !important;
+  max-width:720px !important;
+  margin:0 auto !important;
+  overflow:visible !important;
+  padding:0 0 18px !important;
+}
+.arca-panel.open .control-card{
+  width:auto !important;
+  min-height:0 !important;
+  height:100% !important;
+  border-radius:0 !important;
+  display:flex !important;
+  flex-direction:column !important;
+  justify-content:center !important;
+}
+.arca-panel.open .control-card.active{
+  background:#fff !important;
+  color:#000 !important;
+  border-color:#fff !important;
+}
+.arca-panel.open .control-card.active *{ color:#000 !important; }
+.arca-panel.open .control-card.active svg{ filter:invert(1) !important; }
+.arca-panel.open .arca-explain{
+  display:block !important;
+  position:fixed !important;
+  left:18px !important;
+  right:18px !important;
+  bottom:20px !important;
+  height:calc(50dvh - 38px) !important;
+  min-height:0 !important;
+  max-height:none !important;
+  z-index:12001 !important;
+  background:#000 !important;
+  border:1px solid rgba(255,255,255,.35) !important;
+  border-radius:0 !important;
+  padding:18px !important;
+  box-sizing:border-box !important;
+  overflow:auto !important;
+  color:#fff !important;
+}
+.arca-panel:not(.open) .arca-explain{ display:none !important; }
+.arca-choose-btn.visible{
+  display:block !important;
+  position:sticky;
+  bottom:0;
+  margin-top:16px !important;
+}
+.chronicon-panel.open .chronicon-content{
+  z-index:12000 !important;
+  display:flex !important;
+  gap:18px !important;
+}
+.lab-reset-btn{
+  width:44px;
+  height:44px;
+  min-width:44px;
+  min-height:44px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border:1px solid rgba(255,255,255,.35);
+  background:rgba(0,0,0,.68);
+  color:#fff;
+  font-family:"Inter",sans-serif !important;
+  font-size:22px;
+  line-height:1;
+  cursor:pointer;
+  touch-action:manipulation;
+  -webkit-user-select:none;
+  user-select:none;
+}
+.lab-reset-btn:active{ background:#fff; color:#000; }
+@media(max-width:700px){
+  .arca-panel.open .control-carousel{ gap:10px !important; grid-auto-rows:calc((50dvh - 104px) / 2) !important; }
+  .chronicon-panel.open .chronicon-content{ flex-direction:column !important; overflow:auto !important; }
+  .chronicon-panel.open .chronicon-list,
+  .chronicon-replay{ width:auto !important; min-height:0 !important; }
+}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
 </head>
@@ -1677,7 +1816,7 @@
           </div><div class="chronicon-replay" id="chroniconReplay"><h3>Replay</h3><p>Sélectionner une entrée du Chronicon.</p></div>
         </div>
       </div>
-      <div class="lab-fatum-display" id="labFatumDisplay">0 Ft</div>
+      <div class="lab-fatum-display" id="labFatumDisplay">0 Ft</div><button class="lab-reset-btn" id="labResetBtn" type="button" aria-label="Reset Labyrinthus">↺</button>
 
       <div class="user-panel">
         <div class="user-switch-row">
@@ -6784,6 +6923,18 @@ if(arcaPanel){
 }
 document.getElementById('arcaOverlayClose')?.addEventListener('click', (event)=>{ event.preventDefault(); closeArcaOverlay(); });
 document.getElementById('chroniconOverlayClose')?.addEventListener('click', (event)=>{ event.preventDefault(); closeChroniconOverlay(); });
+const labResetBtn = document.getElementById('labResetBtn');
+if(labResetBtn){
+  const triggerLabyrinthusReset = (event) => {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    closeLabyrinthusOverlays();
+    resetBtn?.dispatchEvent(new MouseEvent('click', {bubbles:true, cancelable:true, view:window}));
+  };
+  labResetBtn.addEventListener('click', triggerLabyrinthusReset);
+  labResetBtn.addEventListener('pointerup', (event) => { if(event.pointerType !== 'mouse') triggerLabyrinthusReset(event); }, {passive:false});
+}
+
 chroniconList?.addEventListener('click', (event)=>{
   const item = event.target?.closest?.('.chronicon-item');
   if(!item) return;
