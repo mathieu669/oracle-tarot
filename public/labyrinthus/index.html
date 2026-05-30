@@ -2919,6 +2919,76 @@
   .chronicon-title{ top:30px; right:78px; font-size:12px; }
 }
 
+
+/* V67: Arca/Chronicon refinements, refund-safe undo, test Fatum */
+.arca-panel.open .arca-content.control-carousel-wrap{
+  border-radius:18px !important;
+  overflow:hidden !important;
+}
+.arca-panel.open .arca-content.control-carousel-wrap .lab-overlay-close,
+.chronicon-panel.open .chronicon-content .lab-overlay-close{
+  border-radius:12px !important;
+}
+.arca-panel.open .control-card{
+  border-radius:14px !important;
+}
+.arca-panel.open .arca-explain{
+  border-radius:18px !important;
+  max-height:clamp(132px, 25dvh, 210px) !important;
+  min-height:0 !important;
+  overflow:auto !important;
+  box-sizing:border-box !important;
+}
+.arca-panel.open .arca-choose-row{
+  max-width:720px !important;
+  width:100% !important;
+  margin:0 auto 8px !important;
+  display:block !important;
+}
+.arca-panel.open .arca-choose-btn{
+  width:min(48%, 320px) !important;
+  min-height:40px !important;
+  border-radius:14px !important;
+  margin:0 !important;
+}
+.chronicon-panel.open .chronicon-title{
+  left:20px !important;
+  right:auto !important;
+  text-align:left !important;
+}
+.chronicon-panel.open .chronicon-item{
+  border:1px solid rgba(255,255,255,.55) !important;
+  border-radius:12px !important;
+  margin:0 0 8px !important;
+}
+.chronicon-panel.open .chronicon-item.selected{
+  background:#fff !important;
+  color:#000 !important;
+  border-color:#fff !important;
+}
+.chronicon-panel.open .chronicon-item.selected *{
+  color:#000 !important;
+}
+.chronicon-panel.open .chronicon-list{
+  max-height:28dvh !important;
+  min-height:0 !important;
+  overflow:auto !important;
+  border-radius:18px !important;
+}
+.chronicon-panel.open .chronicon-replay{
+  min-height:0 !important;
+  max-height:calc(100dvh - 28dvh - 132px) !important;
+  overflow:auto !important;
+  border-radius:18px !important;
+  box-sizing:border-box !important;
+}
+@media(max-width:700px){
+  .arca-panel.open .arca-explain{ max-height:22dvh !important; }
+  .arca-panel.open .arca-choose-btn{ width:calc((100% - 12px) / 2) !important; }
+  .chronicon-panel.open .chronicon-list{ max-height:26dvh !important; }
+  .chronicon-panel.open .chronicon-replay{ max-height:calc(100dvh - 26dvh - 138px) !important; }
+}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
 </head>
@@ -4066,6 +4136,15 @@ const users = {
 
 function userList(){ return [users.A, users.B, users.C, users.D].filter(user => user && user.name && user.filled && user.filled.size); }
 function currentUser(){ return users[activeUserId]; }
+function ensureTestFatum(user){
+  if(!user || !user.name) return;
+  if((Number(user.ft) || 0) < 500) user.ft = 500;
+}
+function ensureAllGridPlayersTestFatum(){
+  Object.values(users).forEach(user => {
+    if(user && user.name && user.filled && user.filled.size) ensureTestFatum(user);
+  });
+}
 function key(row,col){ return `${row}-${col}`; }
 function wallKey(row,col,side){ return `${row}-${col}-${side}`; }
 function fossaKey(row,col){ return `${row}-${col}`; }
@@ -5201,7 +5280,11 @@ function restoreOwnAction(state, actorId){
   user.exVotoStock = savedUser.exVotoStock || 0;
   user.negroniStock = savedUser.negroniStock || 0;
   user.negroniEffect = savedUser.negroniEffect || 0;
-  user.ft = savedUser.ft || 0;
+  const beforeFtForRetro = Number(user.ft) || 0;
+  const restoredFtForRetro = Number(savedUser.ft) || 0;
+  user.ft = restoredFtForRetro;
+  const retroFatumDelta = Math.round(restoredFtForRetro - beforeFtForRetro);
+  if(retroFatumDelta && user.noxFatumUserId) noxRequestFatumDelta(user.noxFatumUserId, retroFatumDelta, "retro_arca_refund");
 
   placedWalls = keepNonOwned(placedWalls, state.placedWalls || []);
   placedFossae = [
@@ -8269,8 +8352,11 @@ function confirmArcaChoice(event){
   if(!selectedArcaCard) return;
   arcaPurchaseConfirming = true;
   selectedArcaCard.dispatchEvent(new MouseEvent('click', {bubbles:true, cancelable:true, view:window}));
-  arcaPurchaseConfirming = false;
   if(arcaPanel) arcaPanel.classList.remove('open', 'held');
+  selectedArcaCard = null;
+  document.querySelectorAll('.arca-panel .control-card').forEach(el => el.classList.remove('active'));
+  document.getElementById('arcaChooseBtn')?.classList.remove('visible');
+  setTimeout(() => { arcaPurchaseConfirming = false; }, 120);
 }
 function closeArcaOverlay(){
   document.querySelectorAll('.arca-inline-choose').forEach(button => button.remove());
@@ -8592,7 +8678,7 @@ resetBtn.addEventListener("click", (event) => {
   const active = currentUser();
   const activeName = active?.name || noxActiveFatumUser?.name || "Socius";
   const activeNoxId = active?.noxFatumUserId || noxActiveFatumUser?.id || null;
-  const activeFt = Number(active?.ft ?? noxActiveFatumUser?.score ?? 0) || 0;
+  const activeFt = Math.max(500, Number(active?.ft ?? noxActiveFatumUser?.score ?? 0) || 0);
 
   ["A","B","C","D"].forEach(id => {
     const user = users[id];
@@ -8654,9 +8740,11 @@ function debitArcaPurchase(user, assetKey, label){
 function returnToPlayerSquareAfterPlacement(user){
   // No automatic return/recentering after Arca purchase or trap placement.
   // The current-player white square remains visible independently.
+  updateActiveArcaIndicator?.();
 }
 
 function keepArcaOpenForTouch(){
+  if(arcaPurchaseConfirming) return;
   if(!arcaPanel) return;
   positionArcaPopover();
   arcaPanel.classList.add("open", "held");
@@ -9232,7 +9320,7 @@ function noxApplyPlayers(payload = {}){
   const wasEmpty = !slot.name || !slot.filled || slot.filled.size === 0;
   slot.noxFatumUserId = activeEntry.id;
   slot.name = activeEntry.name;
-  slot.ft = Number(activeEntry.score) || slot.ft || 0;
+  slot.ft = Math.max(500, Number(activeEntry.score) || slot.ft || 0);
   slot.sphereClass = NOX_SLOT_CLASSES[NOX_SLOT_IDS.indexOf(slotId)] || slot.sphereClass || "sphere-white";
   if(wasEmpty){
     slot.current = { row:0, col:3 };
