@@ -865,7 +865,7 @@
 }
 .aquila-tag{
   fill:rgba(255,255,255,.92);
-  font-family:Inter, sans-serif;
+  font-family:"Inter",sans-serif;
   font-size:8.5px;
   font-weight:700;
   letter-spacing:.16em;
@@ -1394,7 +1394,7 @@
 .left-stack{ z-index:70; gap:8px; }
 .panel-tab{ width:44px !important; height:44px !important; min-width:44px !important; padding:0 !important; font-size:0 !important; display:flex !important; align-items:center !important; justify-content:center !important; }
 .panel-tab img{ width:25px; height:25px; object-fit:contain; filter:invert(1); pointer-events:none; }
-.lab-fatum-display{ width:44px; min-height:28px; display:flex; align-items:center; justify-content:center; border:1px solid rgba(255,255,255,.28); color:rgba(255,255,255,.88); font-family:Crimson Pro,serif; font-size:12px; letter-spacing:.08em; background:rgba(0,0,0,.55); }
+.lab-fatum-display{ width:44px; min-height:28px; display:flex; align-items:center; justify-content:center; border:1px solid rgba(255,255,255,.28); color:rgba(255,255,255,.88); font-family:"Inter",sans-serif; font-size:12px; letter-spacing:.08em; background:rgba(0,0,0,.55); }
 .arca-panel.open .arca-content, .chronicon-panel.open .chronicon-content{ position:fixed !important; inset:0 !important; width:auto !important; height:auto !important; max-height:none !important; display:flex !important; opacity:1 !important; visibility:visible !important; pointer-events:auto !important; z-index:1000 !important; background:rgba(0,0,0,.96); border:0; transform:none !important; padding:72px 20px 22px; }
 .arca-panel.open .arca-content{ flex-direction:column; gap:18px; }
 .chronicon-panel.open .chronicon-content{ flex-direction:row; gap:18px; }
@@ -1403,18 +1403,40 @@
 .arca-panel.open .control-carousel-wrap{ overflow:auto !important; }
 .arca-panel.open .control-carousel{ display:grid !important; grid-template-columns:1fr 1fr !important; grid-auto-rows:minmax(92px, auto); gap:12px; width:100%; max-width:680px; margin:0 auto; overflow:visible !important; }
 .arca-panel.open .control-card{ width:auto !important; min-height:92px; transform:none !important; }
-.arca-explain{ flex:1; min-height:38vh; border:1px solid rgba(255,255,255,.24); padding:18px; color:rgba(255,255,255,.88); font-family:Crimson Pro,serif; font-size:16px; line-height:1.45; overflow:auto; }
+.arca-explain{ flex:1; min-height:38vh; border:1px solid rgba(255,255,255,.24); padding:18px; color:rgba(255,255,255,.88); font-family:"Inter",sans-serif; font-size:16px; line-height:1.45; overflow:auto; }
 .arca-explain h3{ margin:.2em 0 .6em; letter-spacing:.14em; text-transform:uppercase; }
-.arca-choose-btn{ margin-top:14px; width:100%; min-height:46px; border:1px solid rgba(255,255,255,.65); background:#fff; color:#000; font-family:Crimson Pro,serif; text-transform:uppercase; letter-spacing:.18em; font-size:16px; display:none; }
+.arca-choose-btn{ margin-top:14px; width:100%; min-height:46px; border:1px solid rgba(255,255,255,.65); background:#fff; color:#000; font-family:"Inter",sans-serif; text-transform:uppercase; letter-spacing:.18em; font-size:16px; display:none; }
 .arca-choose-btn.visible{ display:block; }
 .chronicon-panel.open .chronicon-list{ flex:1; width:50%; overflow:auto; border:1px solid rgba(255,255,255,.22); padding:12px; }
-.chronicon-replay{ flex:1; width:50%; border:1px solid rgba(255,255,255,.22); padding:14px; color:#fff; font-family:Crimson Pro,serif; overflow:auto; }
+.chronicon-replay{ flex:1; width:50%; border:1px solid rgba(255,255,255,.22); padding:14px; color:#fff; font-family:"Inter",sans-serif; overflow:auto; }
 .chronicon-replay-grid{ display:grid; grid-template-columns:repeat(5, 28px); grid-template-rows:repeat(8, 22px); gap:2px; margin:12px auto; width:max-content; transform:scale(.95); transform-origin:center; }
 .chronicon-replay-cell{ border:1px solid rgba(255,255,255,.24); background:rgba(255,255,255,.04); }
 .chronicon-replay-cell.hit{ background:#fff; }
 .chronicon-item{ cursor:pointer; }
 .chronicon-item.selected{ background:rgba(255,255,255,.12); }
 @media(max-width:700px){ .chronicon-panel.open .chronicon-content{ flex-direction:column; } .chronicon-panel.open .chronicon-list,.chronicon-replay{ width:auto; min-height:0; } .arca-panel.open .control-carousel{ grid-template-columns:1fr 1fr !important; } }
+
+
+/* V52: Inter-only + icon-only closed panels + stable HUD controls */
+*{ font-family:"Inter",sans-serif !important; }
+.left-stack .panel-tab{ width:44px !important; height:44px !important; min-width:44px !important; min-height:44px !important; padding:7px !important; }
+.left-stack .panel-tab img{ width:100% !important; height:100% !important; object-fit:contain !important; display:block !important; }
+.arca-panel:not(.open) .arca-content,
+.arca-panel:not(.open) .arca-explain,
+.chronicon-panel:not(.open) .chronicon-content{
+  display:none !important; opacity:0 !important; visibility:hidden !important; pointer-events:none !important;
+}
+.arca-panel.open .arca-content,
+.chronicon-panel.open .chronicon-content{
+  position:fixed !important; inset:0 !important; width:100vw !important; height:100dvh !important; max-height:none !important;
+  display:flex !important; opacity:1 !important; visibility:visible !important; pointer-events:auto !important;
+  z-index:9999 !important; background:rgba(0,0,0,.985) !important; border:0 !important; transform:none !important;
+  padding:72px 20px 24px !important; box-sizing:border-box !important;
+}
+.arca-panel.open .arca-explain{ display:block !important; opacity:1 !important; visibility:visible !important; pointer-events:auto !important; }
+.sound-toggle,.mini-rail{ z-index:10020 !important; pointer-events:auto !important; touch-action:manipulation !important; -webkit-user-select:none !important; user-select:none !important; }
+.sound-toggle button,.mini-rail button{ pointer-events:auto !important; touch-action:manipulation !important; }
+.board-wrap{ touch-action:none; }
 
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
@@ -6816,7 +6838,7 @@ let globalTouchTapState = null;
 
 document.addEventListener("pointerdown", (event) => {
   if(event.pointerType !== "touch") return;
-  if(event.target?.closest?.(".sound-toggle,.mini-rail,.user-panel,.panel-tab,.info-modal,.exvoto-modal")) return;
+  if(event.target?.closest?.(".sound-toggle,.mini-rail,.user-panel,.panel-tab,.left-stack,.info-modal,.exvoto-modal")) return;
   globalTouchTapState = {
     pointerId:event.pointerId,
     startX:event.clientX,
@@ -6826,7 +6848,7 @@ document.addEventListener("pointerdown", (event) => {
 }, true);
 
 document.addEventListener("pointerup", (event) => {
-  if(event.target?.closest?.(".sound-toggle,.mini-rail,.user-panel,.panel-tab,.info-modal,.exvoto-modal")) { globalTouchTapState = null; return; }
+  if(event.target?.closest?.(".sound-toggle,.mini-rail,.user-panel,.panel-tab,.left-stack,.info-modal,.exvoto-modal")) { globalTouchTapState = null; return; }
   const state = globalTouchTapState;
   if(!state || event.pointerId !== state.pointerId || event.pointerType !== "touch") return;
   globalTouchTapState = null;
@@ -6941,7 +6963,7 @@ resetBtn.addEventListener("click", (event) => {
   if(animState) return;
 
   pushUndo();
-  scroll = 15;
+  scroll = 0;
   activeTool = "move";
   murusOrientation = "horizontal";
   placedWalls = [];
@@ -6962,66 +6984,46 @@ resetBtn.addEventListener("click", (event) => {
   wallBreakFx = [];
   wallBreakAnimating = false;
 
-  users.A.current = { row:28, col:1 };
-  users.A.filled = new Set(["28-1"]);
-  users.A.murusStock = 0;
-  users.A.fossaStock = 0;
-  users.A.marculusStock = 0;
-  users.A.scalaStock = 0;
-  users.A.costulaStock = 0;
-  users.A.exVotoStock = 0;
-  users.A.negroniStock = 0;
-  users.A.negroniEffect = 0;
-  users.A.ft = 0;
+  const active = currentUser();
+  const activeName = active?.name || noxActiveFatumUser?.name || "Socius";
+  const activeNoxId = active?.noxFatumUserId || noxActiveFatumUser?.id || null;
+  const activeFt = Number(active?.ft ?? noxActiveFatumUser?.score ?? 0) || 0;
 
-  users.B.current = { row:28, col:3 };
-  users.B.filled = new Set(["28-3"]);
-  users.B.murusStock = 0;
-  users.B.fossaStock = 0;
-  users.B.marculusStock = 0;
-  users.B.scalaStock = 0;
-  users.B.costulaStock = 0;
-  users.B.exVotoStock = 0;
-  users.B.negroniStock = 0;
-  users.B.negroniEffect = 0;
-  users.B.ft = 0;
+  ["A","B","C","D"].forEach(id => {
+    const user = users[id];
+    user.name = "";
+    user.current = { row:0, col:3 };
+    user.filled = new Set();
+    user.murusStock = 0;
+    user.fossaStock = 0;
+    user.marculusStock = 0;
+    user.scalaStock = 0;
+    user.costulaStock = 0;
+    user.exVotoStock = 0;
+    user.negroniStock = 0;
+    user.negroniEffect = 0;
+    user.ft = 0;
+    user.noxFatumUserId = null;
+    user.noxActive = false;
+  });
 
-  users.C.current = { row:29, col:1 };
-  users.C.filled = new Set(["29-1"]);
-  users.C.murusStock = 0;
-  users.C.fossaStock = 0;
-  users.C.marculusStock = 0;
-  users.C.scalaStock = 0;
-  users.C.costulaStock = 0;
-  users.C.exVotoStock = 0;
-  users.C.negroniStock = 0;
-  users.C.negroniEffect = 0;
-  users.C.ft = 0;
+  const user = users[activeUserId] || users.A;
+  if(!users[activeUserId]) activeUserId = "A";
+  user.name = activeName;
+  user.noxFatumUserId = activeNoxId;
+  user.current = { row:0, col:3 };
+  user.filled = new Set(["0-3"]);
+  user.ft = activeFt;
+  user.noxActive = true;
 
-  users.D.current = { row:29, col:3 };
-  users.D.filled = new Set(["29-3"]);
-  users.D.murusStock = 0;
-  users.D.fossaStock = 0;
-  users.D.marculusStock = 0;
-  users.D.scalaStock = 0;
-  users.D.costulaStock = 0;
-  users.D.exVotoStock = 0;
-  users.D.negroniStock = 0;
-  users.D.negroniEffect = 0;
-  users.D.ft = 0;
-
-  noticeText = "test : joueurs en lignes 29/30 de deserto";
-  addChroniconEvent("Plateau réinitialisé.");
+  noticeText = `${user.name} reprend Labyrinthus en 0-3.`;
+  addChroniconEvent(`${user.name} remet Labyrinthus à zéro et revient en 0-3.`);
   revealPossibleMoves = false;
-  render();
+  if(typeof updateUserTabs === "function") updateUserTabs();
+  if(typeof updateHud === "function") updateHud();
+  scheduleLabyrinthusStateSave('reset');
+  render({ immediate:true });
 });
-
-retroBtn.addEventListener("click", (event) => {
-  event.preventDefault();
-  event.stopPropagation();
-  retro();
-});
-
 
 const ARCA_COSTS = Object.freeze({
   murus:20,
@@ -7525,21 +7527,35 @@ function bindHudToggleButton(button, handler){
 bindHudToggleButton(soundToggleBtn, toggleSoundEnabled);
 bindHudToggleButton(musicToggleBtn, toggleMusicEnabled);
 
-zoomInBtn.addEventListener("click", (event) => {
-  event.preventDefault();
-  event.stopPropagation();
-  adjustZoom(1);
-});
-zoomOutBtn.addEventListener("click", (event) => {
-  event.preventDefault();
-  event.stopPropagation();
-  adjustZoom(-1);
-});
-centerViewBtn.addEventListener("click", (event) => {
-  event.preventDefault();
-  event.stopPropagation();
-  centerViewOnActiveUser(true);
-});
+function bindHudActionButton(button, action){
+  if(!button) return;
+  let lastTouchActionAt = 0;
+  button.addEventListener("pointerdown", (event) => {
+    event.stopPropagation();
+  }, {capture:true, passive:true});
+  button.addEventListener("pointerup", (event) => {
+    if(event.pointerType === "mouse") return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation?.();
+    lastTouchActionAt = performance.now();
+    action(event);
+  }, {capture:true, passive:false});
+  button.addEventListener("click", (event) => {
+    if(performance.now() - lastTouchActionAt < 420){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    action(event);
+  }, {capture:true});
+}
+bindHudActionButton(zoomInBtn, () => adjustZoom(1));
+bindHudActionButton(zoomOutBtn, () => adjustZoom(-1));
+bindHudActionButton(centerViewBtn, () => centerViewOnActiveUser(true));
+bindHudActionButton(retroBtn, () => retro());
 
 infoButtons.forEach((btn) => {
   btn.addEventListener("pointerenter", (event) => {
