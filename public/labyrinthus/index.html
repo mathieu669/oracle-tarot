@@ -1988,6 +1988,202 @@
   .arca-panel.open .arca-explain{ top:calc(var(--arca-popover-top,136px) + 92px) !important; max-height:calc(100dvh - var(--arca-popover-top,136px) - 104px) !important; padding:11px !important; }
 }
 
+
+
+/* V58: Arca mobile popover — fixed safe layout, no JS width variables */
+@media (max-width: 700px){
+  .arca-panel.open{
+    position:static !important;
+    z-index:15000 !important;
+  }
+  .arca-panel.open .arca-content.control-carousel-wrap{
+    position:fixed !important;
+    left:112px !important;
+    right:78px !important;
+    top:156px !important;
+    width:auto !important;
+    min-width:0 !important;
+    height:104px !important;
+    min-height:104px !important;
+    max-height:104px !important;
+    display:block !important;
+    opacity:1 !important;
+    visibility:visible !important;
+    pointer-events:auto !important;
+    z-index:15030 !important;
+    box-sizing:border-box !important;
+    margin:0 !important;
+    padding:10px 34px 10px 10px !important;
+    overflow:hidden !important;
+    background:#000 !important;
+    border:1px solid rgba(255,255,255,.62) !important;
+    border-bottom:0 !important;
+    border-radius:0 !important;
+    transform:none !important;
+    box-shadow:0 18px 42px rgba(0,0,0,.66) !important;
+    touch-action:pan-y !important;
+    -webkit-overflow-scrolling:touch !important;
+  }
+  .arca-panel.open .arca-content.control-carousel-wrap .lab-overlay-close{
+    position:absolute !important;
+    top:6px !important;
+    right:6px !important;
+    width:24px !important;
+    height:24px !important;
+    min-width:24px !important;
+    min-height:24px !important;
+    z-index:15060 !important;
+    background:#000 !important;
+    color:#fff !important;
+    border:1px solid rgba(255,255,255,.55) !important;
+    border-radius:0 !important;
+    display:flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    touch-action:manipulation !important;
+  }
+  .arca-panel.open .arca-content.control-carousel-wrap .control-carousel{
+    display:grid !important;
+    grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+    grid-auto-rows:82px !important;
+    grid-auto-flow:row !important;
+    gap:8px !important;
+    width:100% !important;
+    height:82px !important;
+    max-height:82px !important;
+    margin:0 !important;
+    padding:0 !important;
+    overflow-y:auto !important;
+    overflow-x:hidden !important;
+    scrollbar-width:none !important;
+    -ms-overflow-style:none !important;
+    touch-action:pan-y !important;
+    -webkit-overflow-scrolling:touch !important;
+    background:transparent !important;
+  }
+  .arca-panel.open .arca-content.control-carousel-wrap .control-carousel::-webkit-scrollbar{ display:none !important; }
+  .arca-panel.open .control-card{
+    width:auto !important;
+    min-width:0 !important;
+    height:82px !important;
+    min-height:82px !important;
+    max-height:82px !important;
+    box-sizing:border-box !important;
+    border-radius:0 !important;
+    padding:6px !important;
+    display:flex !important;
+    flex-direction:column !important;
+    align-items:center !important;
+    justify-content:center !important;
+    touch-action:manipulation !important;
+  }
+  .arca-panel.open .control-card .asset-preview-wrap{
+    transform:scale(.78) !important;
+    transform-origin:center !important;
+  }
+  .arca-panel.open .control-card .control-title{
+    font-size:9px !important;
+    letter-spacing:.09em !important;
+    white-space:nowrap !important;
+  }
+  .arca-panel.open .control-card .control-cost{ font-size:9px !important; }
+  .arca-panel.open .control-card.active{
+    background:#fff !important;
+    color:#000 !important;
+    border-color:#fff !important;
+  }
+  .arca-panel.open .control-card.active *{ color:#000 !important; }
+  .arca-panel.open .control-card.active svg{ filter:invert(1) !important; }
+  .arca-panel.open .control-card.active img{ filter:invert(1) contrast(1.1) !important; }
+  .arca-panel.open .arca-explain{
+    position:fixed !important;
+    left:112px !important;
+    right:78px !important;
+    top:260px !important;
+    bottom:auto !important;
+    width:auto !important;
+    min-width:0 !important;
+    min-height:168px !important;
+    max-height:calc(100dvh - 272px) !important;
+    display:block !important;
+    opacity:1 !important;
+    visibility:visible !important;
+    pointer-events:auto !important;
+    z-index:15020 !important;
+    box-sizing:border-box !important;
+    margin:0 !important;
+    padding:12px !important;
+    overflow:auto !important;
+    background:#000 !important;
+    border:1px solid rgba(255,255,255,.62) !important;
+    border-top:1px solid rgba(255,255,255,.24) !important;
+    border-radius:0 !important;
+    color:#fff !important;
+    font-family:"Inter",sans-serif !important;
+    font-size:12px !important;
+    line-height:1.36 !important;
+    box-shadow:0 20px 38px rgba(0,0,0,.62) !important;
+    touch-action:pan-y !important;
+    -webkit-overflow-scrolling:touch !important;
+  }
+  .arca-panel.open .arca-explain h3{
+    margin:0 0 8px !important;
+    font-size:12px !important;
+    letter-spacing:.16em !important;
+    text-transform:uppercase !important;
+  }
+  .arca-panel.open .arca-explain p{ margin:0 0 10px !important; }
+  .arca-panel.open .arca-choose-btn{
+    width:100% !important;
+    min-height:40px !important;
+    border-radius:0 !important;
+    border:1px solid rgba(255,255,255,.72) !important;
+    background:rgba(255,255,255,.08) !important;
+    color:rgba(255,255,255,.42) !important;
+    font-family:"Inter",sans-serif !important;
+    font-size:12px !important;
+    letter-spacing:.16em !important;
+    text-transform:uppercase !important;
+    touch-action:manipulation !important;
+  }
+  .arca-panel.open .arca-choose-btn.visible{
+    display:block !important;
+    background:#fff !important;
+    color:#000 !important;
+  }
+}
+@media (max-width: 390px){
+  .arca-panel.open .arca-content.control-carousel-wrap{
+    left:104px !important;
+    right:72px !important;
+    top:150px !important;
+    height:100px !important;
+    min-height:100px !important;
+    max-height:100px !important;
+    padding:9px 32px 9px 9px !important;
+  }
+  .arca-panel.open .arca-content.control-carousel-wrap .control-carousel{
+    height:80px !important;
+    max-height:80px !important;
+    grid-auto-rows:80px !important;
+    gap:7px !important;
+  }
+  .arca-panel.open .control-card{
+    height:80px !important;
+    min-height:80px !important;
+    max-height:80px !important;
+    padding:5px !important;
+  }
+  .arca-panel.open .arca-explain{
+    left:104px !important;
+    right:72px !important;
+    top:250px !important;
+    min-height:160px !important;
+    max-height:calc(100dvh - 262px) !important;
+    padding:11px !important;
+  }
+}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
 </head>
