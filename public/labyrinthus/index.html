@@ -1816,6 +1816,45 @@
   .arca-panel.open .control-card{ padding:6px !important; }
 }
 
+
+
+/* V56: mobile-first Arca popover anchored between left and right rails */
+.arca-panel.open{ position:static !important; z-index:13000 !important; }
+.arca-panel.open .arca-content.control-carousel-wrap{
+  position:fixed !important; left:var(--arca-popover-left,60px) !important; right:var(--arca-popover-right,60px) !important; top:var(--arca-popover-top,12px) !important;
+  width:auto !important; height:124px !important; min-height:124px !important; max-height:124px !important; display:block !important; opacity:1 !important; visibility:visible !important; pointer-events:auto !important;
+  z-index:13020 !important; box-sizing:border-box !important; margin:0 !important; padding:38px 10px 10px !important; overflow:hidden !important;
+  background:#000 !important; border:1px solid rgba(255,255,255,.48) !important; border-bottom:0 !important; border-radius:0 !important; transform:none !important;
+  box-shadow:0 12px 34px rgba(0,0,0,.48) !important; touch-action:pan-y !important; -webkit-overflow-scrolling:touch !important;
+}
+.arca-panel.open .arca-content.control-carousel-wrap::before{ content:"ARCA" !important; position:absolute !important; left:10px !important; top:12px !important; font-family:"Inter",sans-serif !important; font-size:10px !important; letter-spacing:.22em !important; line-height:1 !important; color:rgba(255,255,255,.78) !important; pointer-events:none !important; }
+.arca-panel.open .arca-content.control-carousel-wrap .lab-overlay-close{ position:absolute !important; top:6px !important; right:6px !important; width:26px !important; height:26px !important; min-width:26px !important; min-height:26px !important; display:flex !important; align-items:center !important; justify-content:center !important; z-index:13040 !important; font-size:18px !important; background:#000 !important; color:#fff !important; border:1px solid rgba(255,255,255,.48) !important; border-radius:0 !important; touch-action:manipulation !important; }
+.arca-panel.open .arca-content.control-carousel-wrap .control-carousel{ display:grid !important; grid-template-columns:repeat(2,minmax(0,1fr)) !important; grid-auto-rows:76px !important; grid-auto-flow:row !important; gap:8px !important; width:100% !important; max-width:none !important; height:76px !important; max-height:76px !important; margin:0 !important; padding:0 0 10px !important; overflow-y:auto !important; overflow-x:hidden !important; scrollbar-width:none !important; -ms-overflow-style:none !important; touch-action:pan-y !important; -webkit-overflow-scrolling:touch !important; background:transparent !important; scroll-snap-type:y proximity !important; }
+.arca-panel.open .arca-content.control-carousel-wrap .control-carousel::-webkit-scrollbar{ display:none !important; }
+.arca-panel.open .control-card{ width:auto !important; min-width:0 !important; height:76px !important; min-height:76px !important; max-height:76px !important; box-sizing:border-box !important; border-radius:0 !important; padding:6px !important; display:flex !important; flex-direction:column !important; align-items:center !important; justify-content:center !important; touch-action:manipulation !important; scroll-snap-align:start !important; }
+.arca-panel.open .control-card .asset-preview-wrap{ transform:scale(.82) !important; transform-origin:center !important; }
+.arca-panel.open .control-card .control-title{ font-size:10px !important; letter-spacing:.12em !important; }
+.arca-panel.open .control-card .control-cost{ font-size:10px !important; }
+.arca-panel.open .control-card.active{ background:#fff !important; color:#000 !important; border-color:#fff !important; }
+.arca-panel.open .control-card.active *{ color:#000 !important; }
+.arca-panel.open .control-card.active svg{ filter:invert(1) !important; }
+.arca-panel.open .control-card.active img{ filter:invert(1) contrast(1.1) !important; }
+.arca-panel.open .arca-explain{
+  position:fixed !important; left:var(--arca-popover-left,60px) !important; right:var(--arca-popover-right,60px) !important; top:calc(var(--arca-popover-top,12px) + 124px) !important; bottom:auto !important;
+  width:auto !important; min-height:162px !important; max-height:calc(100dvh - var(--arca-popover-top,12px) - 136px) !important; display:block !important; opacity:1 !important; visibility:visible !important; pointer-events:auto !important;
+  z-index:13010 !important; box-sizing:border-box !important; margin:0 !important; padding:13px !important; overflow:auto !important; background:#000 !important; border:1px solid rgba(255,255,255,.48) !important; border-top:1px solid rgba(255,255,255,.22) !important; border-radius:0 !important; color:#fff !important; font-family:"Inter",sans-serif !important; font-size:12px !important; line-height:1.38 !important; box-shadow:0 20px 34px rgba(0,0,0,.48) !important; touch-action:pan-y !important; -webkit-overflow-scrolling:touch !important;
+}
+.arca-panel.open .arca-explain h3{ margin:0 0 8px !important; font-size:12px !important; letter-spacing:.18em !important; text-transform:uppercase !important; }
+.arca-panel.open .arca-explain p{ margin:0 0 10px !important; }
+.arca-panel.open .arca-choose-btn{ width:100% !important; min-height:42px !important; border-radius:0 !important; border:1px solid rgba(255,255,255,.72) !important; background:rgba(255,255,255,.08) !important; color:rgba(255,255,255,.42) !important; font-family:"Inter",sans-serif !important; font-size:12px !important; letter-spacing:.18em !important; text-transform:uppercase !important; touch-action:manipulation !important; }
+.arca-panel.open .arca-choose-btn.visible{ display:block !important; background:#fff !important; color:#000 !important; }
+@media(max-width:420px){
+  .arca-panel.open .arca-content.control-carousel-wrap{ padding:36px 8px 8px !important; height:118px !important; min-height:118px !important; max-height:118px !important; }
+  .arca-panel.open .arca-content.control-carousel-wrap .control-carousel{ height:74px !important; grid-auto-rows:74px !important; gap:7px !important; }
+  .arca-panel.open .control-card{ height:74px !important; min-height:74px !important; max-height:74px !important; padding:5px !important; }
+  .arca-panel.open .arca-explain{ top:calc(var(--arca-popover-top,12px) + 118px) !important; max-height:calc(100dvh - var(--arca-popover-top,12px) - 130px) !important; padding:12px !important; }
+}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
 </head>
@@ -7040,11 +7079,31 @@ function closeLabyrinthusOverlays(except = null){
   if(except !== 'chronicon' && chroniconPanel) chroniconPanel.classList.remove('open');
 }
 
+function positionArcaPopover(){
+  if(!arcaPanel || !arcaTab) return;
+  const tabRect = arcaTab.getBoundingClientRect();
+  const rightRail = document.querySelector('.mini-rail') || document.querySelector('.sound-toggle');
+  const rightRect = rightRail ? rightRail.getBoundingClientRect() : null;
+  let left = Math.max(8, tabRect.right + 8);
+  let right = Math.max(8, rightRect ? (window.innerWidth - rightRect.left + 8) : 58);
+  if(window.innerWidth - left - right < 188){
+    left = Math.max(54, tabRect.right + 4);
+    right = Math.max(44, rightRect ? (window.innerWidth - rightRect.left + 4) : 46);
+  }
+  const top = Math.max(8, Math.min(tabRect.top, window.innerHeight - 312));
+  arcaPanel.style.setProperty('--arca-popover-left', `${left}px`);
+  arcaPanel.style.setProperty('--arca-popover-right', `${right}px`);
+  arcaPanel.style.setProperty('--arca-popover-top', `${top}px`);
+}
+
 function toggleArcaOverlay(event){
   if(event){ event.preventDefault(); event.stopPropagation(); }
   const willOpen = arcaPanel && !arcaPanel.classList.contains('open');
   closeLabyrinthusOverlays(willOpen ? 'arca' : null);
-  if(arcaPanel) arcaPanel.classList.toggle('open', !!willOpen);
+  if(arcaPanel){
+    if(willOpen) positionArcaPopover();
+    arcaPanel.classList.toggle('open', !!willOpen);
+  }
 }
 
 function toggleChroniconOverlay(event){
@@ -7075,7 +7134,9 @@ function selectArcaCard(card){
     explain.querySelector('h3')?.remove();
     explain.querySelector('p')?.remove();
     explain.innerHTML = `<h3>${escapeHtml(info.title)}</h3><p>Les Arcas permettent d’acheter puis d’activer un élément de jeu.</p><p>${escapeHtml(info.body).replace(/\n/g, '<br>')}</p><button class="arca-choose-btn visible" id="arcaChooseBtn" type="button">choisir</button>`;
-    document.getElementById('arcaChooseBtn')?.addEventListener('click', confirmArcaChoice);
+    const chooseBtn = document.getElementById('arcaChooseBtn');
+    chooseBtn?.addEventListener('click', confirmArcaChoice);
+    if(chooseBtn) bindMobileTapActivation(chooseBtn);
   }
 }
 function confirmArcaChoice(event){
@@ -7251,15 +7312,7 @@ document.addEventListener("pointerup", (event) => {
     ? document.elementsFromPoint(event.clientX, event.clientY)
     : [document.elementFromPoint(event.clientX, event.clientY)].filter(Boolean);
 
-  const arcaTarget = stack.map(element => element?.closest?.(".arca-panel .control-card, .arca-panel button"))
-    .find(Boolean);
-  if(arcaTarget && !event.target?.closest?.(".info-btn")){
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    keepArcaOpenForTouch();
-    activateElementBySyntheticClick(arcaTarget, event);
-    return;
-  }
+  if(event.target?.closest?.(".arca-panel")) return;
 
   if(boardWrap.contains(state.target) || boardWrap.contains(event.target)){
     if(isBoardUiTarget(event.target)) return;
@@ -7443,6 +7496,7 @@ function returnToPlayerSquareAfterPlacement(user){
 
 function keepArcaOpenForTouch(){
   if(!arcaPanel) return;
+  positionArcaPopover();
   arcaPanel.classList.add("open", "held");
 }
 if(arcaPanel){
@@ -7719,25 +7773,36 @@ catenaCard.addEventListener("click", (event) => {
 
 function bindMobileTapActivation(element){
   if(!element) return;
-  let lastSyntheticTapAt = 0;
-  element.addEventListener("click", (event) => {
-    if(event.isTrusted && performance.now() - lastSyntheticTapAt < 380){
-      event.preventDefault();
-      event.stopImmediatePropagation();
-    }
-  }, true);
+  let touchStart = null;
+  element.addEventListener("pointerdown", (event) => {
+    if(event.pointerType === "mouse") return;
+    touchStart = { x:event.clientX, y:event.clientY, id:event.pointerId };
+  }, {passive:true});
   element.addEventListener("pointerup", (event) => {
     if(event.pointerType === "mouse") return;
     if(event.target?.closest?.(".info-btn")) return;
+    const state = touchStart;
+    touchStart = null;
+    if(!state || state.id !== event.pointerId) return;
+    if(Math.hypot(event.clientX - state.x, event.clientY - state.y) > 10) return;
     event.preventDefault();
     event.stopPropagation();
     keepArcaOpenForTouch();
-    lastSyntheticTapAt = performance.now();
-    element.click();
+    if(element.classList.contains("control-card")){
+      selectArcaCard(element);
+    }else{
+      element.click();
+    }
   }, {passive:false});
 }
-// Mobile Arca activation is handled by the global touch bridge above.
-// Keeping card clicks native on desktop prevents validation jitter and duplicate purchases.
+
+if(arcaPanel){
+  arcaPanel.querySelectorAll('.control-card').forEach(bindMobileTapActivation);
+  const initialChoose = document.getElementById('arcaChooseBtn');
+  if(initialChoose) bindMobileTapActivation(initialChoose);
+}
+window.addEventListener('resize', () => { if(arcaPanel?.classList.contains('open')) positionArcaPopover(); }, {passive:true});
+window.addEventListener('orientationchange', () => { setTimeout(() => { if(arcaPanel?.classList.contains('open')) positionArcaPopover(); }, 120); }, {passive:true});
 
 function fileToDataUrl(file){
   return new Promise((resolve,reject) => {
