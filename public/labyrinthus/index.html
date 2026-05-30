@@ -2990,6 +2990,48 @@
   .chronicon-panel.open .chronicon-replay{ max-height:calc(100dvh - 26dvh - 138px) !important; }
 }
 
+
+
+/* V70: rounded Arca carousel frame, active Murus orientation control, robust Chronicon entry taps */
+.arca-panel.open .arca-content.control-carousel-wrap{
+  border:2px solid rgba(255,255,255,.86) !important;
+  border-radius:18px !important;
+  overflow:hidden !important;
+}
+.arca-panel.open .arca-content.control-carousel-wrap .control-carousel{
+  border-radius:16px !important;
+  overflow-y:auto !important;
+  overflow-x:hidden !important;
+}
+.arca-panel.open .arca-content.control-carousel-wrap .lab-overlay-close,
+.chronicon-panel.open .chronicon-content .lab-overlay-close{
+  border-radius:14px !important;
+}
+.active-arca-indicator{
+  pointer-events:auto !important;
+  touch-action:manipulation !important;
+  cursor:pointer !important;
+}
+.active-arca-indicator.murus-vertical .murus-preview{
+  transform:rotate(90deg) !important;
+}
+.active-arca-indicator.murus-vertical svg,
+.active-arca-indicator.murus-vertical img{
+  transform:rotate(90deg) !important;
+}
+.chronicon-panel.open .chronicon-item{
+  touch-action:manipulation !important;
+  user-select:none !important;
+  -webkit-user-select:none !important;
+}
+.chronicon-panel.open .chronicon-item.selected{
+  background:#fff !important;
+  color:#000 !important;
+  border-color:#fff !important;
+}
+.chronicon-panel.open .chronicon-item.selected *{
+  color:#000 !important;
+}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
 </head>
@@ -9502,6 +9544,61 @@ function draw(){
   requestAnimationFrame(draw);
 }
 requestAnimationFrame(draw);
+
+
+/* V70: stable mobile interactions for Murus orientation and Chronicon replay entries */
+(function(){
+  const originalUpdateActiveArcaIndicator = window.updateActiveArcaIndicator || (typeof updateActiveArcaIndicator === 'function' ? updateActiveArcaIndicator : null);
+  if(originalUpdateActiveArcaIndicator){
+    window.updateActiveArcaIndicator = function(){
+      originalUpdateActiveArcaIndicator();
+      const holder = document.getElementById('activeArcaIndicator');
+      if(holder){
+        holder.classList.toggle('murus-vertical', activeTool === 'murus' && murusOrientation === 'vertical');
+        holder.setAttribute('title', activeTool === 'murus' ? 'Changer l’orientation du Murus' : '');
+        holder.setAttribute('aria-label', activeTool === 'murus' ? 'Changer l’orientation du Murus' : 'Élément Arca actif');
+      }
+    };
+    try{ window.updateActiveArcaIndicator(); }catch(error){}
+  }
+
+  const holder = document.getElementById('activeArcaIndicator');
+  let lastMurusIndicatorTap = 0;
+  function toggleActiveMurusOrientation(event){
+    if(activeTool !== 'murus' || !(currentUser()?.murusStock > 0)) return;
+    const now = performance.now();
+    if(now - lastMurusIndicatorTap < 260) return;
+    lastMurusIndicatorTap = now;
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    murusOrientation = murusOrientation === 'horizontal' ? 'vertical' : 'horizontal';
+    noticeText = `murus : ${murusOrientation === 'horizontal' ? 'latitudinal' : 'longitudinal'}`;
+    addChroniconEvent(`Murus orienté ${murusOrientation === 'horizontal' ? 'latitudinalement' : 'longitudinalement'}.`, makeChroniconMeta(`Murus orienté ${murusOrientation}.`, { asset:'murus', before:null, after:null }));
+    updateActiveArcaIndicator();
+    render();
+  }
+  if(holder){
+    holder.addEventListener('pointerup', toggleActiveMurusOrientation, {capture:true, passive:false});
+    holder.addEventListener('touchend', toggleActiveMurusOrientation, {capture:true, passive:false});
+    holder.addEventListener('click', toggleActiveMurusOrientation, {capture:true, passive:false});
+  }
+
+  const list = document.getElementById('chroniconList');
+  function activateChroniconEntry(event){
+    const item = event.target?.closest?.('.chronicon-item');
+    if(!item || !list?.contains(item)) return;
+    event.preventDefault?.();
+    event.stopPropagation?.();
+    const index = Number(item.dataset.chroniconIndex);
+    if(!Number.isFinite(index)) return;
+    renderChroniconReplay(chroniconEntries[index], index);
+  }
+  if(list){
+    ['pointerup','touchend','click'].forEach(type => {
+      list.addEventListener(type, activateChroniconEntry, {capture:true, passive:false});
+    });
+  }
+})();
 </script>
 </body>
 </html>
