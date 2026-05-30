@@ -2432,6 +2432,87 @@
   }
 }
 
+
+
+/* V61: Arca info block uses Chronicon replay model + Chronicon close hardening */
+.arca-panel.open .arca-explain{
+  position:fixed !important;
+  left:50% !important;
+  right:auto !important;
+  top:52dvh !important;
+  bottom:calc(env(safe-area-inset-bottom, 0px) + 22px) !important;
+  width:calc(100dvw - 40px) !important;
+  max-width:720px !important;
+  transform:translateX(-50%) !important;
+  box-sizing:border-box !important;
+  display:flex !important;
+  flex-direction:column !important;
+  opacity:1 !important;
+  visibility:visible !important;
+  pointer-events:auto !important;
+  overflow:auto !important;
+  margin:0 !important;
+  padding:16px !important;
+  background:rgba(0,0,0,.92) !important;
+  color:#fff !important;
+  border:1px solid rgba(255,255,255,.24) !important;
+  border-radius:0 !important;
+  font-family:"Inter",sans-serif !important;
+  font-size:14px !important;
+  line-height:1.42 !important;
+  z-index:2147483002 !important;
+  -webkit-overflow-scrolling:touch !important;
+  touch-action:pan-y !important;
+}
+.arca-panel.open .arca-explain h3{
+  flex:0 0 auto !important;
+  margin:0 0 10px !important;
+  font-family:"Inter",sans-serif !important;
+  font-size:13px !important;
+  letter-spacing:.18em !important;
+  text-transform:uppercase !important;
+}
+.arca-panel.open .arca-explain p{
+  flex:0 0 auto !important;
+  margin:0 0 10px !important;
+}
+.arca-panel.open .arca-choose-btn{
+  flex:0 0 auto !important;
+  margin-top:auto !important;
+  width:100% !important;
+  min-height:44px !important;
+  border:1px solid rgba(255,255,255,.72) !important;
+  background:rgba(255,255,255,.08) !important;
+  color:rgba(255,255,255,.42) !important;
+  border-radius:0 !important;
+  font-family:"Inter",sans-serif !important;
+  font-size:12px !important;
+  letter-spacing:.16em !important;
+  text-transform:uppercase !important;
+  touch-action:manipulation !important;
+}
+.arca-panel.open .arca-choose-btn.visible{
+  display:block !important;
+  background:#fff !important;
+  color:#000 !important;
+}
+.chronicon-panel.open .chronicon-content .lab-overlay-close{
+  pointer-events:auto !important;
+  touch-action:manipulation !important;
+  -webkit-user-select:none !important;
+  user-select:none !important;
+  cursor:pointer !important;
+  z-index:2147483005 !important;
+}
+@media(max-width:390px){
+  .arca-panel.open .arca-explain{
+    width:calc(100dvw - 28px) !important;
+    top:52dvh !important;
+    bottom:calc(env(safe-area-inset-bottom, 0px) + 14px) !important;
+    padding:14px !important;
+  }
+}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
 </head>
@@ -7808,6 +7889,19 @@ if(arcaPanel){
 }
 document.getElementById('arcaOverlayClose')?.addEventListener('click', (event)=>{ event.preventDefault(); closeArcaOverlay(); });
 document.getElementById('chroniconOverlayClose')?.addEventListener('click', (event)=>{ event.preventDefault(); closeChroniconOverlay(); });
+
+const chroniconOverlayCloseButton = document.getElementById('chroniconOverlayClose');
+if(chroniconOverlayCloseButton){
+  const hardCloseChroniconOverlay = (event) => {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    event?.stopImmediatePropagation?.();
+    closeChroniconOverlay();
+  };
+  ["pointerdown","pointerup","touchstart","touchend","click"].forEach(type => {
+    chroniconOverlayCloseButton.addEventListener(type, hardCloseChroniconOverlay, {capture:true, passive:false});
+  });
+}
 
 const arcaOverlayCloseButton = document.getElementById('arcaOverlayClose');
 if(arcaOverlayCloseButton){
