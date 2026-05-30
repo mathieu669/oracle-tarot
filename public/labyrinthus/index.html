@@ -2384,6 +2384,54 @@
   .arca-panel.open .control-card .asset-preview-wrap{ transform:scale(.78) !important; }
   .arca-panel.open .arca-explain{ left:14px !important; right:14px !important; padding:14px !important; }
 }
+
+
+/* V60: Arca fullscreen refinements — robust close + information block aligned with carousel */
+.arca-panel.open .arca-content.control-carousel-wrap .lab-overlay-close{
+  pointer-events:auto !important;
+  touch-action:manipulation !important;
+  -webkit-user-select:none !important;
+  user-select:none !important;
+  cursor:pointer !important;
+}
+.arca-panel.open .arca-content.control-carousel-wrap .control-carousel{
+  width:calc(100dvw - 40px) !important;
+  max-width:720px !important;
+  margin-left:auto !important;
+  margin-right:auto !important;
+}
+.arca-panel.open .arca-explain{
+  left:50% !important;
+  right:auto !important;
+  transform:translateX(-50%) !important;
+  width:calc(100dvw - 40px) !important;
+  max-width:720px !important;
+  top:50dvh !important;
+  bottom:calc(env(safe-area-inset-bottom, 0px) + 20px) !important;
+  box-sizing:border-box !important;
+  display:flex !important;
+  flex-direction:column !important;
+  min-height:0 !important;
+  overflow:auto !important;
+}
+.arca-panel.open .arca-explain h3{
+  flex:0 0 auto !important;
+}
+.arca-panel.open .arca-explain p{
+  flex:0 0 auto !important;
+}
+.arca-panel.open .arca-choose-btn{
+  flex:0 0 auto !important;
+  margin-top:auto !important;
+}
+@media(max-width:390px){
+  .arca-panel.open .arca-content.control-carousel-wrap .control-carousel,
+  .arca-panel.open .arca-explain{
+    width:calc(100dvw - 28px) !important;
+    max-width:calc(100dvw - 28px) !important;
+  }
+}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
 </head>
@@ -7760,6 +7808,19 @@ if(arcaPanel){
 }
 document.getElementById('arcaOverlayClose')?.addEventListener('click', (event)=>{ event.preventDefault(); closeArcaOverlay(); });
 document.getElementById('chroniconOverlayClose')?.addEventListener('click', (event)=>{ event.preventDefault(); closeChroniconOverlay(); });
+
+const arcaOverlayCloseButton = document.getElementById('arcaOverlayClose');
+if(arcaOverlayCloseButton){
+  const hardCloseArcaOverlay = (event) => {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    event?.stopImmediatePropagation?.();
+    closeArcaOverlay();
+  };
+  ["pointerdown","pointerup","touchstart","touchend","click"].forEach(type => {
+    arcaOverlayCloseButton.addEventListener(type, hardCloseArcaOverlay, {capture:true, passive:false});
+  });
+}
 const labResetBtn = document.getElementById('labResetBtn');
 if(labResetBtn){
   const triggerLabyrinthusReset = (event) => {
