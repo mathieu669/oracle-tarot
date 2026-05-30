@@ -2785,6 +2785,133 @@
   .arca-panel.open .arca-explain{ padding:14px !important; font-size:13px !important; }
 }
 
+
+
+/* V64: Arca mobile containment + choose button inside selected card */
+.arca-panel.open .arca-content.control-carousel-wrap{
+  position:fixed !important;
+  inset:0 !important;
+  width:100vw !important;
+  height:100dvh !important;
+  min-height:100dvh !important;
+  max-height:100dvh !important;
+  box-sizing:border-box !important;
+  display:flex !important;
+  flex-direction:column !important;
+  gap:14px !important;
+  padding:calc(env(safe-area-inset-top, 0px) + 68px) 56px calc(env(safe-area-inset-bottom, 0px) + 20px) !important;
+  overflow:hidden !important;
+}
+.arca-panel.open .arca-content.control-carousel-wrap .control-carousel{
+  flex:0 0 min(43dvh, 410px) !important;
+  height:auto !important;
+  max-height:min(43dvh, 410px) !important;
+  min-height:0 !important;
+  width:100% !important;
+  max-width:720px !important;
+  margin:0 auto !important;
+  padding:8px !important;
+  border:2px solid rgba(255,255,255,.9) !important;
+  box-sizing:border-box !important;
+  display:grid !important;
+  grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+  grid-auto-rows:minmax(112px, auto) !important;
+  gap:10px !important;
+  overflow-x:hidden !important;
+  overflow-y:auto !important;
+  scrollbar-width:none !important;
+  -webkit-overflow-scrolling:touch !important;
+}
+.arca-panel.open .control-card{
+  min-height:112px !important;
+  height:auto !important;
+  max-height:none !important;
+  box-sizing:border-box !important;
+  display:flex !important;
+  flex-direction:column !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:4px !important;
+  padding:8px !important;
+}
+.arca-panel.open .control-card.has-inline-choose{
+  justify-content:flex-start !important;
+  min-height:140px !important;
+}
+.arca-inline-choose{
+  display:block !important;
+  width:100% !important;
+  flex:0 0 25% !important;
+  min-height:30px !important;
+  max-height:42px !important;
+  margin-top:auto !important;
+  border:1px solid rgba(255,255,255,.78) !important;
+  background:#fff !important;
+  color:#000 !important;
+  border-radius:0 !important;
+  font-family:"Inter",sans-serif !important;
+  font-size:12px !important;
+  line-height:1 !important;
+  letter-spacing:.16em !important;
+  text-transform:uppercase !important;
+  touch-action:manipulation !important;
+  box-sizing:border-box !important;
+}
+.arca-panel.open .arca-explain{
+  position:relative !important;
+  left:auto !important;
+  right:auto !important;
+  top:auto !important;
+  bottom:auto !important;
+  transform:none !important;
+  flex:1 1 auto !important;
+  min-height:0 !important;
+  max-height:none !important;
+  height:auto !important;
+  width:100% !important;
+  max-width:720px !important;
+  margin:0 auto !important;
+  box-sizing:border-box !important;
+  overflow-y:auto !important;
+  overflow-x:hidden !important;
+  padding:16px !important;
+  display:block !important;
+  border:1px solid rgba(255,255,255,.48) !important;
+  -webkit-overflow-scrolling:touch !important;
+}
+.arca-panel.open .arca-explain .arca-choose-btn{ display:none !important; }
+@media(max-width:700px){
+  .arca-panel.open .arca-content.control-carousel-wrap{
+    padding:calc(env(safe-area-inset-top, 0px) + 64px) 56px calc(env(safe-area-inset-bottom, 0px) + 16px) !important;
+    gap:12px !important;
+  }
+  .arca-panel.open .arca-content.control-carousel-wrap .control-carousel{
+    flex-basis:41dvh !important;
+    max-height:41dvh !important;
+    grid-auto-rows:minmax(104px, auto) !important;
+    gap:8px !important;
+    padding:6px !important;
+  }
+  .arca-panel.open .control-card{ min-height:104px !important; padding:7px !important; }
+  .arca-panel.open .control-card.has-inline-choose{ min-height:130px !important; }
+  .arca-panel.open .control-card .asset-preview-wrap{ transform:scale(.70) !important; }
+  .arca-panel.open .arca-explain{ padding:14px !important; font-size:13px !important; }
+}
+@media(max-width:390px){
+  .arca-panel.open .arca-content.control-carousel-wrap{
+    padding:calc(env(safe-area-inset-top, 0px) + 62px) 56px calc(env(safe-area-inset-bottom, 0px) + 14px) !important;
+    gap:10px !important;
+  }
+  .arca-panel.open .arca-content.control-carousel-wrap .control-carousel{
+    flex-basis:40dvh !important;
+    max-height:40dvh !important;
+    grid-auto-rows:minmax(98px, auto) !important;
+  }
+  .arca-panel.open .control-card{ min-height:98px !important; }
+  .arca-panel.open .control-card.has-inline-choose{ min-height:124px !important; }
+  .arca-inline-choose{ min-height:28px !important; font-size:11px !important; letter-spacing:.14em !important; }
+}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
 </head>
@@ -8063,14 +8190,20 @@ function arcaKeyFromCard(card){
 }
 function placeArcaInlineChoose(card){
   document.querySelectorAll('.arca-inline-choose').forEach(button => button.remove());
+  document.querySelectorAll('.arca-panel .control-card').forEach(el => el.classList.remove('has-inline-choose'));
   if(!card) return;
   const inlineChoose = document.createElement('button');
   inlineChoose.type = 'button';
   inlineChoose.className = 'arca-inline-choose';
   inlineChoose.textContent = 'choisir';
-  inlineChoose.addEventListener('click', confirmArcaChoice);
+  inlineChoose.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    confirmArcaChoice(event);
+  });
   bindMobileTapActivation(inlineChoose);
-  card.insertAdjacentElement('afterend', inlineChoose);
+  card.classList.add('has-inline-choose');
+  card.appendChild(inlineChoose);
 }
 function selectArcaCard(card){
   if(!card) return;
