@@ -189,7 +189,8 @@ function mapLabyrinthusChroniconFromDb(row) {
     id: row.id,
     createdAt: row.created_at,
     timestamp: row.timestamp || "",
-    text: row.text || ""
+    text: row.text || "",
+    meta: row.meta && typeof row.meta === "object" ? row.meta : {}
   };
 }
 
@@ -234,6 +235,7 @@ async function insertLabyrinthusChroniconEvent(entry) {
   if (!text) return null;
 
   const timestamp = String(entry?.timestamp || "").trim().slice(0, 40);
+  const meta = entry?.meta && typeof entry.meta === "object" ? entry.meta : {};
 
   if (isSupabaseEnabled()) {
     try {
@@ -241,7 +243,8 @@ async function insertLabyrinthusChroniconEvent(entry) {
         method: "POST",
         body: JSON.stringify({
           timestamp,
-          text
+          text,
+          meta
         })
       });
       return rows?.[0] ? mapLabyrinthusChroniconFromDb(rows[0]) : null;
@@ -256,7 +259,8 @@ async function insertLabyrinthusChroniconEvent(entry) {
       id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       createdAt: new Date().toISOString(),
       timestamp,
-      text
+      text,
+      meta
     },
     ...events
   ].slice(0, 500);

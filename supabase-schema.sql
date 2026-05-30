@@ -37,7 +37,8 @@ create table if not exists public.nox_labyrinthus_chronicon (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),
   timestamp text default '',
-  text text not null
+  text text not null,
+  meta jsonb not null default '{}'::jsonb
 );
 
 create index if not exists nox_context_secrets_created_at_idx on public.nox_context_secrets (created_at desc);
@@ -87,3 +88,6 @@ create index if not exists nox_labyrinthus_state_updated_at_idx
 on public.nox_labyrinthus_state (updated_at desc);
 
 alter table public.nox_labyrinthus_state enable row level security;
+
+
+alter table public.nox_labyrinthus_chronicon add column if not exists meta jsonb not null default '{}'::jsonb;
