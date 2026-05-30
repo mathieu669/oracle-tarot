@@ -1577,6 +1577,83 @@
   .chronicon-replay{ width:auto !important; min-height:0 !important; }
 }
 
+
+
+/* V54: Arca overlay must behave like Chronicon full-screen overlay */
+.arca-panel.open{
+  position:static !important;
+}
+.arca-panel.open .arca-content.control-carousel-wrap{
+  position:fixed !important;
+  inset:0 !important;
+  width:100vw !important;
+  height:100dvh !important;
+  max-height:none !important;
+  z-index:12000 !important;
+  display:block !important;
+  background:#000 !important;
+  border:0 !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  opacity:1 !important;
+  visibility:visible !important;
+  pointer-events:auto !important;
+  transform:none !important;
+  box-sizing:border-box !important;
+  padding:72px 18px calc(50dvh + 20px) !important;
+  overflow:hidden !important;
+  -webkit-overflow-scrolling:auto !important;
+  touch-action:none !important;
+}
+.arca-panel.open .arca-content.control-carousel-wrap .lab-overlay-close{
+  display:flex !important;
+  z-index:12020 !important;
+}
+.arca-panel.open .arca-content.control-carousel-wrap .control-carousel{
+  position:relative !important;
+  display:grid !important;
+  grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+  grid-auto-rows:calc((50dvh - 112px) / 2) !important;
+  gap:12px !important;
+  width:100% !important;
+  max-width:720px !important;
+  height:calc(50dvh - 98px) !important;
+  max-height:calc(50dvh - 98px) !important;
+  margin:0 auto !important;
+  padding:0 0 16px !important;
+  overflow-y:auto !important;
+  overflow-x:hidden !important;
+  -webkit-overflow-scrolling:touch !important;
+  touch-action:pan-y !important;
+  background:transparent !important;
+}
+.arca-panel.open .arca-explain{
+  position:fixed !important;
+  left:18px !important;
+  right:18px !important;
+  bottom:20px !important;
+  height:calc(50dvh - 38px) !important;
+  min-height:0 !important;
+  max-height:none !important;
+  z-index:12010 !important;
+  display:block !important;
+  opacity:1 !important;
+  visibility:visible !important;
+  pointer-events:auto !important;
+  background:#000 !important;
+  color:#fff !important;
+  border:1px solid rgba(255,255,255,.35) !important;
+  border-radius:0 !important;
+  padding:18px !important;
+  box-sizing:border-box !important;
+  overflow:auto !important;
+}
+.arca-panel.open .control-card.active{
+  background:#fff !important;
+  color:#000 !important;
+}
+.arca-panel.open .control-card.active *{ color:#000 !important; }
+.arca-panel.open .control-card.active svg{ filter:invert(1) !important; }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
 </head>
