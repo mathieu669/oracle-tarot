@@ -3724,6 +3724,30 @@ body.theme-light .asset-preview-wrap{
   }
 }
 
+
+/* V87: mobile overlays are anchored below the global Main icon and inside the visible viewport. */
+@media(max-width:700px){
+  .arca-panel.open .arca-content.control-carousel-wrap,
+  .chronicon-panel.open .chronicon-content{
+    top:calc(env(safe-area-inset-top, 0px) + 112px) !important;
+    bottom:calc(env(safe-area-inset-bottom, 0px) + 16px) !important;
+    height:auto !important;
+    min-height:0 !important;
+    max-height:none !important;
+    overflow:hidden !important;
+  }
+}
+@media(max-width:390px){
+  .arca-panel.open .arca-content.control-carousel-wrap,
+  .chronicon-panel.open .chronicon-content{
+    top:calc(env(safe-area-inset-top, 0px) + 112px) !important;
+    bottom:calc(env(safe-area-inset-bottom, 0px) + 14px) !important;
+    height:auto !important;
+    min-height:0 !important;
+    max-height:none !important;
+  }
+}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
 </head>
