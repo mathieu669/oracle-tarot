@@ -3748,6 +3748,35 @@ body.theme-light .asset-preview-wrap{
   }
 }
 
+
+/* V88: iOS real-device viewport lock.
+   The Labyrinthus iframe can be taller than the visible Safari viewport on real iPhones.
+   These rules use a JS-provided parent visual viewport height so Arca/Chronicon stay fully visible. */
+:root{
+  --lab-real-visible-height: 100dvh;
+  --lab-mobile-overlay-top: 112px;
+  --lab-mobile-overlay-bottom: 14px;
+}
+@media(max-width:700px){
+  .arca-panel.open .arca-content.control-carousel-wrap,
+  .chronicon-panel.open .chronicon-content{
+    top:var(--lab-mobile-overlay-top) !important;
+    bottom:auto !important;
+    height:calc(var(--lab-real-visible-height, 100dvh) - var(--lab-mobile-overlay-top, 112px) - var(--lab-mobile-overlay-bottom, 14px)) !important;
+    min-height:0 !important;
+    max-height:calc(var(--lab-real-visible-height, 100dvh) - var(--lab-mobile-overlay-top, 112px) - var(--lab-mobile-overlay-bottom, 14px)) !important;
+    overflow:hidden !important;
+  }
+}
+@media(max-width:390px){
+  .arca-panel.open .arca-content.control-carousel-wrap,
+  .chronicon-panel.open .chronicon-content{
+    top:var(--lab-mobile-overlay-top) !important;
+    height:calc(var(--lab-real-visible-height, 100dvh) - var(--lab-mobile-overlay-top, 112px) - var(--lab-mobile-overlay-bottom, 14px)) !important;
+    max-height:calc(var(--lab-real-visible-height, 100dvh) - var(--lab-mobile-overlay-top, 112px) - var(--lab-mobile-overlay-bottom, 14px)) !important;
+  }
+}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
 </head>
@@ -10986,6 +11015,55 @@ requestAnimationFrame(draw);
   });
 
   renderStrictMurusIndicatorV75();
+})();
+
+
+/* V88: compute the real visible height of the parent phone viewport for iOS Safari. */
+(function syncLabyrinthusRealViewportV88(){
+  const root = document.documentElement;
+
+  function getParentVisibleHeight(){
+    try{
+      if(window.parent && window.parent !== window && window.frameElement){
+        const parentWindow = window.parent;
+        const parentViewport = parentWindow.visualViewport;
+        const parentHeight = parentViewport ? parentViewport.height : parentWindow.innerHeight;
+        const parentOffsetTop = parentViewport ? parentViewport.offsetTop : 0;
+        const frameRect = window.frameElement.getBoundingClientRect();
+        const frameTopInVisibleViewport = frameRect.top - parentOffsetTop;
+        return Math.max(320, Math.floor(parentHeight - Math.max(0, frameTopInVisibleViewport)));
+      }
+    }catch(_error){}
+
+    const localViewport = window.visualViewport;
+    return Math.max(320, Math.floor(localViewport ? localViewport.height : window.innerHeight));
+  }
+
+  function apply(){
+    const visibleHeight = getParentVisibleHeight();
+    const mobileOverlayTop = 112;
+    const mobileOverlayBottom = 14;
+    root.style.setProperty('--lab-real-visible-height', `${visibleHeight}px`);
+    root.style.setProperty('--lab-mobile-overlay-top', `${mobileOverlayTop}px`);
+    root.style.setProperty('--lab-mobile-overlay-bottom', `${mobileOverlayBottom}px`);
+  }
+
+  apply();
+  window.addEventListener('resize', apply, {passive:true});
+  window.addEventListener('orientationchange', () => setTimeout(apply, 140), {passive:true});
+  window.visualViewport?.addEventListener('resize', apply, {passive:true});
+  window.visualViewport?.addEventListener('scroll', apply, {passive:true});
+
+  try{
+    if(window.parent && window.parent !== window){
+      window.parent.addEventListener('resize', apply, {passive:true});
+      window.parent.visualViewport?.addEventListener('resize', apply, {passive:true});
+      window.parent.visualViewport?.addEventListener('scroll', apply, {passive:true});
+    }
+  }catch(_error){}
+
+  setTimeout(apply, 250);
+  setTimeout(apply, 900);
 })();
 
 </script>
