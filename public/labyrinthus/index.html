@@ -4234,6 +4234,9 @@ body.theme-light .asset-preview-wrap{
           <filter id="vaporSoftBlur" x="-90%" y="-90%" width="280%" height="280%">
             <feGaussianBlur stdDeviation="7"/>
           </filter>
+          <filter id="silvaShadowSfumato" x="-18%" y="-18%" width="136%" height="136%" color-interpolation-filters="sRGB">
+            <feGaussianBlur stdDeviation="2.2"/>
+          </filter>
           <radialGradient id="sphereGradDark" cx="34%" cy="24%" r="72%">
             <stop offset="0%" stop-color="#d8d8d8"/>
             <stop offset="18%" stop-color="#626262"/>
@@ -5620,10 +5623,12 @@ function silvaCellStyle(row,col,screenDistance){
   const t = clamp(screenDistance / visibleRows, 0, 1);
   const shadowed = isSilvaShadowCell(row, col);
   return {
-    fill: shadowed ? "#768045" : "#A9B763",
+    fill:"#A9B763",
     pattern:"url(#silvaMoss)",
-    textureOpacity: shadowed ? .18 : .14,
-    shadeOpacity:clamp((shadowed ? .20 : .14) + (1 - t) * .06, .12, .30)
+    textureOpacity: shadowed ? .16 : .14,
+    shadeFill: shadowed ? "rgba(0,0,0,1)" : "url(#canyonLightSweep)",
+    shadeFilter: shadowed ? "url(#silvaShadowSfumato)" : "",
+    shadeOpacity: shadowed ? .20 : clamp(.14 + (1 - t) * .06, .12, .30)
   };
 }
 
@@ -7897,7 +7902,11 @@ function makeCell(worldRow, col, screenDistance){
   fillPoly.setAttribute("fill", style.fill);
   texturePoly.setAttribute("fill", style.pattern);
   texturePoly.setAttribute("opacity", style.textureOpacity.toFixed(2));
+  shadePoly.setAttribute("fill", style.shadeFill || "url(#canyonLightSweep)");
   shadePoly.setAttribute("opacity", style.shadeOpacity.toFixed(2));
+  if(style.shadeFilter){
+    shadePoly.setAttribute("filter", style.shadeFilter);
+  }
   if(isMontibusCell){
     const frontPoints = [polygon[3], polygon[2], flatPolygon[2], flatPolygon[3]];
     const rightPoints = [polygon[1], polygon[2], flatPolygon[2], flatPolygon[1]];
@@ -9017,12 +9026,15 @@ function solidusValueForCell(row, col){
 function solidusPositionsForLevel(levelIndex){
   if(solidusCache.has(levelIndex)) return solidusCache.get(levelIndex);
   const startRow = levelIndex * LEVEL_LENGTH;
+  const levelKey = levelForRow(startRow).key;
+  const targetSolidusCount = Math.max(1, Math.round(SOLIDUS_PER_LEVEL * (levelKey === "silva" ? 1.3 : 1)));
   const candidates = [];
   for(let localRow = 0; localRow < LEVEL_LENGTH; localRow++){
     const worldRow = startRow + localRow;
     for(let col = 0; col < cols; col++){
       if(abyssusExistsAt(worldRow, col)) continue;
       if(vaporExistsAt(worldRow, col)) continue;
+      if(levelKey === "silva" && isSilvaShadowCell(worldRow, col)) continue;
       const score = cellNoise(worldRow, col, 931) + cellNoise(worldRow, col, 937) * 0.35 + (localRow * 0.0001);
       candidates.push({
         row: worldRow,
@@ -9044,7 +9056,7 @@ function solidusPositionsForLevel(levelIndex){
   }
 
   for(const candidate of candidates){
-    if(chosen.length >= SOLIDUS_PER_LEVEL) break;
+    if(chosen.length >= targetSolidusCount) break;
     const local = levelLocalRow(candidate.row);
     if(usedLocalRows.has(local)) continue;
     if(isAdjacentToChosen(candidate)) continue;
@@ -9057,7 +9069,7 @@ function solidusPositionsForLevel(levelIndex){
     usedLocalRows.add(local);
   }
   for(const candidate of candidates){
-    if(chosen.length >= SOLIDUS_PER_LEVEL) break;
+    if(chosen.length >= targetSolidusCount) break;
     const id = solidusId(candidate.row, candidate.col);
     if(chosen.some(item => item.id === id)) continue;
     if(isAdjacentToChosen(candidate)) continue;
