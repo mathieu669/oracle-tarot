@@ -3036,10 +3036,10 @@
 /* V71: explicit Murus rotation arrow on active Arca indicator */
 .murus-rotate-floating{
   position:fixed;
-  top:calc(env(safe-area-inset-top, 0px) + 48px);
-  left:calc(50% + 42px);
+  top:calc(env(safe-area-inset-top, 0px) + 92px);
+  left:50%;
   transform:translateX(-50%);
-  z-index:120;
+  z-index:140;
   width:34px;
   height:34px;
   min-width:34px;
@@ -9669,11 +9669,15 @@ requestAnimationFrame(draw);
     };
   }
 
+  let lastFloatingMurusRotationAt = 0;
   function rotateActiveMurus(event){
     if(!hasActiveMurusToPlace()) return;
     event?.preventDefault?.();
     event?.stopPropagation?.();
     event?.stopImmediatePropagation?.();
+    const now = performance.now();
+    if(now - lastFloatingMurusRotationAt < 220) return;
+    lastFloatingMurusRotationAt = now;
     murusOrientation = murusOrientation === 'horizontal' ? 'vertical' : 'horizontal';
     noticeText = `murus : ${murusOrientation === 'horizontal' ? 'latitudinal' : 'longitudinal'}`;
     try{
@@ -9687,9 +9691,14 @@ requestAnimationFrame(draw);
     render?.();
   }
 
-  ['pointerdown','pointerup','touchstart','touchend','click'].forEach(type => {
+  ['pointerup','click'].forEach(type => {
     rotateFloating.addEventListener(type, rotateActiveMurus, {capture:true, passive:false});
   });
+  rotateFloating.addEventListener('keydown', (event) => {
+    if(event.key === 'Enter' || event.key === ' '){
+      rotateActiveMurus(event);
+    }
+  }, {capture:true, passive:false});
 
   document.addEventListener('pointerup', (event) => {
     if(event.target?.closest?.('#activeArcaIndicator') && hasActiveMurusToPlace()){
