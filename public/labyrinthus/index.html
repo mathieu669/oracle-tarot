@@ -5586,12 +5586,14 @@ function restoreOwnAction(state, actorId){
   const placedDelta = {
     murus: countOwned(placedWalls) - countOwned(state.placedWalls || []),
     fossa: countOwned(placedFossae) - countOwned(state.placedFossae || []),
+    catena: countOwned(activeCatenas) - countOwned(state.activeCatenas || []),
     scala: countOwned(placedScalas) - countOwned(state.placedScalas || []),
     exvoto: countOwned(placedExVotos) - countOwned(state.placedExVotos || [])
   };
   let refundDelta = 0;
   if(placedDelta.murus > 0) refundDelta += placedDelta.murus * (ARCA_COSTS.murus || 0);
   if(placedDelta.fossa > 0) refundDelta += placedDelta.fossa * (ARCA_COSTS.fossa || 0);
+  if(placedDelta.catena > 0) refundDelta += placedDelta.catena * (ARCA_COSTS.catena || 0);
   if(placedDelta.scala > 0) refundDelta += placedDelta.scala * (ARCA_COSTS.scala || 0);
   if(placedDelta.exvoto > 0) refundDelta += placedDelta.exvoto * (ARCA_COSTS.exvoto || 0);
   if(refundDelta > 0){
@@ -6270,6 +6272,7 @@ function createCatena(ownerId, pair){
     render();
     return false;
   }
+  if(!debitArcaPurchase(users[ownerId], "catena", "catena")) return false;
   pushUndo();
   activeCatenas.push({
     id:`catena-${ownerId}-${performance.now()}`,
@@ -9053,6 +9056,7 @@ resetBtn.addEventListener("click", (event) => {
 const ARCA_COSTS = Object.freeze({
   murus:20,
   fossa:50,
+  catena:50,
   marculus:15,
   scala:30,
   costula:75,
