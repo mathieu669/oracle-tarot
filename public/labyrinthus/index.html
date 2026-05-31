@@ -258,6 +258,37 @@
   background:transparent !important;
   mix-blend-mode:screen;
 }
+.flamma-video-layer,.cinis-video-layer{
+  position:absolute;inset:0;z-index:3;pointer-events:none;overflow:hidden;
+}
+.flamma-video,.cinis-video{
+  position:absolute;display:none;pointer-events:none;overflow:visible;background:transparent;
+}
+.flamma-video{
+  width:30px;height:30px;transform:translate(-50%,-62%);
+  filter:drop-shadow(0 0 8px rgba(255,255,255,.18)) drop-shadow(-6px 4px 8px rgba(0,0,0,.32));
+  opacity:.96;
+}
+.cinis-video{
+  width:32px;height:32px;transform:translate(-50%,-66%);
+  filter:drop-shadow(0 0 7px rgba(255,255,255,.12)) drop-shadow(-7px 4px 9px rgba(0,0,0,.42));
+  opacity:.94;
+}
+.flamma-video .lottie-anim svg *,
+.cinis-video .lottie-anim svg *,
+.flammaria-preview svg *{
+  fill:none !important;
+  stroke:#fff !important;
+}
+.control-card.is-hidden{display:none !important;}
+.flammaria-preview{
+  width:54px;height:54px;border-radius:14px;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 50% 38%, rgba(255,255,255,.10), rgba(255,255,255,.02) 56%, rgba(0,0,0,.18));
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);
+}
+.flammaria-preview svg{width:34px;height:34px;display:block;}
+.fire-cell-fx{fill:rgba(255,36,36,.24);stroke:rgba(255,72,72,.22);stroke-width:.7;vector-effect:non-scaling-stroke;pointer-events:none;}
+.burnt-cell-fx{fill:rgba(0,0,0,.62);stroke:rgba(0,0,0,.28);stroke-width:.55;vector-effect:non-scaling-stroke;pointer-events:none;}
   .token-label{
     position:absolute;left:50%;top:-8px;
     transform:translate(-50%,-100%);
@@ -821,7 +852,7 @@
   }
 
   .info-modal{
-    position:absolute;inset:0;z-index:12;display:none;pointer-events:none;
+    position:absolute;inset:0;z-index:2147483600;display:none;pointer-events:none;
   }
   .info-modal.visible{ display:block; pointer-events:auto; }
   .info-modal-backdrop{
@@ -1064,7 +1095,7 @@
   .exvoto-modal{
     position:absolute;
     inset:0;
-    z-index:60;
+    z-index:2147483601;
     display:none;
     align-items:center;
     justify-content:center;
@@ -4182,6 +4213,20 @@ body.theme-light .asset-preview-wrap{
               <button class="info-btn" data-info-key="exvoto" aria-label="Informations Ex voto" title="Informations Ex voto"><svg viewBox="0 0 20 20" aria-hidden="true"><circle class="glyph" cx="10" cy="10" r="7.2"/><path class="glyph" d="M10 8.1v4.6"/><path class="glyph" d="M10 5.6h.01"/></svg></button>
             </div>
           </div>
+          <div class="control-card is-hidden" id="flammaCard" title="Flamma en attente de placement">
+            <div class="asset-preview-wrap">
+              <div class="flammaria-preview" aria-hidden="true">
+                <svg viewBox="0 0 32 32">
+                  <path d="M16 4c.7 3.2-1.2 5.1-3.2 7.2-2.1 2.2-4.2 4.4-4.2 8.1 0 4.1 3.1 7.2 7.4 7.2 4.5 0 7.8-3.3 7.8-7.8 0-2.9-1.4-5.1-3.1-7.2-1.3-1.6-2.7-3.3-2.6-6.1-1.2.8-1.9 1.7-2.1 3.2-.9-1.3-1.6-2.8-1.9-4.6Z" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M16 13.3c.4 1.8-.6 2.8-1.5 3.8-1 1-1.9 2-1.9 3.7 0 1.9 1.4 3.3 3.5 3.3 2 0 3.6-1.5 3.6-3.6 0-1.4-.7-2.5-1.5-3.5-.6-.7-1.2-1.5-1.2-2.9-.6.4-.9.9-1 1.7Z" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+            </div>
+            <div class="control-meta">
+              <div class="control-title">Flamma</div>
+              <div class="control-cost">ramassée</div>
+            </div>
+          </div>
 
           <div class="control-card" id="negroniCard" title="Acheter un Negroni">
             <div class="asset-preview-wrap">
@@ -4312,6 +4357,8 @@ body.theme-light .asset-preview-wrap{
         <g id="fossaHints"></g>
         <g id="vapors"></g>
         <g id="silvaObjects"></g>
+        <g id="fireFx"></g>
+        <g id="burntFx"></g>
         <g id="herbae"></g>
         <g id="abyssus"></g>
         <g id="scalas"></g>
@@ -4327,6 +4374,8 @@ body.theme-light .asset-preview-wrap{
       <div class="folium-layer" id="foliumLayer"></div>
       <div class="aquila-video-layer" id="aquilaVideoLayer"></div>
       <div class="solidus-video-layer" id="solidusVideoLayer"></div>
+      <div class="flamma-video-layer" id="flammaVideoLayer"></div>
+      <div class="cinis-video-layer" id="cinisVideoLayer"></div>
       <div class="token-video-layer" id="tokenVideoLayer"></div>
 
       <div class="notice" id="notice">user actif : user a</div>
@@ -4386,6 +4435,8 @@ const grid = document.getElementById("grid");
 const fossaHintsGroup = document.getElementById("fossaHints");
 const vaporsGroup = document.getElementById("vapors");
 const silvaObjectsGroup = document.getElementById("silvaObjects");
+const fireFxGroup = document.getElementById("fireFx");
+const burntFxGroup = document.getElementById("burntFx");
 const herbaeGroup = document.getElementById("herbae");
 const abyssusGroup = document.getElementById("abyssus");
 const scalasGroup = document.getElementById("scalas");
@@ -4401,6 +4452,8 @@ const aquilaVideoLayer = document.getElementById("aquilaVideoLayer");
 const tokenVideoLayer = document.getElementById("tokenVideoLayer");
 const foliumLayer = document.getElementById("foliumLayer");
 const solidusVideoLayer = document.getElementById("solidusVideoLayer");
+const flammaVideoLayer = document.getElementById("flammaVideoLayer");
+const cinisVideoLayer = document.getElementById("cinisVideoLayer");
 const spritePowerFactor = mobileLowPowerMode ? 1.55 : 1;
 const tokenSpriteConfig = Object.freeze({
   src:"/labyrinthus/assets/token-sprite.png",
@@ -4439,6 +4492,16 @@ const solidusLottieConfig = Object.freeze({
   className:"solidus-lottie",
   speed: mobileLowPowerMode ? 0.78 : 1
 });
+const flammaLottieConfig = Object.freeze({
+  path:"/labyrinthus/assets/lottie/flamma-white.json",
+  className:"flamma-lottie",
+  speed: mobileLowPowerMode ? 0.78 : 1
+});
+const cinisLottieConfig = Object.freeze({
+  path:"/labyrinthus/assets/lottie/cinis-white.json",
+  className:"cinis-lottie",
+  speed: mobileLowPowerMode ? 0.72 : 0.9
+});
 const aquilaLottieConfig = Object.freeze({
   path:"/labyrinthus/assets/lottie/aquila-white.json",
   className:"aquila-lottie aquila-black-line",
@@ -4450,7 +4513,11 @@ if(window.lottie){
 }
 function createLottieElement(config, fallbackSpriteConfig){
   if(!window.lottie || typeof window.lottie.loadAnimation !== "function"){
-    return createSpriteElement(fallbackSpriteConfig);
+    if(fallbackSpriteConfig) return createSpriteElement(fallbackSpriteConfig);
+    const fallback = document.createElement("div");
+    fallback.className = `lottie-anim anim-visual ${config?.className || ""}`.trim();
+    fallback.setAttribute("aria-hidden", "true");
+    return fallback;
   }
   const container = document.createElement("div");
   container.className = `lottie-anim anim-visual ${config.className || ""}`.trim();
@@ -4496,6 +4563,7 @@ const marculusCard = document.getElementById("marculusCard");
 const scalaCard = document.getElementById("scalaCard");
 const costulaCard = document.getElementById("costulaCard");
 const exVotoCard = document.getElementById("exVotoCard");
+const flammaCard = document.getElementById("flammaCard");
 const negroniCard = document.getElementById("negroniCard");
 const rotateBtn = document.getElementById("rotateBtn");
 const murusPreview = document.getElementById("murusPreview");
@@ -4541,12 +4609,18 @@ const centerX = 200;
 
 let scroll = 0;
 let activeUserId = "A";
-let activeTool = "move"; // move | murus | fossa | marculus | scala | costula | exvoto | negroni | fossaZone | restartSelect | catenaSelect1 | catenaSelect2
+let activeTool = "move"; // move | murus | fossa | marculus | scala | costula | exvoto | flamma | negroni | fossaZone | restartSelect | catenaSelect1 | catenaSelect2
 let murusOrientation = "horizontal"; // horizontal = bottom, vertical = right
 let placedWalls = [];
 let placedFossae = []; // {id,row,col,owner,zoneCenter:{row,col}|null}
 let placedScalas = []; // {id,row,col,owner}
 let placedExVotos = []; // {id,row,col,owner,type,dataUrl}
+let flammaPickups = []; // {id,row,col,consumed}
+let fireZones = []; // {id,owner,row,col,startedAt,duration,cells,finalized}
+let burntCells = new Set();
+const flammaVideoEls = {};
+const cinisVideoEls = {};
+let fireAnimationFrame = null;
 let activeCatenas = []; // {id,owner,pair:[id,id],remainingTurns}
 let pendingCatenaSelection = null;
 let pendingCatenaPurchase = null; // {owner,cost} while Catena selection is pending
@@ -5112,6 +5186,8 @@ const users = {
     scalaStock:0,
     costulaStock:0,
     exVotoStock:0,
+    flammaStock:0,
+    cinis:{ active:false, fee:50, fireId:null, since:null },
     negroniStock:0,
     negroniEffect:0,
     ft:0
@@ -5129,6 +5205,8 @@ const users = {
     scalaStock:0,
     costulaStock:0,
     exVotoStock:0,
+    flammaStock:0,
+    cinis:{ active:false, fee:50, fireId:null, since:null },
     negroniStock:0,
     negroniEffect:0,
     ft:0
@@ -5146,6 +5224,8 @@ const users = {
     scalaStock:0,
     costulaStock:0,
     exVotoStock:0,
+    flammaStock:0,
+    cinis:{ active:false, fee:50, fireId:null, since:null },
     negroniStock:0,
     negroniEffect:0,
     ft:0
@@ -5163,6 +5243,8 @@ const users = {
     scalaStock:0,
     costulaStock:0,
     exVotoStock:0,
+    flammaStock:0,
+    cinis:{ active:false, fee:50, fireId:null, since:null },
     negroniStock:0,
     negroniEffect:0,
     ft:0
@@ -5872,6 +5954,320 @@ function triggerVaporIfNeeded(user,row,col){
   return false;
 }
 
+
+function cellId(row,col){ return key(Math.round(row), Math.round(col)); }
+function isUserCinisLocked(userOrId){
+  const user = typeof userOrId === "string" ? users[userOrId] : userOrId;
+  return !!(user && user.cinis && user.cinis.active);
+}
+function normalizeCinisState(user){
+  if(!user.cinis || typeof user.cinis !== "object") user.cinis = { active:false, fee:50, fireId:null, since:null };
+  if(!Number.isFinite(Number(user.cinis.fee))) user.cinis.fee = 50;
+}
+function flammaPickupAt(row,col){
+  const target = cellId(row,col);
+  return flammaPickups.find(item => !item.consumed && cellId(item.row,item.col) === target) || null;
+}
+function isBurntCell(row,col){ return burntCells.has(cellId(row,col)); }
+function flammaBlockedCell(row,col){
+  const r = Math.round(row);
+  const c = Math.round(col);
+  if(c < 0 || c >= cols) return true;
+  if(levelForRow(r).key !== "silva") return true;
+  if(abyssusExistsAt(r,c)) return true;
+  if(vaporExistsAt(r,c)) return true;
+  if(isSilvaObstacleCell(r,c)) return true;
+  if(silvaFrutexCellKeys && silvaFrutexCellKeys().has(key(r,c))) return true;
+  if(solidusAt(r,c)) return true;
+  if(typeof playerOnCell === "function" && playerOnCell(r,c)) return true;
+  if(flammaPickupAt(r,c)) return true;
+  if(isBurntCell(r,c)) return true;
+  return false;
+}
+function ensureFlammaPickups(){
+  const available = flammaPickups.filter(item => !item.consumed);
+  if(available.length >= 3) return;
+  const silvaIndex = levels.findIndex(level => level.key === "silva");
+  if(silvaIndex < 0) return;
+  const startRow = silvaIndex * LEVEL_LENGTH;
+  const candidates = [];
+  for(let local=0; local<LEVEL_LENGTH; local++){
+    const row = startRow + local;
+    for(let col=0; col<cols; col++){
+      if(flammaBlockedCell(row,col)) continue;
+      const score = cellNoise(row,col,1601) + cellNoise(row,col,1607) * .37;
+      candidates.push({row,col,score});
+    }
+  }
+  candidates.sort((a,b)=>b.score-a.score);
+  const chosen = available.map(item => ({row:item.row,col:item.col}));
+  for(const candidate of candidates){
+    if(chosen.length >= 3) break;
+    if(chosen.some(item => Math.abs(item.row-candidate.row)+Math.abs(item.col-candidate.col) < 4)) continue;
+    const id = `flamma-${candidate.row}-${candidate.col}`;
+    if(flammaPickups.some(item => item.id === id)) continue;
+    flammaPickups.push({id,row:candidate.row,col:candidate.col,consumed:false});
+    chosen.push(candidate);
+  }
+}
+function beginFlammaPlacement(user){
+  if(!user) return false;
+  activeTool = "flamma";
+  noticeText = `flamma en attente de placement pour ${user.name.toLowerCase()}`;
+  scheduleLabyrinthusStateSave('flamma-ready');
+  render();
+  return true;
+}
+function maybeCollectFlammaAt(user,row,col){
+  if(!user) return false;
+  const pickup = flammaPickupAt(row,col);
+  if(!pickup) return false;
+  const approved = window.confirm('Utiliser Flamma ?');
+  if(!approved){
+    noticeText = 'flamma laissée sur la case';
+    render();
+    return false;
+  }
+  pickup.consumed = true;
+  user.flammaStock = Math.max(0, Math.round(Number(user.flammaStock)||0)) + 1;
+  addChroniconEvent(`${user.name} active Flamma en ${locusRef(row,col)}.`);
+  scheduleLabyrinthusStateSave('flamma-picked');
+  return beginFlammaPlacement(user);
+}
+function flammaSpreadCells(row,col,maxCells=15){
+  const start = {row:Math.round(row), col:Math.round(col)};
+  const queue = [start];
+  const seen = new Set([cellId(start.row,start.col)]);
+  const cells = [];
+  while(queue.length && cells.length < maxCells){
+    const cell = queue.shift();
+    if(cell.col < 0 || cell.col >= cols) continue;
+    if(levelForRow(cell.row).key !== "silva") continue;
+    if(abyssusExistsAt(cell.row,cell.col)) continue;
+    cells.push(cell);
+    const next = [
+      {row:cell.row+1,col:cell.col},
+      {row:cell.row-1,col:cell.col},
+      {row:cell.row,col:cell.col+1},
+      {row:cell.row,col:cell.col-1}
+    ];
+    for(const n of next){
+      const id = cellId(n.row,n.col);
+      if(seen.has(id)) continue;
+      seen.add(id);
+      queue.push(n);
+    }
+  }
+  return cells;
+}
+function placeFlamma(row,col){
+  const user = currentUser();
+  if(!user || (Number(user.flammaStock)||0) <= 0) return false;
+  if(levelForRow(row).key !== "silva" || col < 0 || col >= cols || abyssusExistsAt(row,col)){
+    noticeText = 'flamma : choisir une case de Silva Oscura';
+    render();
+    return false;
+  }
+  pushUndo();
+  user.flammaStock = Math.max(0, Math.round(Number(user.flammaStock)||0) - 1);
+  const zone = {
+    id:`fire-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,
+    owner:user.id,
+    row:Math.round(row),
+    col:Math.round(col),
+    startedAt:Date.now(),
+    duration:5000,
+    cells:flammaSpreadCells(row,col,15),
+    finalized:false
+  };
+  fireZones.push(zone);
+  activeTool = "move";
+  noticeText = `flamma déclenchée en ${locusRef(row,col)}`;
+  addChroniconEvent(`${user.name} déclenche Flamma en ${locusRef(row,col)}.`);
+  scheduleLabyrinthusStateSave('flamma-fired');
+  ensureFireAnimation();
+  render();
+  return true;
+}
+function finalizeFireZone(zone){
+  if(!zone || zone.finalized) return;
+  zone.finalized = true;
+  const affected = new Set((zone.cells||[]).map(cell => cellId(cell.row,cell.col)));
+  for(const cell of zone.cells || []) burntCells.add(cellId(cell.row,cell.col));
+  for(const user of userList()){
+    if(user.id === zone.owner) continue;
+    if(!affected.has(cellId(user.current.row,user.current.col))) continue;
+    user.cinis = { active:true, fee:50, fireId:zone.id, since:new Date().toISOString() };
+  }
+  noticeText = 'flamma : la zone incendiée se mue en cendre';
+  addChroniconEvent(`Flamma noircit ${zone.cells.length} carrés de Silva Oscura.`);
+  scheduleLabyrinthusStateSave('flamma-finalized');
+}
+function stepFireAnimation(){
+  const now = Date.now();
+  let running = false;
+  for(const zone of fireZones){
+    if(zone.finalized) continue;
+    const progress = clamp((now - zone.startedAt) / zone.duration, 0, 1);
+    if(progress >= 1){
+      finalizeFireZone(zone);
+    }else{
+      running = true;
+    }
+  }
+  render();
+  if(running) fireAnimationFrame = requestAnimationFrame(stepFireAnimation);
+  else fireAnimationFrame = null;
+}
+function ensureFireAnimation(){
+  if(fireAnimationFrame === null) fireAnimationFrame = requestAnimationFrame(stepFireAnimation);
+}
+function promptCinisResurrection(userOrId){
+  const user = typeof userOrId === "string" ? users[userOrId] : userOrId;
+  if(!isUserCinisLocked(user)) return false;
+  normalizeCinisState(user);
+  const cost = Math.max(0, Math.round(Number(user.cinis.fee)||50));
+  if((Number(user.ft)||0) < cost){
+    noticeText = `cinis : ${user.name.toLowerCase()} doit payer ${cost} Ft pour ressusciter`;
+    render();
+    return true;
+  }
+  const approved = window.confirm(`Résurrection de ${user.name} pour ${cost} Ft ?`);
+  if(!approved){
+    noticeText = `cinis : ${user.name.toLowerCase()} demeure bloqué`;
+    render();
+    return true;
+  }
+  user.ft = Math.max(0, Math.round((Number(user.ft)||0) - cost));
+  if(user.noxFatumUserId && typeof noxRequestFatumDelta === "function") noxRequestFatumDelta(user.noxFatumUserId, -cost, 'cinis_resurrection');
+  user.cinis = { active:false, fee:50, fireId:null, since:null };
+  noticeText = `cinis : ${user.name.toLowerCase()} ressuscite`;
+  addChroniconEvent(`${user.name} paie ${cost} Ft pour ressusciter après l'incendie.`);
+  scheduleLabyrinthusStateSave('cinis-resurrected');
+  render();
+  return true;
+}
+function ensureFlammaVideoElement(id){
+  if(flammaVideoEls[id]) return flammaVideoEls[id];
+  const wrap = document.createElement("div");
+  wrap.className = "flamma-video";
+  wrap.dataset.flammaId = id;
+  wrap.appendChild(createLottieElement(flammaLottieConfig, null));
+  flammaVideoLayer.appendChild(wrap);
+  flammaVideoEls[id] = wrap;
+  return wrap;
+}
+function showFlammaVideo(id,x,y,size){
+  const el = ensureFlammaVideoElement(id);
+  const p = svgPointToLayerPoint(x,y);
+  el.style.display = "block";
+  el.style.left = `${p.x}px`;
+  el.style.top = `${p.y}px`;
+  el.style.width = `${size}px`;
+  el.style.height = `${size}px`;
+}
+function hideUnusedFlammaVideos(visibleIds){
+  Object.entries(flammaVideoEls).forEach(([id,el]) => { if(!visibleIds.has(id)) el.style.display = "none"; });
+}
+function ensureCinisVideoElement(id){
+  if(cinisVideoEls[id]) return cinisVideoEls[id];
+  const wrap = document.createElement("div");
+  wrap.className = "cinis-video";
+  wrap.dataset.cinisId = id;
+  wrap.appendChild(createLottieElement(cinisLottieConfig, null));
+  cinisVideoLayer.appendChild(wrap);
+  cinisVideoEls[id] = wrap;
+  return wrap;
+}
+function showCinisVideo(id,x,y,size){
+  const el = ensureCinisVideoElement(id);
+  const p = svgPointToLayerPoint(x,y);
+  el.style.display = "block";
+  el.style.left = `${p.x}px`;
+  el.style.top = `${p.y}px`;
+  el.style.width = `${size}px`;
+  el.style.height = `${size}px`;
+}
+function hideUnusedCinisVideos(visibleIds){
+  Object.entries(cinisVideoEls).forEach(([id,el]) => { if(!visibleIds.has(id)) el.style.display = "none"; });
+}
+function renderFlammaPickups(){
+  ensureFlammaPickups();
+  const visible = new Set();
+  for(const item of flammaPickups){
+    if(item.consumed || !isWorldRowVisible(item.row)) continue;
+    const screenDistance = item.row - scroll;
+    if(screenDistance < -1.4 || screenDistance > visibleRows + .8) continue;
+    const poly = cellPolygonWorld(item.row,item.col,screenDistance);
+    const c = centroid(poly);
+    const width = Math.abs(poly[2].x - poly[3].x);
+    const depth = Math.abs(poly[3].y - poly[0].y);
+    const size = clamp(width * .82, 22, 38);
+    visible.add(item.id);
+    showFlammaVideo(item.id, c.x, c.y - depth * .12, size);
+  }
+  hideUnusedFlammaVideos(visible);
+}
+function renderCinisTokens(){
+  const visible = new Set();
+  for(const user of userList()){
+    if(!isUserCinisLocked(user)) continue;
+    if(!isWorldRowVisible(user.current.row)) continue;
+    const screenDistance = user.current.row - scroll;
+    if(screenDistance < -1.4 || screenDistance > visibleRows + .8) continue;
+    const poly = cellPolygonWorld(user.current.row,user.current.col,screenDistance);
+    const c = centroid(poly);
+    const width = Math.abs(poly[2].x - poly[3].x);
+    const depth = Math.abs(poly[3].y - poly[0].y);
+    const size = clamp(width * .95, 26, 42);
+    visible.add(user.id);
+    showCinisVideo(user.id, c.x, c.y - depth * .14, size);
+  }
+  hideUnusedCinisVideos(visible);
+}
+function renderFireFx(){
+  if(!fireFxGroup) return;
+  fireFxGroup.innerHTML = "";
+  const now = Date.now();
+  for(const zone of fireZones){
+    if(zone.finalized) continue;
+    const progress = clamp((now - zone.startedAt) / zone.duration, 0, 1);
+    if(progress >= 1){
+      finalizeFireZone(zone);
+      continue;
+    }
+    const count = Math.max(1, Math.ceil((zone.cells || []).length * progress));
+    (zone.cells || []).slice(0,count).forEach((cell, index) => {
+      if(!isWorldRowVisible(cell.row)) return;
+      const screenDistance = cell.row - scroll;
+      if(screenDistance < -1.4 || screenDistance > visibleRows + .8) return;
+      const poly = cellPolygonWorld(cell.row,cell.col,screenDistance);
+      const overlay = document.createElementNS("http://www.w3.org/2000/svg","polygon");
+      overlay.setAttribute("points", pointsAttr(poly));
+      overlay.setAttribute("class", "fire-cell-fx");
+      overlay.setAttribute("opacity", String(clamp(.26 + progress * .58 + index * .008, .26, .86)));
+      fireFxGroup.appendChild(overlay);
+    });
+  }
+}
+function renderBurntCells(){
+  if(!burntFxGroup) return;
+  burntFxGroup.innerHTML = "";
+  for(const id of burntCells){
+    const [rowStr,colStr] = String(id).split("-");
+    const row = Number(rowStr);
+    const col = Number(colStr);
+    if(!Number.isFinite(row) || !Number.isFinite(col) || !isWorldRowVisible(row)) continue;
+    const screenDistance = row - scroll;
+    if(screenDistance < -1.4 || screenDistance > visibleRows + .8) continue;
+    const poly = cellPolygonWorld(row,col,screenDistance);
+    const overlay = document.createElementNS("http://www.w3.org/2000/svg","polygon");
+    overlay.setAttribute("points", pointsAttr(poly));
+    overlay.setAttribute("class", "burnt-cell-fx");
+    burntFxGroup.appendChild(overlay);
+  }
+}
+
 function snapshot(actorId = currentUser()?.id){
   return {
     actorId,
@@ -5886,6 +6282,9 @@ function snapshot(actorId = currentUser()?.id){
     })),
     placedScalas: placedScalas.map(s => ({...s})),
     placedExVotos: placedExVotos.map(v => ({...v})),
+    flammaPickups: flammaPickups.map(f => ({...f})),
+    fireZones: fireZones.map(z => ({...z, cells:(z.cells || []).map(c => ({...c}))})),
+    burntCells:[...burntCells],
     activeCatenas: activeCatenas.map(c => ({...c, pair:[...c.pair]})),
     activeAquilas: activeAquilas.map(a => ({...a})),
     chroniconEntries: chroniconEntries.map(e => ({...e})),
@@ -5911,6 +6310,8 @@ function snapshot(actorId = currentUser()?.id){
         scalaStock:users.A.scalaStock,
         costulaStock:users.A.costulaStock,
         exVotoStock:users.A.exVotoStock,
+        flammaStock:users.A.flammaStock || 0,
+        cinis:users.A.cinis ? {...users.A.cinis} : { active:false, fee:50, fireId:null, since:null },
         negroniStock:users.A.negroniStock,
         negroniEffect:users.A.negroniEffect || 0,
         ft:users.A.ft
@@ -5925,6 +6326,8 @@ function snapshot(actorId = currentUser()?.id){
         scalaStock:users.B.scalaStock,
         costulaStock:users.B.costulaStock,
         exVotoStock:users.B.exVotoStock,
+        flammaStock:users.B.flammaStock || 0,
+        cinis:users.B.cinis ? {...users.B.cinis} : { active:false, fee:50, fireId:null, since:null },
         negroniStock:users.B.negroniStock,
         negroniEffect:users.B.negroniEffect || 0,
         ft:users.B.ft
@@ -5939,6 +6342,8 @@ function snapshot(actorId = currentUser()?.id){
         scalaStock:users.C.scalaStock,
         costulaStock:users.C.costulaStock,
         exVotoStock:users.C.exVotoStock,
+        flammaStock:users.C.flammaStock || 0,
+        cinis:users.C.cinis ? {...users.C.cinis} : { active:false, fee:50, fireId:null, since:null },
         negroniStock:users.C.negroniStock,
         negroniEffect:users.C.negroniEffect || 0,
         ft:users.C.ft
@@ -5953,6 +6358,8 @@ function snapshot(actorId = currentUser()?.id){
         scalaStock:users.D.scalaStock,
         costulaStock:users.D.costulaStock,
         exVotoStock:users.D.exVotoStock,
+        flammaStock:users.D.flammaStock || 0,
+        cinis:users.D.cinis ? {...users.D.cinis} : { active:false, fee:50, fireId:null, since:null },
         negroniStock:users.D.negroniStock,
         negroniEffect:users.D.negroniEffect || 0,
         ft:users.D.ft
@@ -5972,6 +6379,9 @@ function restore(state){
   }));
   placedScalas = (state.placedScalas || []).map(s => ({...s}));
   placedExVotos = (state.placedExVotos || []).map(v => ({...v}));
+  flammaPickups = Array.isArray(state.flammaPickups) ? state.flammaPickups.map(f => ({...f})) : [];
+  fireZones = Array.isArray(state.fireZones) ? state.fireZones.map(z => ({...z, cells:Array.isArray(z.cells) ? z.cells.map(c => ({...c})) : []})) : [];
+  burntCells = new Set(Array.isArray(state.burntCells) ? state.burntCells : []);
   activeCatenas = (state.activeCatenas || []).map(c => ({...c, pair:[...c.pair]}));
   activeAquilas = (state.activeAquilas || []).map(a => ({...a}));
   chroniconEntries = normalizeChroniconEntries(state.chroniconEntries || []);
@@ -6017,6 +6427,8 @@ function restore(state){
   users.A.scalaStock = state.users.A.scalaStock || 0;
   users.A.costulaStock = state.users.A.costulaStock || 0;
   users.A.exVotoStock = state.users.A.exVotoStock || 0;
+  users.A.flammaStock = state.users.A.flammaStock || 0;
+  users.A.cinis = state.users.A.cinis && typeof state.users.A.cinis === "object" ? { active:!!state.users.A.cinis.active, fee:Math.max(0, Math.round(Number(state.users.A.cinis.fee) || 50)), fireId:state.users.A.cinis.fireId || null, since:state.users.A.cinis.since || null } : { active:false, fee:50, fireId:null, since:null };
   users.A.negroniStock = state.users.A.negroniStock || 0;
   users.A.negroniEffect = state.users.A.negroniEffect || 0;
   users.A.ft = state.users.A.ft || 0;
@@ -6030,6 +6442,8 @@ function restore(state){
   users.B.scalaStock = state.users.B.scalaStock || 0;
   users.B.costulaStock = state.users.B.costulaStock || 0;
   users.B.exVotoStock = state.users.B.exVotoStock || 0;
+  users.B.flammaStock = state.users.B.flammaStock || 0;
+  users.B.cinis = state.users.B.cinis && typeof state.users.B.cinis === "object" ? { active:!!state.users.B.cinis.active, fee:Math.max(0, Math.round(Number(state.users.B.cinis.fee) || 50)), fireId:state.users.B.cinis.fireId || null, since:state.users.B.cinis.since || null } : { active:false, fee:50, fireId:null, since:null };
   users.B.negroniStock = state.users.B.negroniStock || 0;
   users.B.negroniEffect = state.users.B.negroniEffect || 0;
   users.B.ft = state.users.B.ft || 0;
@@ -6043,6 +6457,8 @@ function restore(state){
   users.C.scalaStock = state.users.C.scalaStock || 0;
   users.C.costulaStock = state.users.C.costulaStock || 0;
   users.C.exVotoStock = state.users.C.exVotoStock || 0;
+  users.C.flammaStock = state.users.C.flammaStock || 0;
+  users.C.cinis = state.users.C.cinis && typeof state.users.C.cinis === "object" ? { active:!!state.users.C.cinis.active, fee:Math.max(0, Math.round(Number(state.users.C.cinis.fee) || 50)), fireId:state.users.C.cinis.fireId || null, since:state.users.C.cinis.since || null } : { active:false, fee:50, fireId:null, since:null };
   users.C.negroniStock = state.users.C.negroniStock || 0;
   users.C.negroniEffect = state.users.C.negroniEffect || 0;
   users.C.ft = state.users.C.ft || 0;
@@ -6051,9 +6467,16 @@ function restore(state){
     users.D.current = {...state.users.D.current};
     users.D.filled = new Set(state.users.D.filled);
     users.D.murusStock = state.users.D.murusStock;
+    users.D.murusOrientation = state.users.D.murusOrientation || "horizontal";
     users.D.fossaStock = state.users.D.fossaStock;
     users.D.marculusStock = state.users.D.marculusStock || 0;
     users.D.scalaStock = state.users.D.scalaStock || 0;
+    users.D.costulaStock = state.users.D.costulaStock || 0;
+    users.D.exVotoStock = state.users.D.exVotoStock || 0;
+    users.D.flammaStock = state.users.D.flammaStock || 0;
+    users.D.cinis = state.users.D.cinis && typeof state.users.D.cinis === "object" ? { active:!!state.users.D.cinis.active, fee:Math.max(0, Math.round(Number(state.users.D.cinis.fee) || 50)), fireId:state.users.D.cinis.fireId || null, since:state.users.D.cinis.since || null } : { active:false, fee:50, fireId:null, since:null };
+    users.D.negroniStock = state.users.D.negroniStock || 0;
+    users.D.negroniEffect = state.users.D.negroniEffect || 0;
     users.D.ft = state.users.D.ft || 0;
   }else{
     users.D.current = { row:0, col:2 };
@@ -6065,6 +6488,8 @@ function restore(state){
     users.D.scalaStock = 0;
     users.D.costulaStock = 0;
     users.D.exVotoStock = 0;
+    users.D.flammaStock = 0;
+    users.D.cinis = { active:false, fee:50, fireId:null, since:null };
     users.D.ft = 0;
   }
 }
@@ -7070,6 +7495,7 @@ function finishNegroniLanding(user, row, col){
   if(landedExVoto) openExVotoReadModal(landedExVoto, user);
   else {
     triggerSolidusIfNeeded(user,row,col);
+    maybeCollectFlammaAt(user,row,col);
     triggerVaporIfNeeded(user,row,col);
   }
 }
@@ -7269,6 +7695,7 @@ function stepMoveAnimation(now){
   }
 
   triggerSolidusIfNeeded(user, landedRow, landedCol);
+  maybeCollectFlammaAt(user, landedRow, landedCol);
   triggerVaporIfNeeded(user, landedRow, landedCol);
   maybeSpawnAquila(user);
   render();
@@ -7638,12 +8065,17 @@ function selectRestartCell(worldRow, col){
   noticeText = `nouveau départ : ${user.name.toLowerCase()}`;
   addChroniconEvent(`${user.name} choisit un nouveau départ en ${locusRef(worldRow, col)}.`);
   triggerSolidusIfNeeded(user, worldRow, col);
+  maybeCollectFlammaAt(user, worldRow, col);
   triggerVaporIfNeeded(user, worldRow, col);
   render();
 }
 
 function selectCell(worldRow, col){
   const user = currentUser();
+  if(isUserCinisLocked(user)){
+    promptCinisResurrection(user);
+    return;
+  }
   const aquilaLock = aquilaForUser(user.id);
   if(aquilaLock){
     noticeText = aquilaLock.movedOnce
@@ -7935,6 +8367,7 @@ function makeCell(worldRow, col, screenDistance){
   if(activeTool === "fossa" && user.fossaStock > 0) poly.classList.add("fossa-target");
   if(activeTool === "scala" && user.scalaStock > 0) poly.classList.add("murus-target");
   if(activeTool === "exvoto" && user.exVotoStock > 0 && isCellVirgin(worldRow,col)) poly.classList.add("murus-target");
+  if(activeTool === "flamma" && user.flammaStock > 0 && levelForRow(worldRow).key === "silva") poly.classList.add("murus-target");
   if(activeTool === "fossaZone" && pending && pending.owner === user.id && isValidZoneCenter(pending, worldRow, col)){
     poly.classList.add("zone-center-target");
   }
@@ -8031,6 +8464,10 @@ function makeCell(worldRow, col, screenDistance){
     }
     if(activeTool === "exvoto" && currentUser().exVotoStock > 0){
       placeExVoto(worldRow, col);
+      return;
+    }
+    if(activeTool === "flamma" && currentUser().flammaStock > 0){
+      placeFlamma(worldRow, col);
       return;
     }
     if(activeTool === "marculus") return;
@@ -8706,6 +9143,7 @@ function appendSilvaImage(href, center, width, height, className, rotation=0){
     image.setAttribute("transform", `rotate(${rotation} ${center.x} ${center.y})`);
   }
   silvaObjectsGroup.appendChild(image);
+  return image;
 }
 function renderSilvaObjects(){
   if(!silvaObjectsGroup) return;
@@ -8722,7 +9160,8 @@ function renderSilvaObjects(){
     const depth = Math.abs(poly[3].y - poly[0].y);
     const size = clamp(Math.max(width * 1.06, depth * 1.52), 20, 58);
     const lift = depth * 0.24;
-    appendSilvaImage(arborImageSrc, {x:c.x, y:c.y - lift}, size, size, "silva-arbor");
+    const img = appendSilvaImage(arborImageSrc, {x:c.x, y:c.y - lift}, size, size, "silva-arbor");
+    if(isBurntCell(row,col)){ img.style.filter = "brightness(0) saturate(0) opacity(.98)"; img.style.opacity = ".98"; }
   }
   for(const cellId of silvaFrutexCellKeys()){
     const [rowStr, colStr] = cellId.split("-");
@@ -8738,7 +9177,8 @@ function renderSilvaObjects(){
     const imgW = clamp(Math.max(width * 1.35, depth * 2.1), 22, 74);
     const imgH = clamp(Math.max(width * 1.15, depth * 1.95), 20, 68);
     const lift = depth * 0.18;
-    appendSilvaImage(frutexImageSrc, {x:c.x, y:c.y - lift}, imgW, imgH, "silva-frutex");
+    const img = appendSilvaImage(frutexImageSrc, {x:c.x, y:c.y - lift}, imgW, imgH, "silva-frutex");
+    if(isBurntCell(row,col)){ img.style.filter = "brightness(0) saturate(0) opacity(.98)"; img.style.opacity = ".98"; }
   }
   for(const pair of petraPairsForVisibleRows()){
     const p1 = cellPolygonWorld(pair.first.row, pair.first.col, pair.first.row - scroll);
@@ -8750,7 +9190,8 @@ function renderSilvaObjects(){
     const depth1 = Math.abs(p1[3].y - p1[0].y);
     const width = pair.vertical ? width1 * 1.34 : Math.abs(c2.x - c1.x) + width1 * 1.08;
     const height = pair.vertical ? Math.abs(c2.y - c1.y) + depth1 * 1.46 : depth1 * 2.08;
-    appendSilvaImage(petraImageSrc, {x:center.x, y:center.y - depth1 * .08}, width, height, "silva-petra", pair.vertical ? -5 : 0);
+    const img = appendSilvaImage(petraImageSrc, {x:center.x, y:center.y - depth1 * .08}, width, height, "silva-petra", pair.vertical ? -5 : 0);
+    if(isBurntCell(pair.first.row,pair.first.col) || isBurntCell(pair.second.row,pair.second.col)){ img.style.filter = "brightness(0) saturate(0) opacity(.98)"; img.style.opacity = ".98"; }
   }
 }
 function ensureFoliumElement(id){
@@ -9275,6 +9716,7 @@ function renderTokens(){
   const visibleTokenIds = new Set();
 
   for(const user of userList()){
+    if(isUserCinisLocked(user)) continue;
     const tokenData = tokenRenderData(user);
     if(!tokenData) continue;
 
@@ -9500,6 +9942,7 @@ function updatePanels(){
     (activeTool === "scala" && user.scalaStock > 0) ||
     (activeTool === "costula" && user.costulaStock > 0) ||
     (activeTool === "exvoto" && user.exVotoStock > 0) ||
+    (activeTool === "flamma" && user.flammaStock > 0) ||
     (activeTool === "negroni" && user.negroniStock > 0) ||
     activeTool === "catenaSelect1" ||
     activeTool === "catenaSelect2"
@@ -9516,6 +9959,13 @@ function updatePanels(){
   scalaCard.classList.toggle("active", activeTool === "scala" && user.scalaStock > 0);
   costulaCard.classList.toggle("active", activeTool === "costula" && user.costulaStock > 0);
   exVotoCard.classList.toggle("active", activeTool === "exvoto" && user.exVotoStock > 0);
+  if(flammaCard){
+    const flammaStock = Math.max(0, Math.round(Number(user.flammaStock)||0));
+    flammaCard.classList.toggle("is-hidden", flammaStock <= 0);
+    flammaCard.classList.toggle("active", activeTool === "flamma" && flammaStock > 0);
+    const countNode = flammaCard.querySelector(".control-cost");
+    if(countNode) countNode.textContent = `${flammaStock} prêt${flammaStock > 1 ? "s" : ""}`;
+  }
   negroniCard.classList.toggle("active", activeTool === "negroni" && user.negroniStock > 0);
 
   userAButton.classList.toggle("active", activeUserId === "A");
@@ -9542,6 +9992,7 @@ function updatePanels(){
   if(activeTool === "fossaZone") toolLabel = "zone fossa";
   if(activeTool === "costula") toolLabel = "costula";
   if(activeTool === "exvoto") toolLabel = "ex voto";
+  if(activeTool === "flamma") toolLabel = "flamma";
   if(activeTool === "negroni") toolLabel = "negroni";
   if(activeTool === "restartSelect") toolLabel = "nouveau départ";
   if(activeTool === "catenaSelect1") toolLabel = "catena · 1er joueur";
@@ -9556,6 +10007,10 @@ function updatePanels(){
   countEl.textContent = String(count).padStart(2,"0");
   statusEl.textContent = `${count} case${count > 1 ? "s" : ""} · ${user.ft} Ft${user.costulaStock > 0 ? ` · costula ${user.costulaStock}` : ""}${user.negroniStock > 0 ? ` · negroni ${user.negroniStock}` : ""}${aquila ? ` · aquila ${aquila.movedOnce ? "scellée " : ""}${formatAquilaRemaining(aquila.expiresAt - Date.now())}` : ""}`;
   const mobileHint = mobileLowPowerMode && activeTool === "move" ? " · tap jeton : zones" : "";
+  if(isUserCinisLocked(user)){
+    const fee = Math.max(0, Math.round(Number(user.cinis?.fee)||50));
+    toolLabel = `cinis · ${fee} Ft`;
+  }
   lookStatusEl.textContent = `${levelForRow(Math.floor(scroll + visibleRows / 2)).name} · ${scroll === 0 ? "vue : départ" : `vue : +${Math.floor(scroll)} lignes`} · outil : ${toolLabel}${mobileHint}`;
   noticeEl.textContent = noticeText;
   renderChronicon();
@@ -9576,6 +10031,8 @@ function performRender(){
   fossaHintsGroup.innerHTML = "";
   vaporsGroup.innerHTML = "";
   if(silvaObjectsGroup) silvaObjectsGroup.innerHTML = "";
+  if(fireFxGroup) fireFxGroup.innerHTML = "";
+  if(burntFxGroup) burntFxGroup.innerHTML = "";
   herbaeGroup.innerHTML = "";
   abyssusGroup.innerHTML = "";
   scalasGroup.innerHTML = "";
@@ -9610,6 +10067,9 @@ function performRender(){
   renderFossaHints();
   renderVapors();
   renderSilvaObjects();
+  renderFireFx();
+  renderBurntCells();
+  renderFlammaPickups();
   updateFoliumLayer();
   renderSolidus();
   renderHerbae();
@@ -9623,6 +10083,7 @@ function performRender(){
   renderAquilas();
   renderExVotos();
   renderTokens();
+  renderCinisTokens();
   renderMoneyEffects();
   updatePanels();
 }
@@ -9683,6 +10144,7 @@ function switchUser(id){
   if(activeTool === "scala" && user.scalaStock <= 0) activeTool = "move";
   if(activeTool === "costula" && user.costulaStock <= 0) activeTool = "move";
   if(activeTool === "exvoto" && user.exVotoStock <= 0) activeTool = "move";
+  if(activeTool === "flamma" && user.flammaStock <= 0) activeTool = "move";
   if(activeTool === "negroni" && user.negroniStock <= 0) activeTool = "move";
   if(activeTool === "negroni" && user.negroniStock <= 0) activeTool = "move";
   if(activeTool === "catenaSelect1" || activeTool === "catenaSelect2"){
@@ -10476,6 +10938,26 @@ exVotoCard.addEventListener("click", (event) => {
   activeTool = "exvoto";
   noticeText = `achat : 1 ex voto pour ${currentUser().name.toLowerCase()}`;
   addChroniconEvent(`${currentUser().name} achète 1 Ex voto.`);
+  render();
+});
+
+flammaCard?.addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  if(animState) return;
+  const user = currentUser();
+  if(isUserCinisLocked(user)){
+    promptCinisResurrection(user);
+    return;
+  }
+  const stock = Math.max(0, Math.round(Number(user.flammaStock)||0));
+  if(stock <= 0){
+    noticeText = "flamma indisponible";
+    render();
+    return;
+  }
+  activeTool = activeTool === "flamma" ? "move" : "flamma";
+  noticeText = activeTool === "flamma" ? `flamma : choisir une case de Silva Oscura pour ${user.name.toLowerCase()}` : `déplacement actif pour ${user.name.toLowerCase()}`;
   render();
 });
 
