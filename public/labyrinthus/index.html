@@ -3638,6 +3638,70 @@ body.theme-light .asset-preview-wrap{
   .arca-panel.open .control-card .asset-preview-wrap{ transform:scale(.68) !important; }
 }
 
+
+
+/* V84: mobile Arca/Chronicon windows fixed to 90% of the phone viewport. */
+@media(max-width:700px){
+  .arca-panel.open .arca-content.control-carousel-wrap,
+  .chronicon-panel.open .chronicon-content{
+    position:fixed !important;
+    left:16px !important;
+    right:16px !important;
+    top:5dvh !important;
+    bottom:auto !important;
+    width:auto !important;
+    min-width:0 !important;
+    max-width:none !important;
+    height:90dvh !important;
+    min-height:90dvh !important;
+    max-height:90dvh !important;
+    margin:0 !important;
+    box-sizing:border-box !important;
+    overflow:hidden !important;
+    display:flex !important;
+    flex-direction:column !important;
+    background:rgba(0,0,0,.96) !important;
+    border:2px solid rgba(255,255,255,.86) !important;
+    border-radius:18px !important;
+    transform:none !important;
+  }
+  .arca-panel.open .arca-content.control-carousel-wrap{
+    padding:48px 20px 18px 20px !important;
+    gap:12px !important;
+  }
+  .chronicon-panel.open .chronicon-content{
+    padding:48px 20px 18px 20px !important;
+    gap:12px !important;
+  }
+  .arca-panel.open .arca-content.control-carousel-wrap::before,
+  .chronicon-panel.open .chronicon-title{
+    top:16px !important;
+    left:20px !important;
+  }
+  .arca-panel.open .arca-content.control-carousel-wrap .lab-overlay-close,
+  .chronicon-panel.open .chronicon-content .lab-overlay-close{
+    top:0 !important;
+    right:0 !important;
+  }
+}
+@media(max-width:390px){
+  .arca-panel.open .arca-content.control-carousel-wrap,
+  .chronicon-panel.open .chronicon-content{
+    left:14px !important;
+    right:14px !important;
+    top:5dvh !important;
+    height:90dvh !important;
+    min-height:90dvh !important;
+    max-height:90dvh !important;
+    padding:46px 14px 14px 14px !important;
+  }
+  .arca-panel.open .arca-content.control-carousel-wrap::before,
+  .chronicon-panel.open .chronicon-title{
+    top:14px !important;
+    left:14px !important;
+  }
+}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
 </head>
