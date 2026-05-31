@@ -3175,6 +3175,47 @@ body.theme-light .asset-preview-wrap{
   }
 }
 
+
+
+/* V77: Catena retro now restores/clears placement preview state */
+/* V76: Arca/Chronicon close blocks without outline + Chronicon history-only window */
+.arca-panel.open .arca-content.control-carousel-wrap .lab-overlay-close,
+.chronicon-panel.open .chronicon-content .lab-overlay-close{
+  border:0 !important;
+  box-shadow:none !important;
+  outline:0 !important;
+}
+.chronicon-panel.open .chronicon-content{
+  border:2px solid #fff !important;
+  box-sizing:border-box !important;
+  flex-direction:column !important;
+  gap:12px !important;
+  padding:calc(env(safe-area-inset-top, 0px) + 72px) 20px calc(env(safe-area-inset-bottom, 0px) + 18px) 20px !important;
+  overflow:hidden !important;
+}
+.chronicon-panel.open .chronicon-list{
+  flex:1 1 auto !important;
+  width:100% !important;
+  max-height:none !important;
+  min-height:0 !important;
+  overflow:auto !important;
+  box-sizing:border-box !important;
+  border:0 !important;
+  border-radius:0 !important;
+  padding:0 !important;
+}
+.chronicon-replay,
+.chronicon-panel.open .chronicon-replay{
+  display:none !important;
+  visibility:hidden !important;
+  pointer-events:none !important;
+}
+@media(max-width:700px){
+  .chronicon-panel.open .chronicon-content{
+    padding:calc(env(safe-area-inset-top, 0px) + 68px) 14px calc(env(safe-area-inset-bottom, 0px) + 16px) 14px !important;
+  }
+}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
 </head>
@@ -3433,7 +3474,7 @@ body.theme-light .asset-preview-wrap{
         <div class="chronicon-content"><div class="chronicon-title">Chronicon</div><button class="lab-overlay-close" id="chroniconOverlayClose" type="button" aria-label="Fermer">×</button>
           <div class="chronicon-list" id="chroniconList">
             <div class="chronicon-empty">Aucun événement.</div>
-          </div><div class="chronicon-replay" id="chroniconReplay"><h3>Replay</h3><p>Sélectionner une entrée du Chronicon.</p></div>
+          </div>
         </div>
       </div>
       <button class="lab-reset-btn" id="labResetBtn" type="button" aria-label="Reset Labyrinthus">↺</button><div class="lab-solidus-display" id="labSolidusDisplay" aria-hidden="true"></div><div class="lab-fatum-display" id="labFatumDisplay">0 Ft</div>
@@ -5516,6 +5557,12 @@ function restoreOwnAction(state, actorId){
   const user = users[actorId];
   if(!user) return false;
 
+  const restoredActiveTool = state.activeTool || "move";
+  activeTool = restoredActiveTool;
+  murusOrientation = state.murusOrientation || user.murusOrientation || "horizontal";
+  pendingCatenaSelection = state.pendingCatenaSelection || null;
+  if(activeTool === "catenaSelect2" && !pendingCatenaSelection) activeTool = "catenaSelect1";
+
   const keepNonOwned = (current, previous) => [
     ...current.filter(item => item.owner !== actorId),
     ...previous.filter(item => item.owner === actorId).map(item => ({...item}))
@@ -5576,6 +5623,10 @@ function restoreOwnAction(state, actorId){
       .filter(item => item.owner === actorId)
       .map(item => ({...item, pair:[...item.pair]}))
   ];
+
+  pendingCatenaSelection = state.pendingCatenaSelection || null;
+  if(activeTool === "catenaSelect2" && !pendingCatenaSelection) activeTool = "catenaSelect1";
+  if(activeTool !== "catenaSelect1" && activeTool !== "catenaSelect2") pendingCatenaSelection = null;
 
   pendingFossaId = (state.pendingFossaId && (state.placedFossae || []).some(item => item.id === state.pendingFossaId && item.owner === actorId)) ? state.pendingFossaId : null;
   if(pendingFossaId) activeTool = "fossaZone";
