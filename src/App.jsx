@@ -687,7 +687,7 @@ function ActionButtons({
       activeLabel === label ? "font-medium text-black opacity-100" : "text-black/38"
     ].join(" ");
 
-  const whiteHandScreens = ["Noctem", "Duodecim", "Bulla", "Fatum", "Salvatio", "Labyrinthus"];
+  const whiteHandScreens = ["Noctem", "Duodecim", "Bulla", "Fatum", "Salvatio", "Dante"];
   const isWhiteHandScreen = whiteHandScreens.includes(activeLabel);
   const handIconClass = [
     "h-7 w-7 object-contain",
@@ -717,7 +717,7 @@ function ActionButtons({
       title: "Alea",
       items: [
         ["Divinatio", onIterum],
-        ["Labyrinthus", openLabyrinthus],
+        ["Dante", openLabyrinthus],
         ["Salvatio", onSalvatio]
       ]
     },
@@ -2929,21 +2929,21 @@ function LabyrinthusScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodeci
         onFatum={onFatum}
         onSalvatio={onSalvatio}
         onLabyrinthus={() => {}}
-        active="Labyrinthus"
+        active="Dante"
         compact
       />
 
       {blocked ? (
         <section className="flex h-full flex-col items-center justify-center px-6 text-center">
-          <h1 className="text-2xl font-semibold uppercase tracking-[0.18em]">Labyrinthus</h1>
+          <h1 className="text-2xl font-semibold uppercase tracking-[0.18em]">Dante.</h1>
           <p className="mt-4 max-w-[280px] text-sm leading-relaxed text-white/58">{message}</p>
         </section>
       ) : (
         <>
           <iframe
             ref={iframeRef}
-            title="Labyrinthus"
-            src="/labyrinthus/index.html?v=91"
+            title="Dante"
+            src="/labyrinthus/index.html?v=92"
             className="h-full w-full border-0 bg-black"
             allow="fullscreen; autoplay"
             onLoad={() => {
@@ -2956,9 +2956,10 @@ function LabyrinthusScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodeci
 
           {showLoader ? (
             <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black px-6 text-center">
+              <p className="mb-5 text-[15px] font-semibold uppercase tracking-[0.28em] text-white/86">Dante.</p>
               <iframe
-                title="Chargement Labyrinthus"
-                src="/labyrinthus/loader.html?v=3"
+                title="Chargement Dante"
+                src="/labyrinthus/loader.html?v=4"
                 className={`h-28 w-28 border-0 bg-black ${loaderFrameReady ? "opacity-95" : "opacity-0"}`}
                 style={{ backgroundColor: "#000", colorScheme: "dark" }}
                 aria-hidden="true"
