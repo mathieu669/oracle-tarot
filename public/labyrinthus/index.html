@@ -3147,6 +3147,34 @@ body.theme-light .asset-preview-wrap{
   }
 }
 
+
+
+/* V75: strict Murus v indicator + Arca close in true top-right corner */
+.active-arca-indicator.murus-vertical .murus-preview{
+  transform:rotate(90deg) !important;
+}
+.active-arca-indicator.murus-vertical .murus-preview svg,
+.active-arca-indicator.murus-vertical .murus-preview img{
+  transform:none !important;
+}
+.active-arca-indicator.murus-vertical > svg,
+.active-arca-indicator.murus-vertical > img{
+  transform:rotate(90deg) !important;
+}
+.arca-panel.open .arca-content.control-carousel-wrap .lab-overlay-close{
+  position:absolute !important;
+  top:0 !important;
+  right:0 !important;
+  transform:none !important;
+  margin:0 !important;
+}
+@media(max-width:390px){
+  .arca-panel.open .arca-content.control-carousel-wrap .lab-overlay-close{
+    top:0 !important;
+    right:0 !important;
+  }
+}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
 </head>
@@ -3273,7 +3301,7 @@ body.theme-light .asset-preview-wrap{
               <div class="control-cost">20 Ft*</div>
             </div>
             <div class="control-extra">
-              <button class="info-btn" data-info-key="murus" aria-label="Informations Murus vertical" title="Informations Murus"><svg viewBox="0 0 20 20" aria-hidden="true"><circle class="glyph" cx="10" cy="10" r="7.2"/><path class="glyph" d="M10 8.1v4.6"/><path class="glyph" d="M10 5.6h.01"/></svg></button>
+              <button class="info-btn" data-info-key="murusv" aria-label="Informations Murus vertical" title="Informations Murus vertical"><svg viewBox="0 0 20 20" aria-hidden="true"><circle class="glyph" cx="10" cy="10" r="7.2"/><path class="glyph" d="M10 8.1v4.6"/><path class="glyph" d="M10 5.6h.01"/></svg></button>
             </div>
           </div>
 
@@ -10172,6 +10200,91 @@ requestAnimationFrame(draw);
   });
 
   forceActiveMurusIcon();
+})();
+
+
+/* V75: make the bought Murus variant the single source of truth for the game-screen indicator */
+(function(){
+  const normalizeMurusVariantV75 = (value) => value === 'vertical' ? 'vertical' : 'horizontal';
+
+  function currentMurusVariantV75(){
+    const user = typeof currentUser === 'function' ? currentUser() : null;
+    if(user && user.murusOrientation === 'vertical') return 'vertical';
+    if(user && user.murusOrientation === 'horizontal') return 'horizontal';
+    return normalizeMurusVariantV75(typeof murusOrientation !== 'undefined' ? murusOrientation : 'horizontal');
+  }
+
+  function storeMurusVariantV75(orientation){
+    const variant = normalizeMurusVariantV75(orientation);
+    const user = typeof currentUser === 'function' ? currentUser() : null;
+    if(user) user.murusOrientation = variant;
+    if(typeof murusOrientation !== 'undefined') murusOrientation = variant;
+    return variant;
+  }
+
+  function renderStrictMurusIndicatorV75(){
+    const user = typeof currentUser === 'function' ? currentUser() : null;
+    const holder = document.getElementById('activeArcaIndicator');
+    if(!holder || !user || activeTool !== 'murus' || Number(user.murusStock || 0) <= 0) return;
+
+    const variant = storeMurusVariantV75(currentMurusVariantV75());
+    const card = document.getElementById(variant === 'vertical' ? 'murusVCard' : 'murusCard');
+    const source = card?.querySelector('.asset-preview-wrap');
+    if(!source) return;
+
+    const clone = source.cloneNode(true);
+    const preview = clone.querySelector('.murus-preview');
+    if(preview) preview.classList.toggle('vertical', variant === 'vertical');
+
+    holder.replaceChildren(clone);
+    holder.classList.add('visible', 'murus-active');
+    holder.classList.toggle('murus-vertical', variant === 'vertical');
+    holder.dataset.murusOrientation = variant;
+    holder.style.pointerEvents = 'none';
+    holder.setAttribute('aria-label', variant === 'vertical' ? 'Murus - v. à poser' : 'Murus - h. à poser');
+  }
+
+  const previousUpdateActiveArcaIndicatorV75 = typeof updateActiveArcaIndicator === 'function' ? updateActiveArcaIndicator : null;
+  if(previousUpdateActiveArcaIndicatorV75){
+    updateActiveArcaIndicator = function(){
+      previousUpdateActiveArcaIndicatorV75.apply(this, arguments);
+      renderStrictMurusIndicatorV75();
+    };
+  }
+
+  const previousUpdatePanelsV75 = typeof updatePanels === 'function' ? updatePanels : null;
+  if(previousUpdatePanelsV75){
+    updatePanels = function(){
+      previousUpdatePanelsV75.apply(this, arguments);
+      renderStrictMurusIndicatorV75();
+      try{
+        const user = typeof currentUser === 'function' ? currentUser() : null;
+        const active = activeTool === 'murus' && Number(user?.murusStock || 0) > 0;
+        const variant = currentMurusVariantV75();
+        document.getElementById('murusCard')?.classList.toggle('active', active && variant === 'horizontal');
+        document.getElementById('murusVCard')?.classList.toggle('active', active && variant === 'vertical');
+      }catch(_err){}
+    };
+  }
+
+  const previousPlaceWallV75 = typeof placeWall === 'function' ? placeWall : null;
+  if(previousPlaceWallV75){
+    placeWall = function(worldRow, col){
+      storeMurusVariantV75(currentMurusVariantV75());
+      return previousPlaceWallV75.apply(this, arguments);
+    };
+  }
+
+  document.getElementById('murusCard')?.addEventListener('click', () => {
+    storeMurusVariantV75('horizontal');
+    requestAnimationFrame(renderStrictMurusIndicatorV75);
+  });
+  document.getElementById('murusVCard')?.addEventListener('click', () => {
+    storeMurusVariantV75('vertical');
+    requestAnimationFrame(renderStrictMurusIndicatorV75);
+  });
+
+  renderStrictMurusIndicatorV75();
 })();
 
 </script>
