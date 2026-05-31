@@ -3218,6 +3218,110 @@ body.theme-light .asset-preview-wrap{
   }
 }
 
+
+/* V80: Chronicon window now mirrors Arca window geometry, frame, title and close control. */
+.chronicon-panel.open .chronicon-content{
+  position:fixed !important;
+  inset:0 !important;
+  width:auto !important;
+  height:auto !important;
+  max-height:none !important;
+  display:flex !important;
+  flex-direction:column !important;
+  gap:14px !important;
+  opacity:1 !important;
+  visibility:visible !important;
+  pointer-events:auto !important;
+  z-index:2147483000 !important;
+  background:rgba(0,0,0,.96) !important;
+  border:2px solid rgba(255,255,255,.86) !important;
+  border-radius:18px !important;
+  overflow:hidden !important;
+  box-sizing:border-box !important;
+  padding:calc(env(safe-area-inset-top, 0px) + 48px) 20px calc(env(safe-area-inset-bottom, 0px) + 16px) 20px !important;
+  transform:none !important;
+}
+.chronicon-panel.open .chronicon-title{
+  position:absolute !important;
+  top:calc(env(safe-area-inset-top, 0px) + 12px) !important;
+  left:20px !important;
+  right:auto !important;
+  z-index:2147483002 !important;
+  color:rgba(255,255,255,.78) !important;
+  font-family:"Inter",sans-serif !important;
+  font-size:11px !important;
+  line-height:1 !important;
+  letter-spacing:.22em !important;
+  text-transform:uppercase !important;
+  pointer-events:none !important;
+  margin:0 !important;
+  padding:0 !important;
+}
+.chronicon-panel.open .chronicon-content .lab-overlay-close{
+  position:absolute !important;
+  top:0 !important;
+  right:0 !important;
+  width:38px !important;
+  height:38px !important;
+  min-width:38px !important;
+  min-height:38px !important;
+  z-index:2147483003 !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  border:0 !important;
+  outline:0 !important;
+  box-shadow:none !important;
+  background:#000 !important;
+  color:#fff !important;
+  border-radius:0 !important;
+  font-family:"Inter",sans-serif !important;
+  font-size:24px !important;
+  line-height:1 !important;
+  padding:0 !important;
+  margin:0 !important;
+  transform:none !important;
+}
+.chronicon-panel.open .chronicon-list{
+  flex:1 1 auto !important;
+  width:100% !important;
+  max-width:720px !important;
+  max-height:none !important;
+  min-height:0 !important;
+  margin:0 auto !important;
+  padding:18px 10px 12px 10px !important;
+  scroll-padding-top:18px !important;
+  overflow-y:auto !important;
+  overflow-x:hidden !important;
+  box-sizing:border-box !important;
+  border:0 !important;
+  border-radius:16px !important;
+  background:transparent !important;
+}
+.chronicon-panel.open .chronicon-replay{
+  display:none !important;
+  visibility:hidden !important;
+  pointer-events:none !important;
+}
+@media(max-width:390px){
+  .chronicon-panel.open .chronicon-content{
+    padding:calc(env(safe-area-inset-top, 0px) + 44px) 14px calc(env(safe-area-inset-bottom, 0px) + 14px) 14px !important;
+  }
+  .chronicon-panel.open .chronicon-title{
+    top:calc(env(safe-area-inset-top, 0px) + 10px) !important;
+    left:14px !important;
+    font-size:11px !important;
+  }
+  .chronicon-panel.open .chronicon-content .lab-overlay-close{
+    top:0 !important;
+    right:0 !important;
+  }
+  .chronicon-panel.open .chronicon-list{
+    padding:16px 8px 10px 8px !important;
+    scroll-padding-top:16px !important;
+  }
+}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
 </head>
