@@ -240,6 +240,10 @@
     opacity:.94;
     filter:grayscale(.14) saturate(.82) brightness(.74) drop-shadow(-8px 4px 10px rgba(0,0,0,.20));
   }
+  .silva-burned{
+    opacity:.98 !important;
+    filter:brightness(0) saturate(0) drop-shadow(-8px 4px 10px rgba(0,0,0,.20)) !important;
+  }
 
 .solidus-video-layer{
   position:absolute;inset:0;z-index:2;pointer-events:none;overflow:hidden;
@@ -258,6 +262,36 @@
   background:transparent !important;
   mix-blend-mode:screen;
 }
+
+.flamma-video-layer,
+.cinis-video-layer{
+  position:absolute;inset:0;z-index:2;pointer-events:none;overflow:hidden;
+}
+.flamma-video,
+.cinis-video{
+  position:absolute;display:none;pointer-events:none;
+  width:28px;height:28px;overflow:visible;
+  transform:translate(-50%,-58%);
+  filter:drop-shadow(0 0 8px rgba(255,255,255,.20)) drop-shadow(-7px 4px 10px rgba(0,0,0,.30));
+  opacity:.96;
+  background:transparent;
+}
+.cinis-video{width:32px;height:32px;opacity:.98;}
+.flamma-video .lottie-anim svg *,
+.cinis-video .lottie-anim svg *,
+.flamma-indicator svg *{
+  fill:none !important;
+  stroke:#fff !important;
+}
+.flamma-indicator{width:100%;height:100%;display:flex;align-items:center;justify-content:center;}
+.flamma-indicator svg{width:74%;height:74%;display:block;}
+.fire-cell{
+  pointer-events:none;
+  fill:rgba(255,42,42,.30);
+  animation:flamma-pulse .72s ease-in-out infinite alternate;
+}
+.burnt-cell{pointer-events:none;fill:rgba(0,0,0,.72);}
+@keyframes flamma-pulse{from{opacity:.38;}to{opacity:.72;}}
   .token-label{
     position:absolute;left:50%;top:-8px;
     transform:translate(-50%,-100%);
@@ -821,7 +855,7 @@
   }
 
   .info-modal{
-    position:absolute;inset:0;z-index:12;display:none;pointer-events:none;
+    position:absolute;inset:0;z-index:2147483600;display:none;pointer-events:none;
   }
   .info-modal.visible{ display:block; pointer-events:auto; }
   .info-modal-backdrop{
@@ -1064,7 +1098,7 @@
   .exvoto-modal{
     position:absolute;
     inset:0;
-    z-index:60;
+    z-index:2147483601;
     display:none;
     align-items:center;
     justify-content:center;
@@ -4312,9 +4346,11 @@ body.theme-light .asset-preview-wrap{
         </defs>
         <g id="rowNumbers"></g>
         <g id="grid"></g>
+        <g id="burntFx"></g>
         <g id="fossaHints"></g>
         <g id="vapors"></g>
         <g id="silvaObjects"></g>
+        <g id="fireFx"></g>
         <g id="herbae"></g>
         <g id="abyssus"></g>
         <g id="scalas"></g>
@@ -4330,6 +4366,8 @@ body.theme-light .asset-preview-wrap{
       <div class="folium-layer" id="foliumLayer"></div>
       <div class="aquila-video-layer" id="aquilaVideoLayer"></div>
       <div class="solidus-video-layer" id="solidusVideoLayer"></div>
+      <div class="flamma-video-layer" id="flammaVideoLayer"></div>
+      <div class="cinis-video-layer" id="cinisVideoLayer"></div>
       <div class="token-video-layer" id="tokenVideoLayer"></div>
 
       <div class="notice" id="notice">user actif : user a</div>
@@ -4388,7 +4426,9 @@ const rowNumbersGroup = document.getElementById("rowNumbers");
 const grid = document.getElementById("grid");
 const fossaHintsGroup = document.getElementById("fossaHints");
 const vaporsGroup = document.getElementById("vapors");
+const burntFxGroup = document.getElementById("burntFx");
 const silvaObjectsGroup = document.getElementById("silvaObjects");
+const fireFxGroup = document.getElementById("fireFx");
 const herbaeGroup = document.getElementById("herbae");
 const abyssusGroup = document.getElementById("abyssus");
 const scalasGroup = document.getElementById("scalas");
@@ -4404,6 +4444,8 @@ const aquilaVideoLayer = document.getElementById("aquilaVideoLayer");
 const tokenVideoLayer = document.getElementById("tokenVideoLayer");
 const foliumLayer = document.getElementById("foliumLayer");
 const solidusVideoLayer = document.getElementById("solidusVideoLayer");
+const flammaVideoLayer = document.getElementById("flammaVideoLayer");
+const cinisVideoLayer = document.getElementById("cinisVideoLayer");
 const spritePowerFactor = mobileLowPowerMode ? 1.55 : 1;
 const tokenSpriteConfig = Object.freeze({
   src:"/labyrinthus/assets/token-sprite.png",
@@ -4442,6 +4484,16 @@ const solidusLottieConfig = Object.freeze({
   className:"solidus-lottie",
   speed: mobileLowPowerMode ? 0.78 : 1
 });
+const flammaLottieConfig = Object.freeze({
+  path:"/labyrinthus/assets/lottie/flamma-white.json",
+  className:"flamma-lottie",
+  speed: mobileLowPowerMode ? 0.74 : 0.92
+});
+const cinisLottieConfig = Object.freeze({
+  path:"/labyrinthus/assets/lottie/cinis-white.json",
+  className:"cinis-lottie",
+  speed: mobileLowPowerMode ? 0.68 : 0.85
+});
 const aquilaLottieConfig = Object.freeze({
   path:"/labyrinthus/assets/lottie/aquila-white.json",
   className:"aquila-lottie aquila-black-line",
@@ -4453,7 +4505,11 @@ if(window.lottie){
 }
 function createLottieElement(config, fallbackSpriteConfig){
   if(!window.lottie || typeof window.lottie.loadAnimation !== "function"){
-    return createSpriteElement(fallbackSpriteConfig);
+    if(fallbackSpriteConfig) return createSpriteElement(fallbackSpriteConfig);
+    const fallback = document.createElement("div");
+    fallback.className = `lottie-anim anim-visual ${config?.className || ""}`.trim();
+    fallback.setAttribute("aria-hidden", "true");
+    return fallback;
   }
   const container = document.createElement("div");
   container.className = `lottie-anim anim-visual ${config.className || ""}`.trim();
@@ -4544,7 +4600,7 @@ const centerX = 200;
 
 let scroll = 0;
 let activeUserId = "A";
-let activeTool = "move"; // move | murus | fossa | marculus | scala | costula | exvoto | negroni | fossaZone | restartSelect | catenaSelect1 | catenaSelect2
+let activeTool = "move"; // move | murus | fossa | marculus | scala | costula | exvoto | negroni | flamma | fossaZone | restartSelect | catenaSelect1 | catenaSelect2
 let murusOrientation = "horizontal"; // horizontal = bottom, vertical = right
 let placedWalls = [];
 let placedFossae = []; // {id,row,col,owner,zoneCenter:{row,col}|null}
@@ -5115,6 +5171,8 @@ const users = {
     scalaStock:0,
     costulaStock:0,
     exVotoStock:0,
+    flammaStock:0,
+    cinis:{active:false, fee:50, fireId:null, since:null},
     negroniStock:0,
     negroniEffect:0,
     ft:0
@@ -5132,6 +5190,8 @@ const users = {
     scalaStock:0,
     costulaStock:0,
     exVotoStock:0,
+    flammaStock:0,
+    cinis:{active:false, fee:50, fireId:null, since:null},
     negroniStock:0,
     negroniEffect:0,
     ft:0
@@ -5149,6 +5209,8 @@ const users = {
     scalaStock:0,
     costulaStock:0,
     exVotoStock:0,
+    flammaStock:0,
+    cinis:{active:false, fee:50, fireId:null, since:null},
     negroniStock:0,
     negroniEffect:0,
     ft:0
@@ -5166,6 +5228,8 @@ const users = {
     scalaStock:0,
     costulaStock:0,
     exVotoStock:0,
+    flammaStock:0,
+    cinis:{active:false, fee:50, fireId:null, since:null},
     negroniStock:0,
     negroniEffect:0,
     ft:0
@@ -5178,16 +5242,29 @@ const users = {
   users.A.current = {...defaultStart};
   users.A.filled = new Set(["0-3"]);
   users.A.noxActive = false;
+  users.A.flammaStock = 0;
+  users.A.cinis = {active:false, fee:50, fireId:null, since:null};
   ["B","C","D"].forEach(id => {
     users[id].name = "";
     users[id].current = {...defaultStart};
     users[id].filled = new Set();
     users[id].noxActive = false;
+    users[id].flammaStock = 0;
+    users[id].cinis = {active:false, fee:50, fireId:null, since:null};
   });
 })();
 
 function userList(){ return [users.A, users.B, users.C, users.D].filter(user => user && user.name && user.filled && user.filled.size); }
 function currentUser(){ return users[activeUserId]; }
+function normalizeCinisState(state){
+  return state && typeof state === "object"
+    ? {active:!!state.active, fee:Math.max(0, Math.round(Number(state.fee) || 50)), fireId:state.fireId || null, since:state.since || null}
+    : {active:false, fee:50, fireId:null, since:null};
+}
+function isUserCinisLocked(userOrId){
+  const user = typeof userOrId === "string" ? users[userOrId] : userOrId;
+  return !!(user && user.cinis && user.cinis.active);
+}
 function ensureTestFatum(user){
   if(!user || !user.name) return;
   if((Number(user.ft) || 0) < 500) user.ft = 500;
@@ -5903,6 +5980,9 @@ function snapshot(actorId = currentUser()?.id){
     revealPossibleMoves,
     triggeredVapors:[...triggeredVapors],
     vaporBursts: vaporBursts.map(v => ({...v})),
+    flammaPickups: flammaPickups.map(v => ({...v})),
+    flammaFires: flammaFires.map(f => ({...f, cells:(f.cells || []).map(c => ({...c}))})),
+    burntCells:[...burntCells],
     moneyBursts: moneyBursts.map(v => ({...v, particles:v.particles.map(p => ({...p}))})),
     wallBreakFx: wallBreakFx.map(v => ({...v, wall:{...v.wall}})),
     users: {
@@ -5916,6 +5996,8 @@ function snapshot(actorId = currentUser()?.id){
         scalaStock:users.A.scalaStock,
         costulaStock:users.A.costulaStock,
         exVotoStock:users.A.exVotoStock,
+        flammaStock:users.A.flammaStock || 0,
+        cinis:users.A.cinis || {active:false, fee:50, fireId:null, since:null},
         negroniStock:users.A.negroniStock,
         negroniEffect:users.A.negroniEffect || 0,
         ft:users.A.ft
@@ -5930,6 +6012,8 @@ function snapshot(actorId = currentUser()?.id){
         scalaStock:users.B.scalaStock,
         costulaStock:users.B.costulaStock,
         exVotoStock:users.B.exVotoStock,
+        flammaStock:users.B.flammaStock || 0,
+        cinis:users.B.cinis || {active:false, fee:50, fireId:null, since:null},
         negroniStock:users.B.negroniStock,
         negroniEffect:users.B.negroniEffect || 0,
         ft:users.B.ft
@@ -5944,6 +6028,8 @@ function snapshot(actorId = currentUser()?.id){
         scalaStock:users.C.scalaStock,
         costulaStock:users.C.costulaStock,
         exVotoStock:users.C.exVotoStock,
+        flammaStock:users.C.flammaStock || 0,
+        cinis:users.C.cinis || {active:false, fee:50, fireId:null, since:null},
         negroniStock:users.C.negroniStock,
         negroniEffect:users.C.negroniEffect || 0,
         ft:users.C.ft
@@ -5958,6 +6044,8 @@ function snapshot(actorId = currentUser()?.id){
         scalaStock:users.D.scalaStock,
         costulaStock:users.D.costulaStock,
         exVotoStock:users.D.exVotoStock,
+        flammaStock:users.D.flammaStock || 0,
+        cinis:users.D.cinis || {active:false, fee:50, fireId:null, since:null},
         negroniStock:users.D.negroniStock,
         negroniEffect:users.D.negroniEffect || 0,
         ft:users.D.ft
@@ -5989,6 +6077,10 @@ function restore(state){
   revealPossibleMoves = !!state.revealPossibleMoves;
   triggeredVapors = new Set(state.triggeredVapors || []);
   vaporBursts = (state.vaporBursts || []).map(v => ({...v}));
+  flammaPickups = Array.isArray(state.flammaPickups) ? state.flammaPickups.map(v => ({...v})) : [];
+  flammaFires = Array.isArray(state.flammaFires) ? state.flammaFires.map(f => ({...f, cells:(f.cells || []).map(c => ({...c}))})) : [];
+  burntCells = new Set(Array.isArray(state.burntCells) ? state.burntCells : []);
+  if(flammaFires.some(f => !f.finalized)) ensureFlammaFireAnimation();
   if(vaporBursts.length && !vaporBurstAnimating){
     vaporBurstAnimating = true;
     requestAnimationFrame(stepVaporBursts);
@@ -6022,6 +6114,8 @@ function restore(state){
   users.A.scalaStock = state.users.A.scalaStock || 0;
   users.A.costulaStock = state.users.A.costulaStock || 0;
   users.A.exVotoStock = state.users.A.exVotoStock || 0;
+  users.A.flammaStock = state.users.A.flammaStock || 0;
+  users.A.cinis = normalizeCinisState(state.users.A.cinis);
   users.A.negroniStock = state.users.A.negroniStock || 0;
   users.A.negroniEffect = state.users.A.negroniEffect || 0;
   users.A.ft = state.users.A.ft || 0;
@@ -6035,6 +6129,8 @@ function restore(state){
   users.B.scalaStock = state.users.B.scalaStock || 0;
   users.B.costulaStock = state.users.B.costulaStock || 0;
   users.B.exVotoStock = state.users.B.exVotoStock || 0;
+  users.B.flammaStock = state.users.B.flammaStock || 0;
+  users.B.cinis = normalizeCinisState(state.users.B.cinis);
   users.B.negroniStock = state.users.B.negroniStock || 0;
   users.B.negroniEffect = state.users.B.negroniEffect || 0;
   users.B.ft = state.users.B.ft || 0;
@@ -6048,6 +6144,8 @@ function restore(state){
   users.C.scalaStock = state.users.C.scalaStock || 0;
   users.C.costulaStock = state.users.C.costulaStock || 0;
   users.C.exVotoStock = state.users.C.exVotoStock || 0;
+  users.C.flammaStock = state.users.C.flammaStock || 0;
+  users.C.cinis = normalizeCinisState(state.users.C.cinis);
   users.C.negroniStock = state.users.C.negroniStock || 0;
   users.C.negroniEffect = state.users.C.negroniEffect || 0;
   users.C.ft = state.users.C.ft || 0;
@@ -6059,6 +6157,12 @@ function restore(state){
     users.D.fossaStock = state.users.D.fossaStock;
     users.D.marculusStock = state.users.D.marculusStock || 0;
     users.D.scalaStock = state.users.D.scalaStock || 0;
+    users.D.costulaStock = state.users.D.costulaStock || 0;
+    users.D.exVotoStock = state.users.D.exVotoStock || 0;
+    users.D.flammaStock = state.users.D.flammaStock || 0;
+    users.D.cinis = normalizeCinisState(state.users.D.cinis);
+    users.D.negroniStock = state.users.D.negroniStock || 0;
+    users.D.negroniEffect = state.users.D.negroniEffect || 0;
     users.D.ft = state.users.D.ft || 0;
   }else{
     users.D.current = { row:0, col:2 };
@@ -6070,6 +6174,8 @@ function restore(state){
     users.D.scalaStock = 0;
     users.D.costulaStock = 0;
     users.D.exVotoStock = 0;
+    users.D.flammaStock = 0;
+    users.D.cinis = {active:false, fee:50, fireId:null, since:null};
     users.D.ft = 0;
   }
 }
@@ -6340,6 +6446,7 @@ function restoreOwnAction(state, actorId){
     scala:Number(user.scalaStock || 0),
     costula:Number(user.costulaStock || 0),
     exvoto:Number(user.exVotoStock || 0),
+    flamma:Number(user.flammaStock || 0),
     negroni:Number(user.negroniStock || 0)
   };
   const savedStock = {
@@ -6349,6 +6456,7 @@ function restoreOwnAction(state, actorId){
     scala:Number(savedUser.scalaStock || 0),
     costula:Number(savedUser.costulaStock || 0),
     exvoto:Number(savedUser.exVotoStock || 0),
+    flamma:Number(savedUser.flammaStock || 0),
     negroni:Number(savedUser.negroniStock || 0)
   };
   const restoredActiveTool = state.activeTool || "move";
@@ -6372,6 +6480,8 @@ function restoreOwnAction(state, actorId){
   user.scalaStock = savedStock.scala;
   user.costulaStock = savedStock.costula;
   user.exVotoStock = savedStock.exvoto;
+  user.flammaStock = savedStock.flamma;
+  user.cinis = normalizeCinisState(savedUser.cinis);
   user.negroniStock = savedStock.negroni;
   user.negroniEffect = savedUser.negroniEffect || 0;
   const beforeFtForRetro = Number(user.ft) || 0;
@@ -6392,6 +6502,7 @@ function restoreOwnAction(state, actorId){
     scala: Math.max(0, stockBeforeRetro.scala - savedStock.scala),
     costula: Math.max(0, stockBeforeRetro.costula - savedStock.costula),
     exvoto: Math.max(0, stockBeforeRetro.exvoto - savedStock.exvoto),
+    flamma: Math.max(0, stockBeforeRetro.flamma - savedStock.flamma),
     negroni: Math.max(0, stockBeforeRetro.negroni - savedStock.negroni)
   };
   let refundDelta = 0;
@@ -7075,6 +7186,7 @@ function finishNegroniLanding(user, row, col){
   if(landedExVoto) openExVotoReadModal(landedExVoto, user);
   else {
     triggerSolidusIfNeeded(user,row,col);
+    maybeCollectFlammaAt(user,row,col);
     triggerVaporIfNeeded(user,row,col);
   }
 }
@@ -7274,6 +7386,7 @@ function stepMoveAnimation(now){
   }
 
   triggerSolidusIfNeeded(user, landedRow, landedCol);
+  maybeCollectFlammaAt(user, landedRow, landedCol);
   triggerVaporIfNeeded(user, landedRow, landedCol);
   maybeSpawnAquila(user);
   render();
@@ -7643,12 +7756,17 @@ function selectRestartCell(worldRow, col){
   noticeText = `nouveau départ : ${user.name.toLowerCase()}`;
   addChroniconEvent(`${user.name} choisit un nouveau départ en ${locusRef(worldRow, col)}.`);
   triggerSolidusIfNeeded(user, worldRow, col);
+  maybeCollectFlammaAt(user, worldRow, col);
   triggerVaporIfNeeded(user, worldRow, col);
   render();
 }
 
 function selectCell(worldRow, col){
   const user = currentUser();
+  if(isUserCinisLocked(user)){
+    promptCinisResurrection(user);
+    return;
+  }
   const aquilaLock = aquilaForUser(user.id);
   if(aquilaLock){
     noticeText = aquilaLock.movedOnce
@@ -7832,6 +7950,244 @@ function defineFossaZone(centerRow, centerCol){
   render();
 }
 
+
+function cellId(row, col){ return `${Math.round(row)}-${Math.round(col)}`; }
+function userOccupiesCell(row, col){
+  const r = Math.round(row), c = Math.round(col);
+  return userList().some(user => Math.round(user.current.row) === r && user.current.col === c);
+}
+function isBurntCell(row, col){ return burntCells.has(cellId(row, col)); }
+function flammaPickupAt(row, col){
+  const r = Math.round(row), c = Math.round(col);
+  return flammaPickups.find(item => item.row === r && item.col === c && !item.consumed) || null;
+}
+function isFlammaSpawnBlocked(row, col){
+  if(!isSilvaRow(row)) return true;
+  if(col < 0 || col >= cols) return true;
+  if(abyssusExistsAt(row, col)) return true;
+  if(vaporExistsAt(row, col)) return true;
+  if(isSilvaShadowCell(row, col)) return true;
+  if(solidusAt(row, col)) return true;
+  if(userOccupiesCell(row, col)) return true;
+  if(isBurntCell(row, col)) return true;
+  return false;
+}
+function ensureFlammaPickups(){
+  if(flammaPickups.filter(item => !item.consumed).length >= 3) return;
+  const levelIndex = LEVELS.findIndex(level => level.key === "silva");
+  if(levelIndex < 0) return;
+  const startRow = levelIndex * LEVEL_LENGTH;
+  const candidates = [];
+  for(let localRow = 3; localRow < LEVEL_LENGTH - 2; localRow++){
+    const row = startRow + localRow;
+    for(let col = 0; col < cols; col++){
+      if(isFlammaSpawnBlocked(row, col)) continue;
+      if(flammaPickups.some(item => item.row === row && item.col === col)) continue;
+      candidates.push({row, col, score:cellNoise(row, col, 1701) + cellNoise(row, col, 1709) * .31 + localRow * .00008});
+    }
+  }
+  candidates.sort((a,b) => b.score - a.score);
+  for(const candidate of candidates){
+    if(flammaPickups.filter(item => !item.consumed).length >= 3) break;
+    if(flammaPickups.some(item => !item.consumed && Math.abs(item.row - candidate.row) + Math.abs(item.col - candidate.col) < 4)) continue;
+    flammaPickups.push({id:`flamma-${candidate.row}-${candidate.col}`, row:candidate.row, col:candidate.col, consumed:false});
+  }
+}
+function ensureFlammaVideoElement(id){
+  if(flammaVideoEls[id]) return flammaVideoEls[id];
+  const wrap = document.createElement("div");
+  wrap.className = "flamma-video";
+  wrap.dataset.flammaId = id;
+  wrap.appendChild(createLottieElement(flammaLottieConfig, null));
+  flammaVideoLayer.appendChild(wrap);
+  flammaVideoEls[id] = wrap;
+  return wrap;
+}
+function renderFlammaPickups(){
+  ensureFlammaPickups();
+  const visible = new Set();
+  for(const item of flammaPickups){
+    if(item.consumed || !isWorldRowVisible(item.row)) continue;
+    const screenDistance = item.row - scroll;
+    if(screenDistance < -1.4 || screenDistance > visibleRows + .8) continue;
+    const poly = cellPolygonWorld(item.row, item.col, screenDistance);
+    const c = centroid(poly);
+    const width = Math.abs(poly[2].x - poly[3].x);
+    const depth = Math.abs(poly[3].y - poly[0].y);
+    const el = ensureFlammaVideoElement(item.id);
+    const p = svgPointToLayerPoint(c.x, c.y - depth * .18);
+    const size = clamp(width * .85, 24, 42);
+    el.style.display = "block";
+    el.style.left = `${p.x}px`;
+    el.style.top = `${p.y}px`;
+    el.style.width = `${size}px`;
+    el.style.height = `${size}px`;
+    visible.add(item.id);
+  }
+  for(const [id, el] of Object.entries(flammaVideoEls)) if(!visible.has(id)) el.style.display = "none";
+}
+function beginFlammaPlacement(user){
+  activeTool = "flamma";
+  revealPossibleMoves = false;
+  noticeText = `flamma : choisir une case de Silva Oscura pour ${user.name.toLowerCase()}`;
+  scheduleLabyrinthusStateSave("flamma-ready");
+  render();
+  return true;
+}
+function maybeCollectFlammaAt(user, row, col){
+  const pickup = flammaPickupAt(row, col);
+  if(!pickup || !user) return false;
+  const approved = window.confirm("Utiliser Flamma ?");
+  if(!approved){ noticeText = "flamma laissée sur la case"; render(); return false; }
+  pickup.consumed = true;
+  user.flammaStock = Math.max(0, Number(user.flammaStock) || 0) + 1;
+  addChroniconEvent(`${user.name} ramasse Flamma en ${locusRef(row, col)}.`);
+  scheduleLabyrinthusStateSave("flamma-pickup");
+  return beginFlammaPlacement(user);
+}
+function flammaSpreadCells(row, col, limit = 15){
+  const start = {row:Math.round(row), col:Math.round(col)};
+  const queue = [start];
+  const seen = new Set([cellId(start.row, start.col)]);
+  const cells = [];
+  while(queue.length && cells.length < limit){
+    const cell = queue.shift();
+    if(!isSilvaRow(cell.row) || cell.col < 0 || cell.col >= cols || abyssusExistsAt(cell.row, cell.col)) continue;
+    cells.push(cell);
+    for(const neighbor of [{row:cell.row+1,col:cell.col},{row:cell.row-1,col:cell.col},{row:cell.row,col:cell.col+1},{row:cell.row,col:cell.col-1}]){
+      const id = cellId(neighbor.row, neighbor.col);
+      if(seen.has(id)) continue;
+      seen.add(id);
+      queue.push(neighbor);
+    }
+  }
+  return cells;
+}
+function placeFlamma(row, col){
+  const user = currentUser();
+  if(!user || (Number(user.flammaStock) || 0) <= 0) return false;
+  if(!isSilvaRow(row) || abyssusExistsAt(row, col)){ noticeText = "flamma : choisir une case de Silva Oscura"; render(); return false; }
+  pushUndo();
+  user.flammaStock = Math.max(0, (Number(user.flammaStock) || 0) - 1);
+  if(user.flammaStock <= 0) activeTool = "move";
+  const fire = {id:`fire-${Date.now()}-${Math.random().toString(36).slice(2,7)}`, owner:user.id, row:Math.round(row), col:Math.round(col), cells:flammaSpreadCells(row,col,15), startedAt:Date.now(), duration:5000, finalized:false};
+  flammaFires.push(fire);
+  noticeText = `flamma : incendie déclenché en ${locusRef(row, col)}`;
+  addChroniconEvent(`${user.name} déclenche Flamma en ${locusRef(row, col)}.`);
+  ensureFlammaFireAnimation();
+  scheduleLabyrinthusStateSave("flamma-start");
+  render();
+  return true;
+}
+function finalizeFlammaFire(fire){
+  if(!fire || fire.finalized) return;
+  fire.finalized = true;
+  const affected = new Set((fire.cells || []).map(cell => cellId(cell.row, cell.col)));
+  for(const cell of fire.cells || []) burntCells.add(cellId(cell.row, cell.col));
+  for(const other of userList()){
+    if(other.id === fire.owner) continue;
+    if(!affected.has(cellId(other.current.row, other.current.col))) continue;
+    other.cinis = {active:true, fee:50, fireId:fire.id, since:new Date().toISOString()};
+  }
+  noticeText = "flamma : la zone devient cendre";
+  addChroniconEvent(`Flamma consume ${fire.cells.length} carrés de Silva Oscura.`);
+  scheduleLabyrinthusStateSave("flamma-finalize");
+}
+function stepFlammaFires(_now){
+  const now = Date.now();
+  let running = false;
+  for(const fire of flammaFires){
+    if(fire.finalized) continue;
+    const progress = clamp((now - fire.startedAt) / fire.duration, 0, 1);
+    if(progress >= 1) finalizeFlammaFire(fire);
+    else running = true;
+  }
+  render();
+  flammaFireAnimationFrame = running ? requestAnimationFrame(stepFlammaFires) : null;
+}
+function ensureFlammaFireAnimation(){ if(flammaFireAnimationFrame === null) flammaFireAnimationFrame = requestAnimationFrame(stepFlammaFires); }
+function renderFireFx(){
+  if(!fireFxGroup) return;
+  fireFxGroup.innerHTML = "";
+  const now = Date.now();
+  for(const fire of flammaFires){
+    if(fire.finalized) continue;
+    const progress = clamp((now - fire.startedAt) / fire.duration, 0, 1);
+    const visibleCount = Math.max(1, Math.ceil((fire.cells || []).length * progress));
+    (fire.cells || []).slice(0, visibleCount).forEach((cell, index) => {
+      if(!isWorldRowVisible(cell.row)) return;
+      const screenDistance = cell.row - scroll;
+      if(screenDistance < -1.4 || screenDistance > visibleRows + .8) return;
+      const overlay = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+      overlay.setAttribute("points", pointsAttr(cellPolygonWorld(cell.row, cell.col, screenDistance)));
+      overlay.setAttribute("class", "fire-cell");
+      overlay.setAttribute("opacity", String(clamp(.18 + progress * .66 + index * .006, .2, .78)));
+      fireFxGroup.appendChild(overlay);
+    });
+  }
+}
+function renderBurntCells(){
+  if(!burntFxGroup) return;
+  burntFxGroup.innerHTML = "";
+  for(const id of burntCells){
+    const [rowStr, colStr] = String(id).split("-");
+    const row = Number(rowStr), col = Number(colStr);
+    if(!isWorldRowVisible(row)) continue;
+    const screenDistance = row - scroll;
+    if(screenDistance < -1.4 || screenDistance > visibleRows + .8) continue;
+    const overlay = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+    overlay.setAttribute("points", pointsAttr(cellPolygonWorld(row, col, screenDistance)));
+    overlay.setAttribute("class", "burnt-cell");
+    burntFxGroup.appendChild(overlay);
+  }
+}
+function ensureCinisVideoElement(userId){
+  if(cinisVideoEls[userId]) return cinisVideoEls[userId];
+  const wrap = document.createElement("div");
+  wrap.className = "cinis-video";
+  wrap.dataset.userId = userId;
+  wrap.appendChild(createLottieElement(cinisLottieConfig, null));
+  cinisVideoLayer.appendChild(wrap);
+  cinisVideoEls[userId] = wrap;
+  return wrap;
+}
+function renderCinisTokens(){
+  if(!cinisVideoLayer) return;
+  const visible = new Set();
+  for(const user of userList()){
+    if(!isUserCinisLocked(user)) continue;
+    const data = tokenRenderData(user);
+    if(!data) continue;
+    const el = ensureCinisVideoElement(user.id);
+    const p = svgPointToLayerPoint(data.c.x + data.offsetX, data.c.y + data.offsetY - data.baseSize * .12);
+    const size = Math.max(28, data.baseSize * 3.6);
+    el.style.display = "block";
+    el.style.left = `${p.x}px`;
+    el.style.top = `${p.y}px`;
+    el.style.width = `${size}px`;
+    el.style.height = `${size}px`;
+    visible.add(user.id);
+  }
+  for(const [id, el] of Object.entries(cinisVideoEls)) if(!visible.has(id)) el.style.display = "none";
+}
+function promptCinisResurrection(userOrId){
+  const user = typeof userOrId === "string" ? users[userOrId] : userOrId;
+  if(!isUserCinisLocked(user)) return false;
+  const cost = Math.max(0, Math.round(Number(user.cinis?.fee) || 50));
+  if((Number(user.ft) || 0) < cost){ noticeText = `cinis : ${user.name.toLowerCase()} doit payer ${cost} Ft pour ressusciter`; render(); return true; }
+  const approved = window.confirm(`Payer ${cost} Ft pour ressusciter ${user.name} ?`);
+  if(!approved){ noticeText = `cinis : ${user.name.toLowerCase()} demeure bloqué`; render(); return true; }
+  pushUndo();
+  user.ft = Math.max(0, Math.round((Number(user.ft) || 0) - cost));
+  if(user.noxFatumUserId) noxRequestFatumDelta(user.noxFatumUserId, -cost, "cinis_resurrection");
+  user.cinis = {active:false, fee:50, fireId:null, since:null};
+  noticeText = `cinis : ${user.name.toLowerCase()} ressuscite`;
+  addChroniconEvent(`${user.name} paie ${cost} Ft pour ressusciter.`);
+  scheduleLabyrinthusStateSave("cinis-resurrection");
+  render();
+  return true;
+}
+
 function renderRowNumbers(){
   rowNumbersGroup.innerHTML = "";
   if(!hoverRowNumber) return;
@@ -7944,6 +8300,7 @@ function makeCell(worldRow, col, screenDistance){
   if(activeTool === "fossa" && user.fossaStock > 0) poly.classList.add("fossa-target");
   if(activeTool === "scala" && user.scalaStock > 0) poly.classList.add("murus-target");
   if(activeTool === "exvoto" && user.exVotoStock > 0 && isCellVirgin(worldRow,col)) poly.classList.add("murus-target");
+  if(activeTool === "flamma" && user.flammaStock > 0 && isSilvaRow(worldRow)) poly.classList.add("murus-target");
   if(activeTool === "fossaZone" && pending && pending.owner === user.id && isValidZoneCenter(pending, worldRow, col)){
     poly.classList.add("zone-center-target");
   }
@@ -8040,6 +8397,10 @@ function makeCell(worldRow, col, screenDistance){
     }
     if(activeTool === "exvoto" && currentUser().exVotoStock > 0){
       placeExVoto(worldRow, col);
+      return;
+    }
+    if(activeTool === "flamma" && currentUser().flammaStock > 0){
+      placeFlamma(worldRow, col);
       return;
     }
     if(activeTool === "marculus") return;
@@ -8731,7 +9092,7 @@ function renderSilvaObjects(){
     const depth = Math.abs(poly[3].y - poly[0].y);
     const size = clamp(Math.max(width * 1.06, depth * 1.52), 20, 58);
     const lift = depth * 0.24;
-    appendSilvaImage(arborImageSrc, {x:c.x, y:c.y - lift}, size, size, "silva-arbor");
+    appendSilvaImage(arborImageSrc, {x:c.x, y:c.y - lift}, size, size, `silva-arbor${isBurntCell(row,col) ? " silva-burned" : ""}`);
   }
   for(const cellId of silvaFrutexCellKeys()){
     const [rowStr, colStr] = cellId.split("-");
@@ -8747,7 +9108,7 @@ function renderSilvaObjects(){
     const imgW = clamp(Math.max(width * 1.35, depth * 2.1), 22, 74);
     const imgH = clamp(Math.max(width * 1.15, depth * 1.95), 20, 68);
     const lift = depth * 0.18;
-    appendSilvaImage(frutexImageSrc, {x:c.x, y:c.y - lift}, imgW, imgH, "silva-frutex");
+    appendSilvaImage(frutexImageSrc, {x:c.x, y:c.y - lift}, imgW, imgH, `silva-frutex${isBurntCell(row,col) ? " silva-burned" : ""}`);
   }
   for(const pair of petraPairsForVisibleRows()){
     const p1 = cellPolygonWorld(pair.first.row, pair.first.col, pair.first.row - scroll);
@@ -8759,7 +9120,7 @@ function renderSilvaObjects(){
     const depth1 = Math.abs(p1[3].y - p1[0].y);
     const width = pair.vertical ? width1 * 1.34 : Math.abs(c2.x - c1.x) + width1 * 1.08;
     const height = pair.vertical ? Math.abs(c2.y - c1.y) + depth1 * 1.46 : depth1 * 2.08;
-    appendSilvaImage(petraImageSrc, {x:center.x, y:center.y - depth1 * .08}, width, height, "silva-petra", pair.vertical ? -5 : 0);
+    appendSilvaImage(petraImageSrc, {x:center.x, y:center.y - depth1 * .08}, width, height, `silva-petra${(isBurntCell(pair.first.row,pair.first.col) || isBurntCell(pair.second.row,pair.second.col)) ? " silva-burned" : ""}`, pair.vertical ? -5 : 0);
   }
 }
 function ensureFoliumElement(id){
@@ -8903,8 +9264,14 @@ function renderCatenas(){
 const tokenVideoEls = {};
 
 const solidusVideoEls = {};
+const flammaVideoEls = {};
+const cinisVideoEls = {};
 const solidusCache = new Map();
 const collectedSolidus = new Set();
+let flammaPickups = [];
+let flammaFires = [];
+let burntCells = new Set();
+let flammaFireAnimationFrame = null;
 const SOLIDUS_PER_LEVEL = 7;
 const SOLIDUS_VALUES = [10,20,30];
 
@@ -8932,6 +9299,10 @@ function ensureTokenVideoElement(userId){
     if(activeTool === "move" && userId === activeUserId){
       event.preventDefault();
       event.stopPropagation();
+      if(isUserCinisLocked(userId)){
+        promptCinisResurrection(userId);
+        return;
+      }
       if(!animState){
         revealPossibleMoves = !revealPossibleMoves;
         render();
@@ -9287,6 +9658,7 @@ function renderTokens(){
   const visibleTokenIds = new Set();
 
   for(const user of userList()){
+    if(isUserCinisLocked(user)) continue;
     const tokenData = tokenRenderData(user);
     if(!tokenData) continue;
 
@@ -9469,8 +9841,14 @@ function updateActiveArcaIndicator(){
     (activeTool === 'costula' && user.costulaStock > 0) ||
     (activeTool === 'exvoto' && user.exVotoStock > 0) ||
     (activeTool === 'negroni' && user.negroniStock > 0) ||
+    (activeTool === 'flamma' && user.flammaStock > 0) ||
     activeTool === 'catenaSelect1' || activeTool === 'catenaSelect2'
   );
+  if(stocked && activeTool === 'flamma'){
+    holder.innerHTML = `<div class="flamma-indicator"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 4c.7 3.2-1.2 5.1-3.2 7.2-2.1 2.2-4.2 4.4-4.2 8.1 0 4.1 3.1 7.2 7.4 7.2 4.5 0 7.8-3.3 7.8-7.8 0-2.9-1.4-5.1-3.1-7.2-1.3-1.6-2.7-3.3-2.6-6.1-1.2.8-1.9 1.7-2.1 3.2-.9-1.3-1.6-2.8-1.9-4.6Z"/><path d="M16 13.3c.4 1.8-.6 2.8-1.5 3.8-1 1-1.9 2-1.9 3.7 0 1.9 1.4 3.3 3.5 3.3 2 0 3.6-1.5 3.6-3.6 0-1.4-.7-2.5-1.5-3.5-.6-.7-1.2-1.5-1.2-2.9-.6.4-.9.9-1 1.7Z"/></svg></div>`;
+    holder.classList.add('visible');
+    return;
+  }
   const cardId = stocked
     ? (activeTool === 'murus' && murusOrientation === 'vertical' ? 'murusVCard' : toolToCard[activeTool])
     : null;
@@ -9513,6 +9891,7 @@ function updatePanels(){
     (activeTool === "costula" && user.costulaStock > 0) ||
     (activeTool === "exvoto" && user.exVotoStock > 0) ||
     (activeTool === "negroni" && user.negroniStock > 0) ||
+    (activeTool === "flamma" && user.flammaStock > 0) ||
     activeTool === "catenaSelect1" ||
     activeTool === "catenaSelect2"
   );
@@ -9555,6 +9934,7 @@ function updatePanels(){
   if(activeTool === "costula") toolLabel = "costula";
   if(activeTool === "exvoto") toolLabel = "ex voto";
   if(activeTool === "negroni") toolLabel = "negroni";
+  if(activeTool === "flamma") toolLabel = "flamma";
   if(activeTool === "restartSelect") toolLabel = "nouveau départ";
   if(activeTool === "catenaSelect1") toolLabel = "catena · 1er joueur";
   if(activeTool === "catenaSelect2") toolLabel = "catena · 2e joueur";
@@ -9566,7 +9946,7 @@ function updatePanels(){
   const count = user.filled.size;
   const aquila = aquilaForUser(user.id);
   countEl.textContent = String(count).padStart(2,"0");
-  statusEl.textContent = `${count} case${count > 1 ? "s" : ""} · ${user.ft} Ft${user.costulaStock > 0 ? ` · costula ${user.costulaStock}` : ""}${user.negroniStock > 0 ? ` · negroni ${user.negroniStock}` : ""}${aquila ? ` · aquila ${aquila.movedOnce ? "scellée " : ""}${formatAquilaRemaining(aquila.expiresAt - Date.now())}` : ""}`;
+  statusEl.textContent = `${count} case${count > 1 ? "s" : ""} · ${user.ft} Ft${user.costulaStock > 0 ? ` · costula ${user.costulaStock}` : ""}${user.negroniStock > 0 ? ` · negroni ${user.negroniStock}` : ""}${user.flammaStock > 0 ? ` · flamma ${user.flammaStock}` : ""}${isUserCinisLocked(user) ? ` · cinis ${user.cinis.fee} Ft` : ""}${aquila ? ` · aquila ${aquila.movedOnce ? "scellée " : ""}${formatAquilaRemaining(aquila.expiresAt - Date.now())}` : ""}`;
   const mobileHint = mobileLowPowerMode && activeTool === "move" ? " · tap jeton : zones" : "";
   lookStatusEl.textContent = `${levelForRow(Math.floor(scroll + visibleRows / 2)).name} · ${scroll === 0 ? "vue : départ" : `vue : +${Math.floor(scroll)} lignes`} · outil : ${toolLabel}${mobileHint}`;
   noticeEl.textContent = noticeText;
@@ -9585,9 +9965,11 @@ function performRender(){
   ensureAquilaToolValidity();
   rowNumbersGroup.innerHTML = "";
   grid.innerHTML = "";
+  if(burntFxGroup) burntFxGroup.innerHTML = "";
   fossaHintsGroup.innerHTML = "";
   vaporsGroup.innerHTML = "";
   if(silvaObjectsGroup) silvaObjectsGroup.innerHTML = "";
+  if(fireFxGroup) fireFxGroup.innerHTML = "";
   herbaeGroup.innerHTML = "";
   abyssusGroup.innerHTML = "";
   scalasGroup.innerHTML = "";
@@ -9620,10 +10002,13 @@ function performRender(){
   }
 
   renderFossaHints();
+  renderBurntCells();
   renderVapors();
   renderSilvaObjects();
+  renderFireFx();
   updateFoliumLayer();
   renderSolidus();
+  renderFlammaPickups();
   renderHerbae();
   renderAbyssus();
   renderScalas();
@@ -9635,6 +10020,7 @@ function performRender(){
   renderAquilas();
   renderExVotos();
   renderTokens();
+  renderCinisTokens();
   renderMoneyEffects();
   updatePanels();
 }
@@ -9696,7 +10082,7 @@ function switchUser(id){
   if(activeTool === "costula" && user.costulaStock <= 0) activeTool = "move";
   if(activeTool === "exvoto" && user.exVotoStock <= 0) activeTool = "move";
   if(activeTool === "negroni" && user.negroniStock <= 0) activeTool = "move";
-  if(activeTool === "negroni" && user.negroniStock <= 0) activeTool = "move";
+  if(activeTool === "flamma" && user.flammaStock <= 0) activeTool = "move";
   if(activeTool === "catenaSelect1" || activeTool === "catenaSelect2"){
     pendingCatenaSelection = null;
     pendingCatenaPurchase = null;
