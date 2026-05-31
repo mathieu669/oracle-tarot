@@ -4276,12 +4276,16 @@ body.theme-light .asset-preview-wrap{
             <path d="M21 1 L27 33" stroke="rgba(238,247,255,.10)" stroke-width=".9"/>
           </pattern>
 
-          <pattern id="silvaMoss" patternUnits="userSpaceOnUse" width="32" height="32" patternTransform="rotate(-18)">
-            <rect width="32" height="32" fill="rgba(0,0,0,0)"/>
-            <path d="M-3 8 L35 8" stroke="rgba(190,230,170,.10)" stroke-width="1.05"/>
-            <path d="M-3 19 L35 19" stroke="rgba(40,95,48,.30)" stroke-width="1.2"/>
-            <path d="M7 -2 L2 34" stroke="rgba(185,235,160,.08)" stroke-width=".9"/>
-            <path d="M24 -1 L19 33" stroke="rgba(0,0,0,.18)" stroke-width="1"/>
+          <pattern id="silvaMoss" patternUnits="userSpaceOnUse" width="28" height="28">
+            <rect width="28" height="28" fill="rgba(0,0,0,0)"/>
+            <circle cx="3" cy="4" r=".45" fill="rgba(0,0,0,.20)"/>
+            <circle cx="11" cy="7" r=".34" fill="rgba(255,255,255,.13)"/>
+            <circle cx="20" cy="5" r=".52" fill="rgba(0,0,0,.17)"/>
+            <circle cx="6" cy="15" r=".42" fill="rgba(0,0,0,.15)"/>
+            <circle cx="16" cy="18" r=".36" fill="rgba(255,255,255,.10)"/>
+            <circle cx="25" cy="14" r=".48" fill="rgba(0,0,0,.18)"/>
+            <circle cx="9" cy="25" r=".46" fill="rgba(0,0,0,.14)"/>
+            <circle cx="22" cy="24" r=".32" fill="rgba(255,255,255,.11)"/>
           </pattern>
           <pattern id="glacierPattern" patternUnits="userSpaceOnUse" width="30" height="30" patternTransform="rotate(-24)">
             <rect width="30" height="30" fill="rgba(0,0,0,0)"/>
@@ -4367,10 +4371,12 @@ const foliumImageSrc = "/labyrinthus/assets/folium.png";
 const folia = Array.from({ length:30 }, (_, index) => {
   const row = 4 + index * 3;
   const direction = index % 2 === 0 ? 1 : -1;
-  const period = 25000 + (index % 6) * 2200;
+  const speed = 1 + Math.floor(cellNoise(index + 1, index + 7, 619) * 3);
+  const basePeriod = 25000 + (index % 6) * 2200;
+  const period = basePeriod / speed;
   const phase = ((index * 0.137) % 1);
   const size = 28 + (index % 5) * 3;
-  return { id:`folium-${index + 1}`, row, direction, period, phase, size };
+  return { id:`folium-${index + 1}`, row, direction, period, phase, size, speed };
 });
 let foliumEls = {};
 
@@ -5612,11 +5618,12 @@ function isSilvaRow(row){
 }
 function silvaCellStyle(row,col,screenDistance){
   const t = clamp(screenDistance / visibleRows, 0, 1);
+  const shadowed = isSilvaShadowCell(row, col);
   return {
-    fill:"#A9B763",
-    pattern:"none",
-    textureOpacity:0,
-    shadeOpacity:clamp(.14 + (1 - t) * .06, .12, .22)
+    fill: shadowed ? "#768045" : "#A9B763",
+    pattern:"url(#silvaMoss)",
+    textureOpacity: shadowed ? .18 : .14,
+    shadeOpacity:clamp((shadowed ? .20 : .14) + (1 - t) * .06, .12, .30)
   };
 }
 
@@ -5746,10 +5753,9 @@ function canyonCellStyle(row,col,screenDistance){
 }
 function vaporExistsAt(row,col){
   if(row < 2) return false;
-  const k = vaporKey(row,col);
-  if(triggeredVapors.has(k)) return false;
   if(fossaAt(row,col)) return false;
-  return cellNoise(row,col,3) > 0.955;
+  const threshold = isSilvaRow(row) ? 0.865 : 0.955;
+  return cellNoise(row,col,3) > threshold;
 }
 function vaporOutcome(row,col){
   return cellNoise(row,col,11) >= 0.5 ? 100 : -20;
@@ -5863,20 +5869,7 @@ function stepFrontierCollapseFx(now){
 }
 
 function triggerVaporIfNeeded(user,row,col){
-  if(!vaporExistsAt(row,col)) return false;
-  const k = vaporKey(row,col);
-  triggeredVapors.add(k);
-  startVaporBurst(row,col);
-  playSound("vapor");
-  const delta = vaporOutcome(row,col);
-  startMoneyBurst(row,col,delta);
-  user.ft += delta;
-  playSound(delta > 0 ? "gain" : "loss");
-  noticeText = delta > 0
-    ? `vapor : ${user.name.toLowerCase()} gagne ${delta} Ft`
-    : `vapor : ${user.name.toLowerCase()} perd ${Math.abs(delta)} Ft`;
-  addChroniconEvent(delta > 0 ? `${user.name} traverse Vapor en ${locusRef(row, col)} et gagne ${delta} Ft.` : `${user.name} traverse Vapor en ${locusRef(row, col)} et perd ${Math.abs(delta)} Ft.`);
-  return true;
+  return false;
 }
 
 function snapshot(actorId = currentUser()?.id){
@@ -6744,7 +6737,6 @@ function isCellVirgin(row,col){
   if(fossaAt(row,col)) return false;
   if(scalaAt(row,col)) return false;
   if(exVotoAt(row,col)) return false;
-  if(vaporExistsAt(row,col)) return false;
   if(placedWalls.some(w => w.row === row && w.col === col)) return false;
   return true;
 }
@@ -8688,6 +8680,11 @@ function isSilvaObstacleCell(row, col){
   if(!isSilvaRow(row)) return false;
   const cellId = key(row, col);
   return silvaPetraCellKeys().has(cellId) || silvaArborCellKeys().has(cellId);
+}
+function isSilvaShadowCell(row, col){
+  if(!isSilvaRow(row)) return false;
+  const cellId = key(row, col);
+  return silvaPetraCellKeys().has(cellId) || silvaArborCellKeys().has(cellId) || silvaFrutexCellKeys().has(cellId);
 }
 function petraPairsForVisibleRows(){
   return silvaPetraPairsAll().filter(pair => {
