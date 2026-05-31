@@ -7982,7 +7982,9 @@ function userOccupiesCell(row, col){
 function isBurntCell(row, col){ return burntCells.has(cellId(row, col)); }
 function flammaPickupAt(row, col){
   const r = Math.round(row), c = Math.round(col);
-  return flammaPickups.find(item => item.row === r && item.col === c && !item.consumed && !isFlammaSpawnBlocked(r, c)) || null;
+  // Ne pas réutiliser isFlammaSpawnBlocked ici : une fois le joueur arrivé sur la case,
+  // userOccupiesCell(row, col) devient vrai, ce qui empêchait la détection du Flamma.
+  return flammaPickups.find(item => item.row === r && item.col === c && !item.consumed) || null;
 }
 function isFlammaSpawnBlocked(row, col){
   if(!isSilvaRow(row)) return true;
