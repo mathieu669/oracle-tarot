@@ -3377,6 +3377,59 @@ body.theme-light .asset-preview-wrap{
   }
 }
 
+
+/* V82: mobile overlay bounds — Arca and Chronicon use bottom anchoring instead of viewport-height forcing. */
+@media(max-width:700px){
+  .arca-panel.open .arca-content.control-carousel-wrap,
+  .chronicon-panel.open .chronicon-content{
+    position:fixed !important;
+    left:0 !important;
+    right:0 !important;
+    top:0 !important;
+    bottom:0 !important;
+    width:auto !important;
+    min-width:0 !important;
+    max-width:none !important;
+    height:auto !important;
+    min-height:0 !important;
+    max-height:none !important;
+    margin:0 !important;
+    box-sizing:border-box !important;
+    overflow:hidden !important;
+  }
+  .arca-panel.open .arca-content.control-carousel-wrap{
+    padding:calc(env(safe-area-inset-top, 0px) + 48px) 14px calc(env(safe-area-inset-bottom, 0px) + 14px) 14px !important;
+    gap:10px !important;
+  }
+  .chronicon-panel.open .chronicon-content{
+    padding:calc(env(safe-area-inset-top, 0px) + 48px) 14px calc(env(safe-area-inset-bottom, 0px) + 14px) 14px !important;
+    gap:10px !important;
+  }
+  .arca-panel.open .arca-content.control-carousel-wrap .control-carousel{
+    flex:0 1 39% !important;
+    max-height:39% !important;
+    min-height:0 !important;
+    grid-auto-rows:minmax(82px, 1fr) !important;
+    padding:8px !important;
+  }
+  .arca-panel.open .control-card{
+    min-height:82px !important;
+  }
+  .arca-panel.open .arca-explain{
+    flex:1 1 auto !important;
+    height:auto !important;
+    min-height:0 !important;
+    max-height:none !important;
+    overflow:auto !important;
+  }
+  .chronicon-panel.open .chronicon-list{
+    flex:1 1 auto !important;
+    min-height:0 !important;
+    max-height:none !important;
+    overflow:auto !important;
+  }
+}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
 </head>
