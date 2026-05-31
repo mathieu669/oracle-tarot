@@ -3177,6 +3177,7 @@ body.theme-light .asset-preview-wrap{
 
 
 
+/* V78: Catena now debits on purchase and refunds on cancel/retro */
 /* V77: Catena retro now restores/clears placement preview state */
 /* V76: Arca/Chronicon close blocks without outline + Chronicon history-only window */
 .arca-panel.open .arca-content.control-carousel-wrap .lab-overlay-close,
@@ -3785,6 +3786,7 @@ let placedScalas = []; // {id,row,col,owner}
 let placedExVotos = []; // {id,row,col,owner,type,dataUrl}
 let activeCatenas = []; // {id,owner,pair:[id,id],remainingTurns}
 let pendingCatenaSelection = null;
+let pendingCatenaPurchase = null; // {owner,cost} while Catena selection is pending
 let pendingFossaId = null;
 let restartState = null; // {userId,targetRow}
 let animState = null; // move or fossa animation state
@@ -5122,6 +5124,7 @@ function snapshot(actorId = currentUser()?.id){
     activeAquilas: activeAquilas.map(a => ({...a})),
     chroniconEntries: chroniconEntries.map(e => ({...e})),
     pendingCatenaSelection,
+    pendingCatenaPurchase: pendingCatenaPurchase ? {...pendingCatenaPurchase} : null,
     pendingFossaId,
     restartState: restartState ? {...restartState} : null,
     animState: animState ? {...animState} : null,
@@ -5207,6 +5210,7 @@ function restore(state){
   activeAquilas = (state.activeAquilas || []).map(a => ({...a}));
   chroniconEntries = normalizeChroniconEntries(state.chroniconEntries || []);
   pendingCatenaSelection = state.pendingCatenaSelection || null;
+  pendingCatenaPurchase = state.pendingCatenaPurchase ? {...state.pendingCatenaPurchase} : null;
   pendingFossaId = state.pendingFossaId;
   restartState = state.restartState ? {...state.restartState} : null;
   animState = state.animState ? {...state.animState} : null;
@@ -5557,10 +5561,12 @@ function restoreOwnAction(state, actorId){
   const user = users[actorId];
   if(!user) return false;
 
+  const currentPendingCatenaPurchase = pendingCatenaPurchase && pendingCatenaPurchase.owner === actorId ? {...pendingCatenaPurchase} : null;
   const restoredActiveTool = state.activeTool || "move";
   activeTool = restoredActiveTool;
   murusOrientation = state.murusOrientation || user.murusOrientation || "horizontal";
   pendingCatenaSelection = state.pendingCatenaSelection || null;
+  pendingCatenaPurchase = state.pendingCatenaPurchase ? {...state.pendingCatenaPurchase} : null;
   if(activeTool === "catenaSelect2" && !pendingCatenaSelection) activeTool = "catenaSelect1";
 
   const keepNonOwned = (current, previous) => [
@@ -5591,9 +5597,13 @@ function restoreOwnAction(state, actorId){
     exvoto: countOwned(placedExVotos) - countOwned(state.placedExVotos || [])
   };
   let refundDelta = 0;
+  const pendingCatenaRefund = currentPendingCatenaPurchase && !(state.pendingCatenaPurchase && state.pendingCatenaPurchase.owner === actorId)
+    ? (Number(currentPendingCatenaPurchase.cost) || (ARCA_COSTS.catena || 0))
+    : 0;
   if(placedDelta.murus > 0) refundDelta += placedDelta.murus * (ARCA_COSTS.murus || 0);
   if(placedDelta.fossa > 0) refundDelta += placedDelta.fossa * (ARCA_COSTS.fossa || 0);
   if(placedDelta.catena > 0) refundDelta += placedDelta.catena * (ARCA_COSTS.catena || 0);
+  if(pendingCatenaRefund > 0) refundDelta += pendingCatenaRefund;
   if(placedDelta.scala > 0) refundDelta += placedDelta.scala * (ARCA_COSTS.scala || 0);
   if(placedDelta.exvoto > 0) refundDelta += placedDelta.exvoto * (ARCA_COSTS.exvoto || 0);
   if(refundDelta > 0){
@@ -5628,7 +5638,7 @@ function restoreOwnAction(state, actorId){
 
   pendingCatenaSelection = state.pendingCatenaSelection || null;
   if(activeTool === "catenaSelect2" && !pendingCatenaSelection) activeTool = "catenaSelect1";
-  if(activeTool !== "catenaSelect1" && activeTool !== "catenaSelect2") pendingCatenaSelection = null;
+  if(activeTool !== "catenaSelect1" && activeTool !== "catenaSelect2"){ pendingCatenaSelection = null; pendingCatenaPurchase = null; }
 
   pendingFossaId = (state.pendingFossaId && (state.placedFossae || []).some(item => item.id === state.pendingFossaId && item.owner === actorId)) ? state.pendingFossaId : null;
   if(pendingFossaId) activeTool = "fossaZone";
@@ -6074,18 +6084,55 @@ function catenaForUser(userId){
 function catenaPartnerId(catena, userId){
   return catena ? catena.pair.find(id => id !== userId) : null;
 }
+function removeLastUndoForActor(actorId){
+  if(!actorId) return;
+  for(let index = undoStack.length - 1; index >= 0; index -= 1){
+    if(undoStack[index]?.actorId === actorId){
+      undoStack.splice(index, 1);
+      return;
+    }
+  }
+}
+function refundPendingCatenaPurchase(ownerId, reason="arca_catena_cancel"){
+  const purchase = pendingCatenaPurchase && pendingCatenaPurchase.owner === ownerId ? pendingCatenaPurchase : null;
+  if(!purchase) return 0;
+  const user = users[ownerId];
+  const cost = Number(purchase.cost) || (ARCA_COSTS.catena || 0);
+  pendingCatenaPurchase = null;
+  if(!user || cost <= 0) return 0;
+  user.ft = Math.round((Number(user.ft) || 0) + cost);
+  if(user.noxFatumUserId) noxRequestFatumDelta(user.noxFatumUserId, cost, reason);
+  startMoneyBurst(user.current.row, user.current.col, cost);
+  removeLastUndoForActor(ownerId);
+  return cost;
+}
 function beginCatenaSelection(){
+  const user = currentUser();
+  if(!user) return;
+  const cost = ARCA_COSTS.catena || 0;
+  if((Number(user.ft) || 0) < cost){
+    noticeText = "catena impossible : solde insuffisant";
+    render();
+    return;
+  }
+  if(!debitArcaPurchase(user, "catena", "catena")) return;
+  pushUndo();
   pendingCatenaSelection = null;
+  pendingCatenaPurchase = { owner:user.id, cost };
   activeTool = "catenaSelect1";
   revealPossibleMoves = false;
-  noticeText = "catena : choisir le premier joueur";
+  noticeText = `achat : 1 catena pour ${user.name.toLowerCase()} · choisir le premier joueur`;
+  addChroniconEvent(`${user.name} achète 1 Catena.`);
   render();
 }
-function cancelCatenaSelection(message="catena annulée"){
+function cancelCatenaSelection(message="catena annulée", refundPurchase=true){
+  const ownerId = activeUserId;
+  const refunded = refundPurchase ? refundPendingCatenaPurchase(ownerId) : 0;
   pendingCatenaSelection = null;
+  pendingCatenaPurchase = null;
   activeTool = "move";
   revealPossibleMoves = false;
-  noticeText = message;
+  noticeText = refunded > 0 ? `${message} · +${refunded} Ft recrédités` : message;
   render();
 }
 function selectCatenaUser(userId){
@@ -6272,8 +6319,12 @@ function createCatena(ownerId, pair){
     render();
     return false;
   }
-  if(!debitArcaPurchase(users[ownerId], "catena", "catena")) return false;
-  pushUndo();
+  const owner = users[ownerId];
+  const hasPendingPurchase = pendingCatenaPurchase && pendingCatenaPurchase.owner === ownerId;
+  if(!hasPendingPurchase){
+    if(!debitArcaPurchase(owner, "catena", "catena")) return false;
+    pushUndo();
+  }
   activeCatenas.push({
     id:`catena-${ownerId}-${performance.now()}`,
     owner:ownerId,
@@ -6281,6 +6332,7 @@ function createCatena(ownerId, pair){
     remainingTurns:3
   });
   pendingCatenaSelection = null;
+  pendingCatenaPurchase = null;
   activeTool = "move";
   revealPossibleMoves = false;
   playSound("catena");
@@ -8598,6 +8650,7 @@ function switchUser(id){
   if(activeTool === "negroni" && user.negroniStock <= 0) activeTool = "move";
   if(activeTool === "catenaSelect1" || activeTool === "catenaSelect2"){
     pendingCatenaSelection = null;
+    pendingCatenaPurchase = null;
     activeTool = "move";
   }
   revealPossibleMoves = false;
@@ -9001,6 +9054,7 @@ resetBtn.addEventListener("click", (event) => {
   activeCatenas = [];
   activeAquilas = [];
   pendingCatenaSelection = null;
+  pendingCatenaPurchase = null;
   pendingFossaId = null;
   restartState = null;
   animState = null;
