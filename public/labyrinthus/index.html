@@ -3177,6 +3177,7 @@ body.theme-light .asset-preview-wrap{
 
 
 
+/* V79: Arca refund feedback is synchronized with preview removal and gain animation. */
 /* V78: Catena now debits on purchase and refunds on cancel/retro */
 /* V77: Catena retro now restores/clears placement preview state */
 /* V76: Arca/Chronicon close blocks without outline + Chronicon history-only window */
@@ -5562,6 +5563,24 @@ function restoreOwnAction(state, actorId){
   if(!user) return false;
 
   const currentPendingCatenaPurchase = pendingCatenaPurchase && pendingCatenaPurchase.owner === actorId ? {...pendingCatenaPurchase} : null;
+  const stockBeforeRetro = {
+    murus:Number(user.murusStock || 0),
+    fossa:Number(user.fossaStock || 0),
+    marculus:Number(user.marculusStock || 0),
+    scala:Number(user.scalaStock || 0),
+    costula:Number(user.costulaStock || 0),
+    exvoto:Number(user.exVotoStock || 0),
+    negroni:Number(user.negroniStock || 0)
+  };
+  const savedStock = {
+    murus:Number(savedUser.murusStock || 0),
+    fossa:Number(savedUser.fossaStock || 0),
+    marculus:Number(savedUser.marculusStock || 0),
+    scala:Number(savedUser.scalaStock || 0),
+    costula:Number(savedUser.costulaStock || 0),
+    exvoto:Number(savedUser.exVotoStock || 0),
+    negroni:Number(savedUser.negroniStock || 0)
+  };
   const restoredActiveTool = state.activeTool || "move";
   activeTool = restoredActiveTool;
   murusOrientation = state.murusOrientation || user.murusOrientation || "horizontal";
@@ -5576,49 +5595,60 @@ function restoreOwnAction(state, actorId){
 
   user.current = {...savedUser.current};
   user.filled = new Set(savedUser.filled || []);
-  user.murusStock = savedUser.murusStock || 0;
+  user.murusStock = savedStock.murus;
   user.murusOrientation = savedUser.murusOrientation || state.murusOrientation || user.murusOrientation || "horizontal";
-  user.fossaStock = savedUser.fossaStock || 0;
-  user.marculusStock = savedUser.marculusStock || 0;
-  user.scalaStock = savedUser.scalaStock || 0;
-  user.costulaStock = savedUser.costulaStock || 0;
-  user.exVotoStock = savedUser.exVotoStock || 0;
-  user.negroniStock = savedUser.negroniStock || 0;
+  user.fossaStock = savedStock.fossa;
+  user.marculusStock = savedStock.marculus;
+  user.scalaStock = savedStock.scala;
+  user.costulaStock = savedStock.costula;
+  user.exVotoStock = savedStock.exvoto;
+  user.negroniStock = savedStock.negroni;
   user.negroniEffect = savedUser.negroniEffect || 0;
   const beforeFtForRetro = Number(user.ft) || 0;
-  let restoredFtForRetro = Number(savedUser.ft) || 0;
+  const restoredFtForRetro = Number(savedUser.ft) || 0;
 
   const countOwned = (items) => Array.isArray(items) ? items.filter(item => item && item.owner === actorId).length : 0;
   const placedDelta = {
-    murus: countOwned(placedWalls) - countOwned(state.placedWalls || []),
-    fossa: countOwned(placedFossae) - countOwned(state.placedFossae || []),
-    catena: countOwned(activeCatenas) - countOwned(state.activeCatenas || []),
-    scala: countOwned(placedScalas) - countOwned(state.placedScalas || []),
-    exvoto: countOwned(placedExVotos) - countOwned(state.placedExVotos || [])
+    murus: Math.max(0, countOwned(placedWalls) - countOwned(state.placedWalls || [])),
+    fossa: Math.max(0, countOwned(placedFossae) - countOwned(state.placedFossae || [])),
+    catena: Math.max(0, countOwned(activeCatenas) - countOwned(state.activeCatenas || [])),
+    scala: Math.max(0, countOwned(placedScalas) - countOwned(state.placedScalas || [])),
+    exvoto: Math.max(0, countOwned(placedExVotos) - countOwned(state.placedExVotos || []))
+  };
+  const previewDelta = {
+    murus: Math.max(0, stockBeforeRetro.murus - savedStock.murus),
+    fossa: Math.max(0, stockBeforeRetro.fossa - savedStock.fossa),
+    marculus: Math.max(0, stockBeforeRetro.marculus - savedStock.marculus),
+    scala: Math.max(0, stockBeforeRetro.scala - savedStock.scala),
+    costula: Math.max(0, stockBeforeRetro.costula - savedStock.costula),
+    exvoto: Math.max(0, stockBeforeRetro.exvoto - savedStock.exvoto),
+    negroni: Math.max(0, stockBeforeRetro.negroni - savedStock.negroni)
   };
   let refundDelta = 0;
   const pendingCatenaRefund = currentPendingCatenaPurchase && !(state.pendingCatenaPurchase && state.pendingCatenaPurchase.owner === actorId)
     ? (Number(currentPendingCatenaPurchase.cost) || (ARCA_COSTS.catena || 0))
     : 0;
-  if(placedDelta.murus > 0) refundDelta += placedDelta.murus * (ARCA_COSTS.murus || 0);
-  if(placedDelta.fossa > 0) refundDelta += placedDelta.fossa * (ARCA_COSTS.fossa || 0);
-  if(placedDelta.catena > 0) refundDelta += placedDelta.catena * (ARCA_COSTS.catena || 0);
-  if(pendingCatenaRefund > 0) refundDelta += pendingCatenaRefund;
-  if(placedDelta.scala > 0) refundDelta += placedDelta.scala * (ARCA_COSTS.scala || 0);
-  if(placedDelta.exvoto > 0) refundDelta += placedDelta.exvoto * (ARCA_COSTS.exvoto || 0);
+  refundDelta += placedDelta.murus * (ARCA_COSTS.murus || 0);
+  refundDelta += placedDelta.fossa * (ARCA_COSTS.fossa || 0);
+  refundDelta += placedDelta.catena * (ARCA_COSTS.catena || 0);
+  refundDelta += placedDelta.scala * (ARCA_COSTS.scala || 0);
+  refundDelta += placedDelta.exvoto * (ARCA_COSTS.exvoto || 0);
+  refundDelta += previewDelta.murus * (ARCA_COSTS.murus || 0);
+  refundDelta += previewDelta.fossa * (ARCA_COSTS.fossa || 0);
+  refundDelta += previewDelta.marculus * (ARCA_COSTS.marculus || 0);
+  refundDelta += previewDelta.scala * (ARCA_COSTS.scala || 0);
+  refundDelta += previewDelta.costula * (ARCA_COSTS.costula || 0);
+  refundDelta += previewDelta.exvoto * (ARCA_COSTS.exvoto || 0);
+  refundDelta += previewDelta.negroni * (ARCA_COSTS.negroni || 0);
+  refundDelta += pendingCatenaRefund;
+
   if(refundDelta > 0){
-    restoredFtForRetro += refundDelta;
-    savedUser.murusStock = Math.max(0, Number(savedUser.murusStock || 0) - Math.max(0, placedDelta.murus));
-    savedUser.fossaStock = Math.max(0, Number(savedUser.fossaStock || 0) - Math.max(0, placedDelta.fossa));
-    savedUser.scalaStock = Math.max(0, Number(savedUser.scalaStock || 0) - Math.max(0, placedDelta.scala));
-    savedUser.exVotoStock = Math.max(0, Number(savedUser.exVotoStock || 0) - Math.max(0, placedDelta.exvoto));
+    user.murusStock = Math.max(0, Number(user.murusStock || 0) - placedDelta.murus);
+    user.fossaStock = Math.max(0, Number(user.fossaStock || 0) - placedDelta.fossa);
+    user.scalaStock = Math.max(0, Number(user.scalaStock || 0) - placedDelta.scala);
+    user.exVotoStock = Math.max(0, Number(user.exVotoStock || 0) - placedDelta.exvoto);
     activeTool = "move";
-    noticeText = `retro : +${refundDelta} Ft recrédités`;
-    startMoneyBurst(user.current.row, user.current.col, refundDelta);
   }
-  user.ft = restoredFtForRetro;
-  const retroFatumDelta = Math.round(restoredFtForRetro - beforeFtForRetro);
-  if(retroFatumDelta && user.noxFatumUserId) noxRequestFatumDelta(user.noxFatumUserId, retroFatumDelta, "retro_arca_refund");
 
   placedWalls = keepNonOwned(placedWalls, state.placedWalls || []);
   placedFossae = [
@@ -5646,8 +5676,19 @@ function restoreOwnAction(state, actorId){
 
   restartState = state.restartState && state.restartState.userId === actorId ? {...state.restartState} : null;
   revealPossibleMoves = false;
-  if(!(typeof refundDelta !== "undefined" && refundDelta > 0)) noticeText = `retro : ${user.name.toLowerCase()} annule sa dernière action`;
-  addChroniconEvent(`${user.name} annule sa dernière action.`, makeChroniconMeta(`${user.name} annule sa dernière action.`, {type:"undo", cost: refundDelta || null, at:user.current}));
+
+  user.ft = restoredFtForRetro;
+  const retroFatumDelta = Math.round(restoredFtForRetro - beforeFtForRetro);
+  if(retroFatumDelta && user.noxFatumUserId) noxRequestFatumDelta(user.noxFatumUserId, retroFatumDelta, "retro_state_restore");
+
+  let refundedForRetro = 0;
+  if(refundDelta > 0){
+    refundedForRetro = triggerArcaRefundFeedback(user, refundDelta, "retro_arca_refund");
+    noticeText = `retro : +${refundedForRetro} Ft recrédités`;
+  } else {
+    noticeText = `retro : ${user.name.toLowerCase()} annule sa dernière action`;
+  }
+  addChroniconEvent(`${user.name} annule sa dernière action.`, makeChroniconMeta(`${user.name} annule sa dernière action.`, {type:"undo", cost: refundedForRetro || null, at:user.current}));
   return true;
 }
 
@@ -6100,11 +6141,9 @@ function refundPendingCatenaPurchase(ownerId, reason="arca_catena_cancel"){
   const cost = Number(purchase.cost) || (ARCA_COSTS.catena || 0);
   pendingCatenaPurchase = null;
   if(!user || cost <= 0) return 0;
-  user.ft = Math.round((Number(user.ft) || 0) + cost);
-  if(user.noxFatumUserId) noxRequestFatumDelta(user.noxFatumUserId, cost, reason);
-  startMoneyBurst(user.current.row, user.current.col, cost);
+  const refunded = triggerArcaRefundFeedback(user, cost, reason);
   removeLastUndoForActor(ownerId);
-  return cost;
+  return refunded;
 }
 function beginCatenaSelection(){
   const user = currentUser();
@@ -9128,6 +9167,15 @@ function debitArcaPurchase(user, assetKey, label){
   user.ft = Math.max(0, Math.round((Number(user.ft) || 0) - cost));
   if(user.noxFatumUserId) noxRequestFatumDelta(user.noxFatumUserId, -cost, `arca_${assetKey}`);
   return true;
+}
+function triggerArcaRefundFeedback(user, amount, reason="arca_refund"){
+  const value = Math.round(Number(amount) || 0);
+  if(!user || value <= 0) return 0;
+  user.ft = Math.round((Number(user.ft) || 0) + value);
+  if(user.noxFatumUserId) noxRequestFatumDelta(user.noxFatumUserId, value, reason);
+  startMoneyBurst(user.current.row, user.current.col, value);
+  playSound("gain");
+  return value;
 }
 function returnToPlayerSquareAfterPlacement(user){
   // No automatic return/recentering after Arca purchase or trap placement.
