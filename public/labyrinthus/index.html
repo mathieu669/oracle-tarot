@@ -258,37 +258,15 @@
   background:transparent !important;
   mix-blend-mode:screen;
 }
-.flamma-video-layer,.cinis-video-layer{
-  position:absolute;inset:0;z-index:3;pointer-events:none;overflow:hidden;
-}
-.flamma-video,.cinis-video{
-  position:absolute;display:none;pointer-events:none;overflow:visible;background:transparent;
-}
-.flamma-video{
-  width:30px;height:30px;transform:translate(-50%,-62%);
-  filter:drop-shadow(0 0 8px rgba(255,255,255,.18)) drop-shadow(-6px 4px 8px rgba(0,0,0,.32));
-  opacity:.96;
-}
-.cinis-video{
-  width:32px;height:32px;transform:translate(-50%,-66%);
-  filter:drop-shadow(0 0 7px rgba(255,255,255,.12)) drop-shadow(-7px 4px 9px rgba(0,0,0,.42));
-  opacity:.94;
-}
-.flamma-video .lottie-anim svg *,
-.cinis-video .lottie-anim svg *,
-.flammaria-preview svg *{
-  fill:none !important;
-  stroke:#fff !important;
-}
-.control-card.is-hidden{display:none !important;}
-.flammaria-preview{
-  width:54px;height:54px;border-radius:14px;display:flex;align-items:center;justify-content:center;
-  background:radial-gradient(circle at 50% 38%, rgba(255,255,255,.10), rgba(255,255,255,.02) 56%, rgba(0,0,0,.18));
-  box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);
-}
+.flamma-video-layer,.cinis-video-layer{position:absolute;inset:0;z-index:2;pointer-events:none;overflow:hidden;}
+.flamma-video,.cinis-video{position:absolute;display:none;pointer-events:none;overflow:visible;background:transparent;}
+.flamma-video{width:26px;height:26px;transform:translate(-50%,-62%);filter:drop-shadow(0 0 8px rgba(255,255,255,.20)) drop-shadow(-6px 4px 8px rgba(0,0,0,.32));opacity:.96;}
+.cinis-video{width:28px;height:28px;transform:translate(-50%,-66%);filter:drop-shadow(0 0 8px rgba(255,255,255,.16)) drop-shadow(-7px 4px 9px rgba(0,0,0,.42));opacity:.94;}
+.flamma-video .lottie-anim,.flamma-video .lottie-anim svg,.flamma-video .lottie-anim svg *,
+.cinis-video .lottie-anim,.cinis-video .lottie-anim svg,.cinis-video .lottie-anim svg *{background:transparent !important;}
+.flamma-video .lottie-anim svg *,.cinis-video .lottie-anim svg *,.flammaria-preview svg *{fill:none !important;stroke:#fff !important;}
+.flammaria-preview{width:54px;height:54px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 38%, rgba(255,255,255,.12), rgba(255,255,255,.02) 54%, rgba(0,0,0,.18));box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);}
 .flammaria-preview svg{width:34px;height:34px;display:block;}
-.fire-cell-fx{fill:rgba(255,36,36,.24);stroke:rgba(255,72,72,.22);stroke-width:.7;vector-effect:non-scaling-stroke;pointer-events:none;}
-.burnt-cell-fx{fill:rgba(0,0,0,.62);stroke:rgba(0,0,0,.28);stroke-width:.55;vector-effect:non-scaling-stroke;pointer-events:none;}
   .token-label{
     position:absolute;left:50%;top:-8px;
     transform:translate(-50%,-100%);
@@ -852,7 +830,7 @@
   }
 
   .info-modal{
-    position:absolute;inset:0;z-index:2147483600;display:none;pointer-events:none;
+    position:fixed;inset:0;z-index:2147483600;display:none;pointer-events:none;
   }
   .info-modal.visible{ display:block; pointer-events:auto; }
   .info-modal-backdrop{
@@ -1093,7 +1071,7 @@
     pointer-events:none;
   }
   .exvoto-modal{
-    position:absolute;
+    position:fixed;
     inset:0;
     z-index:2147483601;
     display:none;
@@ -4213,7 +4191,8 @@ body.theme-light .asset-preview-wrap{
               <button class="info-btn" data-info-key="exvoto" aria-label="Informations Ex voto" title="Informations Ex voto"><svg viewBox="0 0 20 20" aria-hidden="true"><circle class="glyph" cx="10" cy="10" r="7.2"/><path class="glyph" d="M10 8.1v4.6"/><path class="glyph" d="M10 5.6h.01"/></svg></button>
             </div>
           </div>
-          <div class="control-card is-hidden" id="flammaCard" title="Flamma en attente de placement">
+
+          <div class="control-card" id="flammaCard" title="Flamma en attente de placement" style="display:none">
             <div class="asset-preview-wrap">
               <div class="flammaria-preview" aria-hidden="true">
                 <svg viewBox="0 0 32 32">
@@ -4224,10 +4203,9 @@ body.theme-light .asset-preview-wrap{
             </div>
             <div class="control-meta">
               <div class="control-title">Flamma</div>
-              <div class="control-cost">ramassée</div>
+              <div class="control-cost">0 prêt</div>
             </div>
           </div>
-
           <div class="control-card" id="negroniCard" title="Acheter un Negroni">
             <div class="asset-preview-wrap">
               <img class="preview-img negroni-preview-img" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAgAAAAIACAYAAAD0eNT6AAAACXBIWXMAAHYcAAB2HAGnwnjqAAAAGXRFWHRTb2Z0d2FyZQB3d3cuaW5rc2NhcGUub3Jnm+48GgAAIABJREFUeJzt3Xe4XVW19/HvSU9Io/cQQu8dREFEpIkoICAgAgqK5SrwqiCCgg0BvVa4oEgTEMSCgAgCKh0RBKQIhBJ6JySkkZCc8/4xzoaTk9P2HnON1X6f55lPuO/r2Xustdeac6y5ZgERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERGRYhsGfAq4GngemNf579XAYZ3//yIiIlIhWwOPAx19lCeA9+QVoIiIiKS1J/AmfTf+jfImsG8+YYqIiEgquzDwxr9R5gMfzyNYERER8dsRmENzjb+SABERkRLbBphJa42/kgAREZESejcwA1/jryRARESkRLYEppOm8W+Ut9DAQBERkcJaA3iJtI2/egJEREQKbCXgSbJp/JUEiIiIFNBSwENk2/grCRARESmQMcCdxDT+SgJEREQKYDjwN2Ibfw0MFBERyVEb8GvyafzVEyAiIpKTk8m38VcSICIiEuzT5N/wKwkQEREJ9EHs/Xvejb6SABERkSCbkW6JXyUBIiIiJbAy8AL5N/L9Fc0OEBERSWQx4B7SN9a/B+Zl8LlKAkRERJzagEtI30if0fn5uwFvZvD5eh0gIiLi8F3SN86XAYO7fIeSABERkQLZB2gnbaP8N2wFwe6UBIiIiBTAFsBs0jbG/8L2DujNnmhMgIiISG6WAZ4mbSM8GVh6AN+tJEBERCQHQ4B/kLbxfRVYs4kY9DpAREQk2I9J2+jOAd7TQhxKAkRERILsT9rGth04wBHPB1ESICIikqkNgZmkbWi/nCAuJQEiIiIZGQs8StoG9syE8e2BBgaKiIgkdxFpG9abgGGJY1RPgIiISEKfJ22D+gQDm+7XCiUBIiIiCWxI2sV+3gDWzzhmJQEiIiIOo4GHSdeALgB2D4pdSYCIiEiLUu/wd3Rs+BoYKCIi0qxPkbbRvAzbNjiaegJEREQGaDXsXX2qxvJhbBphXpQEiIiI9GMIcDvpGsk3gHVDj6BnSgJERET68D3SNY7twN6x4fdJSYCIiEgP3os1Zqka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" alt="">
@@ -4495,7 +4473,7 @@ const solidusLottieConfig = Object.freeze({
 const flammaLottieConfig = Object.freeze({
   path:"/labyrinthus/assets/lottie/flamma-white.json",
   className:"flamma-lottie",
-  speed: mobileLowPowerMode ? 0.78 : 1
+  speed: mobileLowPowerMode ? 0.74 : 0.92
 });
 const cinisLottieConfig = Object.freeze({
   path:"/labyrinthus/assets/lottie/cinis-white.json",
@@ -4513,11 +4491,13 @@ if(window.lottie){
 }
 function createLottieElement(config, fallbackSpriteConfig){
   if(!window.lottie || typeof window.lottie.loadAnimation !== "function"){
-    if(fallbackSpriteConfig) return createSpriteElement(fallbackSpriteConfig);
-    const fallback = document.createElement("div");
-    fallback.className = `lottie-anim anim-visual ${config?.className || ""}`.trim();
-    fallback.setAttribute("aria-hidden", "true");
-    return fallback;
+    if(!fallbackSpriteConfig){
+      const fallback = document.createElement("div");
+      fallback.className = `lottie-anim ${config?.className || ""}`.trim();
+      fallback.setAttribute("aria-hidden", "true");
+      return fallback;
+    }
+    return createSpriteElement(fallbackSpriteConfig);
   }
   const container = document.createElement("div");
   container.className = `lottie-anim anim-visual ${config.className || ""}`.trim();
@@ -4609,17 +4589,17 @@ const centerX = 200;
 
 let scroll = 0;
 let activeUserId = "A";
-let activeTool = "move"; // move | murus | fossa | marculus | scala | costula | exvoto | flamma | negroni | fossaZone | restartSelect | catenaSelect1 | catenaSelect2
+let activeTool = "move"; // move | murus | fossa | marculus | scala | costula | exvoto | negroni | flamma | fossaZone | restartSelect | catenaSelect1 | catenaSelect2
 let murusOrientation = "horizontal"; // horizontal = bottom, vertical = right
 let placedWalls = [];
 let placedFossae = []; // {id,row,col,owner,zoneCenter:{row,col}|null}
 let placedScalas = []; // {id,row,col,owner}
 let placedExVotos = []; // {id,row,col,owner,type,dataUrl}
-let flammaPickups = []; // {id,row,col,consumed}
-let fireZones = []; // {id,owner,row,col,startedAt,duration,cells,finalized}
-let burntCells = new Set();
+let flammaPickups = [];
 const flammaVideoEls = {};
 const cinisVideoEls = {};
+let fireZones = [];
+let burntCells = new Set();
 let fireAnimationFrame = null;
 let activeCatenas = []; // {id,owner,pair:[id,id],remainingTurns}
 let pendingCatenaSelection = null;
@@ -5954,180 +5934,136 @@ function triggerVaporIfNeeded(user,row,col){
   return false;
 }
 
-
-function cellId(row,col){ return key(Math.round(row), Math.round(col)); }
+function cellId(row, col){ return `${Math.round(row)}:${Math.round(col)}`; }
 function isUserCinisLocked(userOrId){
   const user = typeof userOrId === "string" ? users[userOrId] : userOrId;
   return !!(user && user.cinis && user.cinis.active);
 }
-function normalizeCinisState(user){
-  if(!user.cinis || typeof user.cinis !== "object") user.cinis = { active:false, fee:50, fireId:null, since:null };
-  if(!Number.isFinite(Number(user.cinis.fee))) user.cinis.fee = 50;
+function flammaPickupAt(row, col){
+  const r = Math.round(row), c = Math.round(col);
+  return flammaPickups.find(item => item && !item.consumed && item.row === r && item.col === c) || null;
 }
-function flammaPickupAt(row,col){
-  const target = cellId(row,col);
-  return flammaPickups.find(item => !item.consumed && cellId(item.row,item.col) === target) || null;
-}
-function isBurntCell(row,col){ return burntCells.has(cellId(row,col)); }
-function flammaBlockedCell(row,col){
-  const r = Math.round(row);
-  const c = Math.round(col);
-  if(c < 0 || c >= cols) return true;
-  if(levelForRow(r).key !== "silva") return true;
-  if(abyssusExistsAt(r,c)) return true;
-  if(vaporExistsAt(r,c)) return true;
-  if(isSilvaObstacleCell(r,c)) return true;
-  if(silvaFrutexCellKeys && silvaFrutexCellKeys().has(key(r,c))) return true;
-  if(solidusAt(r,c)) return true;
-  if(typeof playerOnCell === "function" && playerOnCell(r,c)) return true;
-  if(flammaPickupAt(r,c)) return true;
-  if(isBurntCell(r,c)) return true;
+function isFlammaBlockedCell(row, col){
+  if(row < 0 || col < 0 || col >= cols) return true;
+  if(levelForRow(row).key !== "silva") return true;
+  if(abyssusExistsAt(row, col)) return true;
+  if(isSilvaObstacleCell(row, col) || silvaFrutexCellKeys().has(key(row, col))) return true;
+  if(vaporExistsAt(row, col)) return true;
+  if(solidusAt(row, col)) return true;
+  if(flammaPickupAt(row, col)) return true;
+  if(userAtCell(row, col)) return true;
   return false;
 }
 function ensureFlammaPickups(){
-  const available = flammaPickups.filter(item => !item.consumed);
-  if(available.length >= 3) return;
+  const remaining = flammaPickups.filter(item => item && !item.consumed);
+  if(remaining.length >= 3) return;
   const silvaIndex = levels.findIndex(level => level.key === "silva");
-  if(silvaIndex < 0) return;
-  const startRow = silvaIndex * LEVEL_LENGTH;
+  const startRow = Math.max(0, silvaIndex) * LEVEL_LENGTH;
   const candidates = [];
-  for(let local=0; local<LEVEL_LENGTH; local++){
+  for(let local = 4; local < LEVEL_LENGTH - 4; local += 1){
     const row = startRow + local;
-    for(let col=0; col<cols; col++){
-      if(flammaBlockedCell(row,col)) continue;
-      const score = cellNoise(row,col,1601) + cellNoise(row,col,1607) * .37;
-      candidates.push({row,col,score});
+    for(let col = 0; col < cols; col += 1){
+      if(isFlammaBlockedCell(row, col)) continue;
+      const score = cellNoise(row, col, 1291) + cellNoise(row, col, 1301) * .37;
+      candidates.push({ row, col, score });
     }
   }
-  candidates.sort((a,b)=>b.score-a.score);
-  const chosen = available.map(item => ({row:item.row,col:item.col}));
+  candidates.sort((a,b) => b.score - a.score);
   for(const candidate of candidates){
-    if(chosen.length >= 3) break;
-    if(chosen.some(item => Math.abs(item.row-candidate.row)+Math.abs(item.col-candidate.col) < 4)) continue;
-    const id = `flamma-${candidate.row}-${candidate.col}`;
-    if(flammaPickups.some(item => item.id === id)) continue;
-    flammaPickups.push({id,row:candidate.row,col:candidate.col,consumed:false});
-    chosen.push(candidate);
+    if(flammaPickups.filter(item => item && !item.consumed).length >= 3) break;
+    const tooClose = flammaPickups.some(item => !item.consumed && Math.abs(item.row - candidate.row) + Math.abs(item.col - candidate.col) < 4);
+    if(tooClose) continue;
+    flammaPickups.push({ id:`flamma-${candidate.row}-${candidate.col}`, row:candidate.row, col:candidate.col, consumed:false });
   }
 }
-function beginFlammaPlacement(user){
-  if(!user) return false;
-  activeTool = "flamma";
-  noticeText = `flamma en attente de placement pour ${user.name.toLowerCase()}`;
-  scheduleLabyrinthusStateSave('flamma-ready');
-  render();
-  return true;
-}
-function maybeCollectFlammaAt(user,row,col){
-  if(!user) return false;
-  const pickup = flammaPickupAt(row,col);
+function maybeCollectFlammaAt(user, row, col){
+  const pickup = flammaPickupAt(row, col);
   if(!pickup) return false;
-  const approved = window.confirm('Utiliser Flamma ?');
+  const approved = window.confirm("Utiliser Flamma ?");
   if(!approved){
-    noticeText = 'flamma laissée sur la case';
+    noticeText = "flamma laissée sur la case";
     render();
     return false;
   }
   pickup.consumed = true;
-  user.flammaStock = Math.max(0, Math.round(Number(user.flammaStock)||0)) + 1;
-  addChroniconEvent(`${user.name} active Flamma en ${locusRef(row,col)}.`);
-  scheduleLabyrinthusStateSave('flamma-picked');
-  return beginFlammaPlacement(user);
+  user.flammaStock = Math.max(0, Number(user.flammaStock) || 0) + 1;
+  activeTool = "flamma";
+  noticeText = `flamma en attente de placement pour ${user.name.toLowerCase()}`;
+  addChroniconEvent(`${user.name} active Flamma sur ${locusRef(row, col)}.`);
+  scheduleLabyrinthusStateSave("flamma-pickup");
+  render();
+  return true;
 }
-function flammaSpreadCells(row,col,maxCells=15){
-  const start = {row:Math.round(row), col:Math.round(col)};
-  const queue = [start];
-  const seen = new Set([cellId(start.row,start.col)]);
+function flammaSpreadCells(originRow, originCol, maxCells = 15){
+  const queue = [{ row:Math.round(originRow), col:Math.round(originCol) }];
+  const seen = new Set([cellId(originRow, originCol)]);
   const cells = [];
   while(queue.length && cells.length < maxCells){
     const cell = queue.shift();
-    if(cell.col < 0 || cell.col >= cols) continue;
+    if(cell.row < 0 || cell.col < 0 || cell.col >= cols) continue;
     if(levelForRow(cell.row).key !== "silva") continue;
-    if(abyssusExistsAt(cell.row,cell.col)) continue;
+    if(abyssusExistsAt(cell.row, cell.col)) continue;
     cells.push(cell);
-    const next = [
-      {row:cell.row+1,col:cell.col},
-      {row:cell.row-1,col:cell.col},
-      {row:cell.row,col:cell.col+1},
-      {row:cell.row,col:cell.col-1}
-    ];
-    for(const n of next){
-      const id = cellId(n.row,n.col);
+    for(const neighbor of [{row:cell.row+1,col:cell.col},{row:cell.row-1,col:cell.col},{row:cell.row,col:cell.col+1},{row:cell.row,col:cell.col-1}]){
+      const id = cellId(neighbor.row, neighbor.col);
       if(seen.has(id)) continue;
       seen.add(id);
-      queue.push(n);
+      queue.push(neighbor);
     }
   }
   return cells;
 }
-function placeFlamma(row,col){
+function placeFlamma(worldRow, col){
   const user = currentUser();
-  if(!user || (Number(user.flammaStock)||0) <= 0) return false;
-  if(levelForRow(row).key !== "silva" || col < 0 || col >= cols || abyssusExistsAt(row,col)){
-    noticeText = 'flamma : choisir une case de Silva Oscura';
+  if(!user || (Number(user.flammaStock) || 0) <= 0) return false;
+  if(levelForRow(worldRow).key !== "silva" || abyssusExistsAt(worldRow, col)){
+    noticeText = "flamma : choisir une case de Silva Oscura";
     render();
     return false;
   }
   pushUndo();
-  user.flammaStock = Math.max(0, Math.round(Number(user.flammaStock)||0) - 1);
-  const zone = {
-    id:`fire-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,
-    owner:user.id,
-    row:Math.round(row),
-    col:Math.round(col),
-    startedAt:Date.now(),
-    duration:5000,
-    cells:flammaSpreadCells(row,col,15),
-    finalized:false
-  };
+  user.flammaStock = Math.max(0, Math.round(Number(user.flammaStock) || 0) - 1);
+  const zone = { id:`fire-${Date.now()}-${Math.random().toString(36).slice(2,7)}`, owner:user.id, row:Math.round(worldRow), col:Math.round(col), startedAt:Date.now(), duration:5000, cells:flammaSpreadCells(worldRow, col, 15), finalized:false };
   fireZones.push(zone);
   activeTool = "move";
-  noticeText = `flamma déclenchée en ${locusRef(row,col)}`;
-  addChroniconEvent(`${user.name} déclenche Flamma en ${locusRef(row,col)}.`);
-  scheduleLabyrinthusStateSave('flamma-fired');
+  noticeText = `flamma déclenchée sur ${locusRef(worldRow, col)}`;
+  addChroniconEvent(`${user.name} déclenche Flamma sur ${locusRef(worldRow, col)}.`);
   ensureFireAnimation();
-  render();
+  scheduleLabyrinthusStateSave("flamma-fire");
   return true;
 }
 function finalizeFireZone(zone){
   if(!zone || zone.finalized) return;
   zone.finalized = true;
-  const affected = new Set((zone.cells||[]).map(cell => cellId(cell.row,cell.col)));
-  for(const cell of zone.cells || []) burntCells.add(cellId(cell.row,cell.col));
-  for(const user of userList()){
-    if(user.id === zone.owner) continue;
-    if(!affected.has(cellId(user.current.row,user.current.col))) continue;
-    user.cinis = { active:true, fee:50, fireId:zone.id, since:new Date().toISOString() };
+  const affected = new Set((zone.cells || []).map(cell => cellId(cell.row, cell.col)));
+  for(const cell of zone.cells || []) burntCells.add(cellId(cell.row, cell.col));
+  for(const other of userList()){
+    if(other.id === zone.owner) continue;
+    if(affected.has(cellId(other.current.row, other.current.col))){
+      other.cinis = { active:true, fee:50, fireId:zone.id, since:new Date().toISOString() };
+    }
   }
-  noticeText = 'flamma : la zone incendiée se mue en cendre';
-  addChroniconEvent(`Flamma noircit ${zone.cells.length} carrés de Silva Oscura.`);
-  scheduleLabyrinthusStateSave('flamma-finalized');
+  noticeText = "flamma : la zone incendiée se mue en cendre";
+  addChroniconEvent(`L'incendie de Flamma noircit ${zone.cells.length} carrés de Silva Oscura.`);
+  scheduleLabyrinthusStateSave("flamma-finalize");
 }
 function stepFireAnimation(){
   const now = Date.now();
   let running = false;
   for(const zone of fireZones){
     if(zone.finalized) continue;
-    const progress = clamp((now - zone.startedAt) / zone.duration, 0, 1);
-    if(progress >= 1){
-      finalizeFireZone(zone);
-    }else{
-      running = true;
-    }
+    if((now - zone.startedAt) >= zone.duration) finalizeFireZone(zone);
+    else running = true;
   }
   render();
-  if(running) fireAnimationFrame = requestAnimationFrame(stepFireAnimation);
-  else fireAnimationFrame = null;
+  fireAnimationFrame = running ? requestAnimationFrame(stepFireAnimation) : null;
 }
-function ensureFireAnimation(){
-  if(fireAnimationFrame === null) fireAnimationFrame = requestAnimationFrame(stepFireAnimation);
-}
+function ensureFireAnimation(){ if(fireAnimationFrame === null) fireAnimationFrame = requestAnimationFrame(stepFireAnimation); }
 function promptCinisResurrection(userOrId){
   const user = typeof userOrId === "string" ? users[userOrId] : userOrId;
   if(!isUserCinisLocked(user)) return false;
-  normalizeCinisState(user);
-  const cost = Math.max(0, Math.round(Number(user.cinis.fee)||50));
-  if((Number(user.ft)||0) < cost){
+  const cost = Math.max(0, Math.round(Number(user.cinis?.fee) || 50));
+  if((Number(user.ft) || 0) < cost){
     noticeText = `cinis : ${user.name.toLowerCase()} doit payer ${cost} Ft pour ressusciter`;
     render();
     return true;
@@ -6138,134 +6074,14 @@ function promptCinisResurrection(userOrId){
     render();
     return true;
   }
-  user.ft = Math.max(0, Math.round((Number(user.ft)||0) - cost));
-  if(user.noxFatumUserId && typeof noxRequestFatumDelta === "function") noxRequestFatumDelta(user.noxFatumUserId, -cost, 'cinis_resurrection');
+  user.ft = Math.max(0, Math.round((Number(user.ft) || 0) - cost));
+  if(user.noxFatumUserId) noxRequestFatumDelta(user.noxFatumUserId, -cost, "cinis_resurrection");
   user.cinis = { active:false, fee:50, fireId:null, since:null };
   noticeText = `cinis : ${user.name.toLowerCase()} ressuscite`;
   addChroniconEvent(`${user.name} paie ${cost} Ft pour ressusciter après l'incendie.`);
-  scheduleLabyrinthusStateSave('cinis-resurrected');
+  scheduleLabyrinthusStateSave("cinis-resurrection");
   render();
   return true;
-}
-function ensureFlammaVideoElement(id){
-  if(flammaVideoEls[id]) return flammaVideoEls[id];
-  const wrap = document.createElement("div");
-  wrap.className = "flamma-video";
-  wrap.dataset.flammaId = id;
-  wrap.appendChild(createLottieElement(flammaLottieConfig, null));
-  flammaVideoLayer.appendChild(wrap);
-  flammaVideoEls[id] = wrap;
-  return wrap;
-}
-function showFlammaVideo(id,x,y,size){
-  const el = ensureFlammaVideoElement(id);
-  const p = svgPointToLayerPoint(x,y);
-  el.style.display = "block";
-  el.style.left = `${p.x}px`;
-  el.style.top = `${p.y}px`;
-  el.style.width = `${size}px`;
-  el.style.height = `${size}px`;
-}
-function hideUnusedFlammaVideos(visibleIds){
-  Object.entries(flammaVideoEls).forEach(([id,el]) => { if(!visibleIds.has(id)) el.style.display = "none"; });
-}
-function ensureCinisVideoElement(id){
-  if(cinisVideoEls[id]) return cinisVideoEls[id];
-  const wrap = document.createElement("div");
-  wrap.className = "cinis-video";
-  wrap.dataset.cinisId = id;
-  wrap.appendChild(createLottieElement(cinisLottieConfig, null));
-  cinisVideoLayer.appendChild(wrap);
-  cinisVideoEls[id] = wrap;
-  return wrap;
-}
-function showCinisVideo(id,x,y,size){
-  const el = ensureCinisVideoElement(id);
-  const p = svgPointToLayerPoint(x,y);
-  el.style.display = "block";
-  el.style.left = `${p.x}px`;
-  el.style.top = `${p.y}px`;
-  el.style.width = `${size}px`;
-  el.style.height = `${size}px`;
-}
-function hideUnusedCinisVideos(visibleIds){
-  Object.entries(cinisVideoEls).forEach(([id,el]) => { if(!visibleIds.has(id)) el.style.display = "none"; });
-}
-function renderFlammaPickups(){
-  ensureFlammaPickups();
-  const visible = new Set();
-  for(const item of flammaPickups){
-    if(item.consumed || !isWorldRowVisible(item.row)) continue;
-    const screenDistance = item.row - scroll;
-    if(screenDistance < -1.4 || screenDistance > visibleRows + .8) continue;
-    const poly = cellPolygonWorld(item.row,item.col,screenDistance);
-    const c = centroid(poly);
-    const width = Math.abs(poly[2].x - poly[3].x);
-    const depth = Math.abs(poly[3].y - poly[0].y);
-    const size = clamp(width * .82, 22, 38);
-    visible.add(item.id);
-    showFlammaVideo(item.id, c.x, c.y - depth * .12, size);
-  }
-  hideUnusedFlammaVideos(visible);
-}
-function renderCinisTokens(){
-  const visible = new Set();
-  for(const user of userList()){
-    if(!isUserCinisLocked(user)) continue;
-    if(!isWorldRowVisible(user.current.row)) continue;
-    const screenDistance = user.current.row - scroll;
-    if(screenDistance < -1.4 || screenDistance > visibleRows + .8) continue;
-    const poly = cellPolygonWorld(user.current.row,user.current.col,screenDistance);
-    const c = centroid(poly);
-    const width = Math.abs(poly[2].x - poly[3].x);
-    const depth = Math.abs(poly[3].y - poly[0].y);
-    const size = clamp(width * .95, 26, 42);
-    visible.add(user.id);
-    showCinisVideo(user.id, c.x, c.y - depth * .14, size);
-  }
-  hideUnusedCinisVideos(visible);
-}
-function renderFireFx(){
-  if(!fireFxGroup) return;
-  fireFxGroup.innerHTML = "";
-  const now = Date.now();
-  for(const zone of fireZones){
-    if(zone.finalized) continue;
-    const progress = clamp((now - zone.startedAt) / zone.duration, 0, 1);
-    if(progress >= 1){
-      finalizeFireZone(zone);
-      continue;
-    }
-    const count = Math.max(1, Math.ceil((zone.cells || []).length * progress));
-    (zone.cells || []).slice(0,count).forEach((cell, index) => {
-      if(!isWorldRowVisible(cell.row)) return;
-      const screenDistance = cell.row - scroll;
-      if(screenDistance < -1.4 || screenDistance > visibleRows + .8) return;
-      const poly = cellPolygonWorld(cell.row,cell.col,screenDistance);
-      const overlay = document.createElementNS("http://www.w3.org/2000/svg","polygon");
-      overlay.setAttribute("points", pointsAttr(poly));
-      overlay.setAttribute("class", "fire-cell-fx");
-      overlay.setAttribute("opacity", String(clamp(.26 + progress * .58 + index * .008, .26, .86)));
-      fireFxGroup.appendChild(overlay);
-    });
-  }
-}
-function renderBurntCells(){
-  if(!burntFxGroup) return;
-  burntFxGroup.innerHTML = "";
-  for(const id of burntCells){
-    const [rowStr,colStr] = String(id).split("-");
-    const row = Number(rowStr);
-    const col = Number(colStr);
-    if(!Number.isFinite(row) || !Number.isFinite(col) || !isWorldRowVisible(row)) continue;
-    const screenDistance = row - scroll;
-    if(screenDistance < -1.4 || screenDistance > visibleRows + .8) continue;
-    const poly = cellPolygonWorld(row,col,screenDistance);
-    const overlay = document.createElementNS("http://www.w3.org/2000/svg","polygon");
-    overlay.setAttribute("points", pointsAttr(poly));
-    overlay.setAttribute("class", "burnt-cell-fx");
-    burntFxGroup.appendChild(overlay);
-  }
 }
 
 function snapshot(actorId = currentUser()?.id){
@@ -6282,9 +6098,6 @@ function snapshot(actorId = currentUser()?.id){
     })),
     placedScalas: placedScalas.map(s => ({...s})),
     placedExVotos: placedExVotos.map(v => ({...v})),
-    flammaPickups: flammaPickups.map(f => ({...f})),
-    fireZones: fireZones.map(z => ({...z, cells:(z.cells || []).map(c => ({...c}))})),
-    burntCells:[...burntCells],
     activeCatenas: activeCatenas.map(c => ({...c, pair:[...c.pair]})),
     activeAquilas: activeAquilas.map(a => ({...a})),
     chroniconEntries: chroniconEntries.map(e => ({...e})),
@@ -6297,6 +6110,9 @@ function snapshot(actorId = currentUser()?.id){
     revealPossibleMoves,
     triggeredVapors:[...triggeredVapors],
     vaporBursts: vaporBursts.map(v => ({...v})),
+    flammaPickups: flammaPickups.map(v => ({...v})),
+    fireZones: fireZones.map(v => ({...v, cells:(v.cells || []).map(c => ({...c}))})),
+    burntCells:[...burntCells],
     moneyBursts: moneyBursts.map(v => ({...v, particles:v.particles.map(p => ({...p}))})),
     wallBreakFx: wallBreakFx.map(v => ({...v, wall:{...v.wall}})),
     users: {
@@ -6311,7 +6127,7 @@ function snapshot(actorId = currentUser()?.id){
         costulaStock:users.A.costulaStock,
         exVotoStock:users.A.exVotoStock,
         flammaStock:users.A.flammaStock || 0,
-        cinis:users.A.cinis ? {...users.A.cinis} : { active:false, fee:50, fireId:null, since:null },
+        cinis:users.A.cinis ? {...users.A.cinis} : {active:false, fee:50, fireId:null, since:null},
         negroniStock:users.A.negroniStock,
         negroniEffect:users.A.negroniEffect || 0,
         ft:users.A.ft
@@ -6327,7 +6143,7 @@ function snapshot(actorId = currentUser()?.id){
         costulaStock:users.B.costulaStock,
         exVotoStock:users.B.exVotoStock,
         flammaStock:users.B.flammaStock || 0,
-        cinis:users.B.cinis ? {...users.B.cinis} : { active:false, fee:50, fireId:null, since:null },
+        cinis:users.B.cinis ? {...users.B.cinis} : {active:false, fee:50, fireId:null, since:null},
         negroniStock:users.B.negroniStock,
         negroniEffect:users.B.negroniEffect || 0,
         ft:users.B.ft
@@ -6343,7 +6159,7 @@ function snapshot(actorId = currentUser()?.id){
         costulaStock:users.C.costulaStock,
         exVotoStock:users.C.exVotoStock,
         flammaStock:users.C.flammaStock || 0,
-        cinis:users.C.cinis ? {...users.C.cinis} : { active:false, fee:50, fireId:null, since:null },
+        cinis:users.C.cinis ? {...users.C.cinis} : {active:false, fee:50, fireId:null, since:null},
         negroniStock:users.C.negroniStock,
         negroniEffect:users.C.negroniEffect || 0,
         ft:users.C.ft
@@ -6359,7 +6175,7 @@ function snapshot(actorId = currentUser()?.id){
         costulaStock:users.D.costulaStock,
         exVotoStock:users.D.exVotoStock,
         flammaStock:users.D.flammaStock || 0,
-        cinis:users.D.cinis ? {...users.D.cinis} : { active:false, fee:50, fireId:null, since:null },
+        cinis:users.D.cinis ? {...users.D.cinis} : {active:false, fee:50, fireId:null, since:null},
         negroniStock:users.D.negroniStock,
         negroniEffect:users.D.negroniEffect || 0,
         ft:users.D.ft
@@ -6379,9 +6195,6 @@ function restore(state){
   }));
   placedScalas = (state.placedScalas || []).map(s => ({...s}));
   placedExVotos = (state.placedExVotos || []).map(v => ({...v}));
-  flammaPickups = Array.isArray(state.flammaPickups) ? state.flammaPickups.map(f => ({...f})) : [];
-  fireZones = Array.isArray(state.fireZones) ? state.fireZones.map(z => ({...z, cells:Array.isArray(z.cells) ? z.cells.map(c => ({...c})) : []})) : [];
-  burntCells = new Set(Array.isArray(state.burntCells) ? state.burntCells : []);
   activeCatenas = (state.activeCatenas || []).map(c => ({...c, pair:[...c.pair]}));
   activeAquilas = (state.activeAquilas || []).map(a => ({...a}));
   chroniconEntries = normalizeChroniconEntries(state.chroniconEntries || []);
@@ -6394,6 +6207,10 @@ function restore(state){
   revealPossibleMoves = !!state.revealPossibleMoves;
   triggeredVapors = new Set(state.triggeredVapors || []);
   vaporBursts = (state.vaporBursts || []).map(v => ({...v}));
+  flammaPickups = (state.flammaPickups || []).map(v => ({...v}));
+  fireZones = (state.fireZones || []).map(v => ({...v, cells:(v.cells || []).map(c => ({...c}))}));
+  burntCells = new Set(state.burntCells || []);
+  if(fireZones.some(zone => !zone.finalized)) ensureFireAnimation();
   if(vaporBursts.length && !vaporBurstAnimating){
     vaporBurstAnimating = true;
     requestAnimationFrame(stepVaporBursts);
@@ -6428,7 +6245,7 @@ function restore(state){
   users.A.costulaStock = state.users.A.costulaStock || 0;
   users.A.exVotoStock = state.users.A.exVotoStock || 0;
   users.A.flammaStock = state.users.A.flammaStock || 0;
-  users.A.cinis = state.users.A.cinis && typeof state.users.A.cinis === "object" ? { active:!!state.users.A.cinis.active, fee:Math.max(0, Math.round(Number(state.users.A.cinis.fee) || 50)), fireId:state.users.A.cinis.fireId || null, since:state.users.A.cinis.since || null } : { active:false, fee:50, fireId:null, since:null };
+  users.A.cinis = state.users.A.cinis && typeof state.users.A.cinis === "object" ? {...state.users.A.cinis} : { active:false, fee:50, fireId:null, since:null };
   users.A.negroniStock = state.users.A.negroniStock || 0;
   users.A.negroniEffect = state.users.A.negroniEffect || 0;
   users.A.ft = state.users.A.ft || 0;
@@ -6443,7 +6260,7 @@ function restore(state){
   users.B.costulaStock = state.users.B.costulaStock || 0;
   users.B.exVotoStock = state.users.B.exVotoStock || 0;
   users.B.flammaStock = state.users.B.flammaStock || 0;
-  users.B.cinis = state.users.B.cinis && typeof state.users.B.cinis === "object" ? { active:!!state.users.B.cinis.active, fee:Math.max(0, Math.round(Number(state.users.B.cinis.fee) || 50)), fireId:state.users.B.cinis.fireId || null, since:state.users.B.cinis.since || null } : { active:false, fee:50, fireId:null, since:null };
+  users.B.cinis = state.users.B.cinis && typeof state.users.B.cinis === "object" ? {...state.users.B.cinis} : { active:false, fee:50, fireId:null, since:null };
   users.B.negroniStock = state.users.B.negroniStock || 0;
   users.B.negroniEffect = state.users.B.negroniEffect || 0;
   users.B.ft = state.users.B.ft || 0;
@@ -6458,7 +6275,7 @@ function restore(state){
   users.C.costulaStock = state.users.C.costulaStock || 0;
   users.C.exVotoStock = state.users.C.exVotoStock || 0;
   users.C.flammaStock = state.users.C.flammaStock || 0;
-  users.C.cinis = state.users.C.cinis && typeof state.users.C.cinis === "object" ? { active:!!state.users.C.cinis.active, fee:Math.max(0, Math.round(Number(state.users.C.cinis.fee) || 50)), fireId:state.users.C.cinis.fireId || null, since:state.users.C.cinis.since || null } : { active:false, fee:50, fireId:null, since:null };
+  users.C.cinis = state.users.C.cinis && typeof state.users.C.cinis === "object" ? {...state.users.C.cinis} : { active:false, fee:50, fireId:null, since:null };
   users.C.negroniStock = state.users.C.negroniStock || 0;
   users.C.negroniEffect = state.users.C.negroniEffect || 0;
   users.C.ft = state.users.C.ft || 0;
@@ -6467,14 +6284,13 @@ function restore(state){
     users.D.current = {...state.users.D.current};
     users.D.filled = new Set(state.users.D.filled);
     users.D.murusStock = state.users.D.murusStock;
-    users.D.murusOrientation = state.users.D.murusOrientation || "horizontal";
     users.D.fossaStock = state.users.D.fossaStock;
     users.D.marculusStock = state.users.D.marculusStock || 0;
     users.D.scalaStock = state.users.D.scalaStock || 0;
     users.D.costulaStock = state.users.D.costulaStock || 0;
     users.D.exVotoStock = state.users.D.exVotoStock || 0;
     users.D.flammaStock = state.users.D.flammaStock || 0;
-    users.D.cinis = state.users.D.cinis && typeof state.users.D.cinis === "object" ? { active:!!state.users.D.cinis.active, fee:Math.max(0, Math.round(Number(state.users.D.cinis.fee) || 50)), fireId:state.users.D.cinis.fireId || null, since:state.users.D.cinis.since || null } : { active:false, fee:50, fireId:null, since:null };
+    users.D.cinis = state.users.D.cinis && typeof state.users.D.cinis === "object" ? {...state.users.D.cinis} : { active:false, fee:50, fireId:null, since:null };
     users.D.negroniStock = state.users.D.negroniStock || 0;
     users.D.negroniEffect = state.users.D.negroniEffect || 0;
     users.D.ft = state.users.D.ft || 0;
@@ -6490,6 +6306,8 @@ function restore(state){
     users.D.exVotoStock = 0;
     users.D.flammaStock = 0;
     users.D.cinis = { active:false, fee:50, fireId:null, since:null };
+    users.D.negroniStock = 0;
+    users.D.negroniEffect = 0;
     users.D.ft = 0;
   }
 }
@@ -6760,6 +6578,7 @@ function restoreOwnAction(state, actorId){
     scala:Number(user.scalaStock || 0),
     costula:Number(user.costulaStock || 0),
     exvoto:Number(user.exVotoStock || 0),
+    flamma:Number(user.flammaStock || 0),
     negroni:Number(user.negroniStock || 0)
   };
   const savedStock = {
@@ -6769,6 +6588,7 @@ function restoreOwnAction(state, actorId){
     scala:Number(savedUser.scalaStock || 0),
     costula:Number(savedUser.costulaStock || 0),
     exvoto:Number(savedUser.exVotoStock || 0),
+    flamma:Number(savedUser.flammaStock || 0),
     negroni:Number(savedUser.negroniStock || 0)
   };
   const restoredActiveTool = state.activeTool || "move";
@@ -6792,6 +6612,8 @@ function restoreOwnAction(state, actorId){
   user.scalaStock = savedStock.scala;
   user.costulaStock = savedStock.costula;
   user.exVotoStock = savedStock.exvoto;
+  user.flammaStock = savedStock.flamma;
+  user.cinis = savedUser.cinis && typeof savedUser.cinis === "object" ? {...savedUser.cinis} : { active:false, fee:50, fireId:null, since:null };
   user.negroniStock = savedStock.negroni;
   user.negroniEffect = savedUser.negroniEffect || 0;
   const beforeFtForRetro = Number(user.ft) || 0;
@@ -8065,7 +7887,6 @@ function selectRestartCell(worldRow, col){
   noticeText = `nouveau départ : ${user.name.toLowerCase()}`;
   addChroniconEvent(`${user.name} choisit un nouveau départ en ${locusRef(worldRow, col)}.`);
   triggerSolidusIfNeeded(user, worldRow, col);
-  maybeCollectFlammaAt(user, worldRow, col);
   triggerVaporIfNeeded(user, worldRow, col);
   render();
 }
@@ -8076,6 +7897,7 @@ function selectCell(worldRow, col){
     promptCinisResurrection(user);
     return;
   }
+
   const aquilaLock = aquilaForUser(user.id);
   if(aquilaLock){
     noticeText = aquilaLock.movedOnce
@@ -8367,7 +8189,7 @@ function makeCell(worldRow, col, screenDistance){
   if(activeTool === "fossa" && user.fossaStock > 0) poly.classList.add("fossa-target");
   if(activeTool === "scala" && user.scalaStock > 0) poly.classList.add("murus-target");
   if(activeTool === "exvoto" && user.exVotoStock > 0 && isCellVirgin(worldRow,col)) poly.classList.add("murus-target");
-  if(activeTool === "flamma" && user.flammaStock > 0 && levelForRow(worldRow).key === "silva") poly.classList.add("murus-target");
+  if(activeTool === "flamma" && user.flammaStock > 0 && levelForRow(worldRow).key === "silva" && !abyssusExistsAt(worldRow,col)) poly.classList.add("murus-target");
   if(activeTool === "fossaZone" && pending && pending.owner === user.id && isValidZoneCenter(pending, worldRow, col)){
     poly.classList.add("zone-center-target");
   }
@@ -8402,6 +8224,10 @@ function makeCell(worldRow, col, screenDistance){
     if(animState) return;
 
     const active = currentUser();
+    if(isUserCinisLocked(active)){
+      promptCinisResurrection(active);
+      return;
+    }
     const aquilaLock = aquilaForUser(active.id);
     if(aquilaLock && (activeTool !== "costula" || aquilaLock.movedOnce)){
       noticeText = aquilaLock.movedOnce
@@ -8467,7 +8293,7 @@ function makeCell(worldRow, col, screenDistance){
       return;
     }
     if(activeTool === "flamma" && currentUser().flammaStock > 0){
-      placeFlamma(worldRow, col);
+      if(placeFlamma(worldRow, col)) render();
       return;
     }
     if(activeTool === "marculus") return;
@@ -9160,8 +8986,8 @@ function renderSilvaObjects(){
     const depth = Math.abs(poly[3].y - poly[0].y);
     const size = clamp(Math.max(width * 1.06, depth * 1.52), 20, 58);
     const lift = depth * 0.24;
-    const img = appendSilvaImage(arborImageSrc, {x:c.x, y:c.y - lift}, size, size, "silva-arbor");
-    if(isBurntCell(row,col)){ img.style.filter = "brightness(0) saturate(0) opacity(.98)"; img.style.opacity = ".98"; }
+    const image = appendSilvaImage(arborImageSrc, {x:c.x, y:c.y - lift}, size, size, "silva-arbor");
+    if(burntCells.has(cellId(row, col))){ image.style.filter = "brightness(0) saturate(0) opacity(.96)"; image.style.opacity = ".98"; }
   }
   for(const cellId of silvaFrutexCellKeys()){
     const [rowStr, colStr] = cellId.split("-");
@@ -9177,8 +9003,8 @@ function renderSilvaObjects(){
     const imgW = clamp(Math.max(width * 1.35, depth * 2.1), 22, 74);
     const imgH = clamp(Math.max(width * 1.15, depth * 1.95), 20, 68);
     const lift = depth * 0.18;
-    const img = appendSilvaImage(frutexImageSrc, {x:c.x, y:c.y - lift}, imgW, imgH, "silva-frutex");
-    if(isBurntCell(row,col)){ img.style.filter = "brightness(0) saturate(0) opacity(.98)"; img.style.opacity = ".98"; }
+    const image = appendSilvaImage(frutexImageSrc, {x:c.x, y:c.y - lift}, imgW, imgH, "silva-frutex");
+    if(burntCells.has(cellId(row, col))){ image.style.filter = "brightness(0) saturate(0) opacity(.96)"; image.style.opacity = ".98"; }
   }
   for(const pair of petraPairsForVisibleRows()){
     const p1 = cellPolygonWorld(pair.first.row, pair.first.col, pair.first.row - scroll);
@@ -9190,8 +9016,8 @@ function renderSilvaObjects(){
     const depth1 = Math.abs(p1[3].y - p1[0].y);
     const width = pair.vertical ? width1 * 1.34 : Math.abs(c2.x - c1.x) + width1 * 1.08;
     const height = pair.vertical ? Math.abs(c2.y - c1.y) + depth1 * 1.46 : depth1 * 2.08;
-    const img = appendSilvaImage(petraImageSrc, {x:center.x, y:center.y - depth1 * .08}, width, height, "silva-petra", pair.vertical ? -5 : 0);
-    if(isBurntCell(pair.first.row,pair.first.col) || isBurntCell(pair.second.row,pair.second.col)){ img.style.filter = "brightness(0) saturate(0) opacity(.98)"; img.style.opacity = ".98"; }
+    const image = appendSilvaImage(petraImageSrc, {x:center.x, y:center.y - depth1 * .08}, width, height, "silva-petra", pair.vertical ? -5 : 0);
+    if(burntCells.has(cellId(pair.first.row, pair.first.col)) || burntCells.has(cellId(pair.second.row, pair.second.col))){ image.style.filter = "brightness(0) saturate(0) opacity(.96)"; image.style.opacity = ".98"; }
   }
 }
 function ensureFoliumElement(id){
@@ -9711,12 +9537,127 @@ function renderScalas(){
   }
 }
 
+function ensureFlammaVideoElement(id){
+  if(flammaVideoEls[id]) return flammaVideoEls[id];
+  const wrap = document.createElement("div");
+  wrap.className = "flamma-video";
+  wrap.dataset.flammaId = id;
+  wrap.appendChild(createLottieElement(flammaLottieConfig, null));
+  flammaVideoLayer.appendChild(wrap);
+  flammaVideoEls[id] = wrap;
+  return wrap;
+}
+function hideUnusedFlammaVideos(visibleIds){
+  for(const [id, el] of Object.entries(flammaVideoEls)){
+    if(!visibleIds.has(id)) el.style.display = "none";
+  }
+}
+function renderFlammaPickups(){
+  ensureFlammaPickups();
+  const visibleIds = new Set();
+  for(const item of flammaPickups){
+    if(item.consumed || !isWorldRowVisible(item.row)) continue;
+    const screenDistance = item.row - scroll;
+    if(screenDistance < -1.4 || screenDistance > visibleRows + .8) continue;
+    const poly = cellPolygonWorld(item.row, item.col, screenDistance);
+    const center = centroid(poly);
+    const depth = Math.abs(poly[3].y - poly[0].y);
+    const width = Math.abs(poly[2].x - poly[3].x);
+    const size = Math.max(22, width * 1.1);
+    const el = ensureFlammaVideoElement(item.id);
+    const p = svgPointToLayerPoint(center.x, center.y - depth * .18);
+    el.style.display = "block";
+    el.style.left = `${p.x}px`;
+    el.style.top = `${p.y}px`;
+    el.style.width = `${size}px`;
+    el.style.height = `${size}px`;
+    visibleIds.add(item.id);
+  }
+  hideUnusedFlammaVideos(visibleIds);
+}
+function renderFireFx(){
+  if(!fireFxGroup) return;
+  fireFxGroup.innerHTML = "";
+  const now = Date.now();
+  for(const zone of fireZones){
+    if(zone.finalized) continue;
+    const progress = clamp((now - zone.startedAt) / zone.duration, 0, 1);
+    const count = Math.max(1, Math.ceil(progress * (zone.cells?.length || 0)));
+    (zone.cells || []).slice(0, count).forEach((cell, index) => {
+      if(!isWorldRowVisible(cell.row)) return;
+      const screenDistance = cell.row - scroll;
+      if(screenDistance < -1.4 || screenDistance > visibleRows + .8) return;
+      const poly = cellPolygonWorld(cell.row, cell.col, screenDistance);
+      const overlay = document.createElementNS("http://www.w3.org/2000/svg","polygon");
+      overlay.setAttribute("points", pointsAttr(poly));
+      overlay.setAttribute("fill", "rgba(255,48,48,.22)");
+      overlay.setAttribute("opacity", String(clamp(.28 + progress * .6 - index * .015, .18, .86)));
+      fireFxGroup.appendChild(overlay);
+    });
+  }
+}
+function renderBurntCells(){
+  if(!burntFxGroup) return;
+  burntFxGroup.innerHTML = "";
+  for(const id of burntCells){
+    const [rowStr, colStr] = String(id).split(":");
+    const row = Number(rowStr), col = Number(colStr);
+    if(!isWorldRowVisible(row)) continue;
+    const screenDistance = row - scroll;
+    if(screenDistance < -1.4 || screenDistance > visibleRows + .8) continue;
+    const poly = cellPolygonWorld(row, col, screenDistance);
+    const overlay = document.createElementNS("http://www.w3.org/2000/svg","polygon");
+    overlay.setAttribute("points", pointsAttr(poly));
+    overlay.setAttribute("fill", "rgba(0,0,0,.60)");
+    overlay.setAttribute("opacity", ".92");
+    burntFxGroup.appendChild(overlay);
+  }
+}
+function ensureCinisVideoElement(id){
+  if(cinisVideoEls[id]) return cinisVideoEls[id];
+  const wrap = document.createElement("div");
+  wrap.className = "cinis-video";
+  wrap.dataset.cinisId = id;
+  wrap.appendChild(createLottieElement(cinisLottieConfig, null));
+  cinisVideoLayer.appendChild(wrap);
+  cinisVideoEls[id] = wrap;
+  return wrap;
+}
+function hideUnusedCinisVideos(visibleIds){
+  for(const [id, el] of Object.entries(cinisVideoEls)){
+    if(!visibleIds.has(id)) el.style.display = "none";
+  }
+}
+function renderCinisTokens(){
+  const visibleIds = new Set();
+  for(const user of userList()){
+    if(!isUserCinisLocked(user)) continue;
+    const row = Math.round(user.current.row), col = Math.round(user.current.col);
+    if(!isWorldRowVisible(row)) continue;
+    const screenDistance = row - scroll;
+    if(screenDistance < -1.4 || screenDistance > visibleRows + .8) continue;
+    const poly = cellPolygonWorld(row, col, screenDistance);
+    const center = centroid(poly);
+    const depth = Math.abs(poly[3].y - poly[0].y);
+    const width = Math.abs(poly[2].x - poly[3].x);
+    const size = Math.max(24, width * 1.22);
+    const el = ensureCinisVideoElement(user.id);
+    const p = svgPointToLayerPoint(center.x, center.y - depth * .18);
+    el.style.display = "block";
+    el.style.left = `${p.x}px`;
+    el.style.top = `${p.y}px`;
+    el.style.width = `${size}px`;
+    el.style.height = `${size}px`;
+    visibleIds.add(user.id);
+  }
+  hideUnusedCinisVideos(visibleIds);
+}
+
 function renderTokens(){
   const now = performance.now();
   const visibleTokenIds = new Set();
 
   for(const user of userList()){
-    if(isUserCinisLocked(user)) continue;
     const tokenData = tokenRenderData(user);
     if(!tokenData) continue;
 
@@ -9960,11 +9901,11 @@ function updatePanels(){
   costulaCard.classList.toggle("active", activeTool === "costula" && user.costulaStock > 0);
   exVotoCard.classList.toggle("active", activeTool === "exvoto" && user.exVotoStock > 0);
   if(flammaCard){
-    const flammaStock = Math.max(0, Math.round(Number(user.flammaStock)||0));
-    flammaCard.classList.toggle("is-hidden", flammaStock <= 0);
+    const flammaStock = Math.max(0, Math.round(Number(user.flammaStock) || 0));
+    flammaCard.style.display = flammaStock > 0 ? "" : "none";
     flammaCard.classList.toggle("active", activeTool === "flamma" && flammaStock > 0);
-    const countNode = flammaCard.querySelector(".control-cost");
-    if(countNode) countNode.textContent = `${flammaStock} prêt${flammaStock > 1 ? "s" : ""}`;
+    const costNode = flammaCard.querySelector(".control-cost");
+    if(costNode) costNode.textContent = `${flammaStock} prêt${flammaStock > 1 ? "s" : ""}`;
   }
   negroniCard.classList.toggle("active", activeTool === "negroni" && user.negroniStock > 0);
 
@@ -10005,12 +9946,10 @@ function updatePanels(){
   const count = user.filled.size;
   const aquila = aquilaForUser(user.id);
   countEl.textContent = String(count).padStart(2,"0");
-  statusEl.textContent = `${count} case${count > 1 ? "s" : ""} · ${user.ft} Ft${user.costulaStock > 0 ? ` · costula ${user.costulaStock}` : ""}${user.negroniStock > 0 ? ` · negroni ${user.negroniStock}` : ""}${aquila ? ` · aquila ${aquila.movedOnce ? "scellée " : ""}${formatAquilaRemaining(aquila.expiresAt - Date.now())}` : ""}`;
+  const cinisStatus = isUserCinisLocked(user) ? ` · cinis ${Math.max(0, Math.round(Number(user.cinis?.fee) || 50))}ft` : "";
+  statusEl.textContent = `${count} case${count > 1 ? "s" : ""} · ${user.ft} Ft${user.costulaStock > 0 ? ` · costula ${user.costulaStock}` : ""}${user.flammaStock > 0 ? ` · flamma ${user.flammaStock}` : ""}${user.negroniStock > 0 ? ` · negroni ${user.negroniStock}` : ""}${aquila ? ` · aquila ${aquila.movedOnce ? "scellée " : ""}${formatAquilaRemaining(aquila.expiresAt - Date.now())}` : ""}${cinisStatus}`;
   const mobileHint = mobileLowPowerMode && activeTool === "move" ? " · tap jeton : zones" : "";
-  if(isUserCinisLocked(user)){
-    const fee = Math.max(0, Math.round(Number(user.cinis?.fee)||50));
-    toolLabel = `cinis · ${fee} Ft`;
-  }
+  if(isUserCinisLocked(user)) toolLabel = `cinis · ${Math.max(0, Math.round(Number(user.cinis?.fee) || 50))}ft`;
   lookStatusEl.textContent = `${levelForRow(Math.floor(scroll + visibleRows / 2)).name} · ${scroll === 0 ? "vue : départ" : `vue : +${Math.floor(scroll)} lignes`} · outil : ${toolLabel}${mobileHint}`;
   noticeEl.textContent = noticeText;
   renderChronicon();
@@ -10069,9 +10008,9 @@ function performRender(){
   renderSilvaObjects();
   renderFireFx();
   renderBurntCells();
-  renderFlammaPickups();
   updateFoliumLayer();
   renderSolidus();
+  renderFlammaPickups();
   renderHerbae();
   renderAbyssus();
   renderScalas();
@@ -10143,8 +10082,8 @@ function switchUser(id){
   if(activeTool === "marculus" && user.marculusStock <= 0) activeTool = "move";
   if(activeTool === "scala" && user.scalaStock <= 0) activeTool = "move";
   if(activeTool === "costula" && user.costulaStock <= 0) activeTool = "move";
+  if(activeTool === "flamma" && (Number(user.flammaStock) || 0) <= 0) activeTool = "move";
   if(activeTool === "exvoto" && user.exVotoStock <= 0) activeTool = "move";
-  if(activeTool === "flamma" && user.flammaStock <= 0) activeTool = "move";
   if(activeTool === "negroni" && user.negroniStock <= 0) activeTool = "move";
   if(activeTool === "negroni" && user.negroniStock <= 0) activeTool = "move";
   if(activeTool === "catenaSelect1" || activeTool === "catenaSelect2"){
@@ -10950,8 +10889,7 @@ flammaCard?.addEventListener("click", (event) => {
     promptCinisResurrection(user);
     return;
   }
-  const stock = Math.max(0, Math.round(Number(user.flammaStock)||0));
-  if(stock <= 0){
+  if((Number(user.flammaStock) || 0) <= 0){
     noticeText = "flamma indisponible";
     render();
     return;
