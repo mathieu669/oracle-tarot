@@ -2943,7 +2943,7 @@ function LabyrinthusScreen({ onIterum, onClaves, onNoctem, onVerbatim, onDuodeci
           <iframe
             ref={iframeRef}
             title="Labyrinthus"
-            src="/labyrinthus/index.html?v=88"
+            src="/labyrinthus/index.html?v=89"
             className="h-full w-full border-0 bg-black"
             allow="fullscreen; autoplay"
             onLoad={() => {

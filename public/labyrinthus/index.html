@@ -3777,6 +3777,98 @@ body.theme-light .asset-preview-wrap{
   }
 }
 
+
+/* V89: real-phone mobile overlays use a fixed pixel height.
+   Safari/iOS can report a different visual viewport inside the embedded Labyrinthus iframe.
+   Fixed px height keeps the bottom rounded border visible on real iPhone screens. */
+@media(max-width:700px){
+  .left-stack:has(.arca-panel.open),
+  .left-stack:has(.chronicon-panel.open){
+    z-index:1200 !important;
+  }
+  .arca-panel.open .arca-content.control-carousel-wrap,
+  .chronicon-panel.open .chronicon-content{
+    position:fixed !important;
+    left:16px !important;
+    right:16px !important;
+    top:112px !important;
+    bottom:auto !important;
+    width:auto !important;
+    height:500px !important;
+    min-height:0 !important;
+    max-height:500px !important;
+    margin:0 !important;
+    transform:none !important;
+    box-sizing:border-box !important;
+    overflow:hidden !important;
+    display:flex !important;
+    flex-direction:column !important;
+    background:rgba(0,0,0,.96) !important;
+    border:2px solid rgba(255,255,255,.86) !important;
+    border-radius:18px !important;
+  }
+  .arca-panel.open .arca-content.control-carousel-wrap{
+    padding:48px 20px 18px 20px !important;
+    gap:12px !important;
+  }
+  .chronicon-panel.open .chronicon-content{
+    padding:48px 20px 18px 20px !important;
+    gap:12px !important;
+  }
+  .arca-panel.open .arca-content.control-carousel-wrap::before,
+  .chronicon-panel.open .chronicon-title{
+    top:16px !important;
+    left:20px !important;
+  }
+  .arca-panel.open .arca-content.control-carousel-wrap .lab-overlay-close,
+  .chronicon-panel.open .chronicon-content .lab-overlay-close{
+    top:0 !important;
+    right:0 !important;
+    border:0 !important;
+    background:transparent !important;
+    box-shadow:none !important;
+  }
+}
+@media(max-width:390px){
+  .arca-panel.open .arca-content.control-carousel-wrap,
+  .chronicon-panel.open .chronicon-content{
+    left:14px !important;
+    right:14px !important;
+    top:112px !important;
+    height:500px !important;
+    max-height:500px !important;
+    padding:46px 14px 14px 14px !important;
+    gap:10px !important;
+  }
+  .arca-panel.open .arca-content.control-carousel-wrap::before,
+  .chronicon-panel.open .chronicon-title{
+    top:14px !important;
+    left:14px !important;
+  }
+  .arca-panel.open .arca-content.control-carousel-wrap .control-carousel{
+    flex:0 0 43% !important;
+    max-height:43% !important;
+    min-height:0 !important;
+    grid-auto-rows:minmax(84px, 1fr) !important;
+    gap:8px !important;
+    padding:10px 8px !important;
+  }
+  .arca-panel.open .control-card{
+    min-height:84px !important;
+    padding:6px !important;
+  }
+  .arca-panel.open .control-card .asset-preview-wrap{
+    transform:scale(.68) !important;
+  }
+}
+@media(max-width:350px){
+  .arca-panel.open .arca-content.control-carousel-wrap,
+  .chronicon-panel.open .chronicon-content{
+    height:480px !important;
+    max-height:480px !important;
+  }
+}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
 </head>
