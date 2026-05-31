@@ -3430,6 +3430,214 @@ body.theme-light .asset-preview-wrap{
   }
 }
 
+
+/* V83: mobile overlays keep the V81 near-fullscreen footprint, but stay inside the visible phone viewport. */
+@media(max-width:700px){
+  body.lab-mobile-window-open .left-stack,
+  .left-stack:has(.arca-panel.open),
+  .left-stack:has(.chronicon-panel.open){
+    transform:none !important;
+  }
+  body.lab-mobile-window-open .left-stack .control-panel,
+  .left-stack:has(.arca-panel.open) .control-panel,
+  .left-stack:has(.chronicon-panel.open) .control-panel{
+    width:auto !important;
+  }
+  .arca-panel.open .arca-content.control-carousel-wrap,
+  .chronicon-panel.open .chronicon-content{
+    position:fixed !important;
+    left:16px !important;
+    right:16px !important;
+    top:calc(env(safe-area-inset-top, 0px) + 70px) !important;
+    bottom:calc(env(safe-area-inset-bottom, 0px) + 16px) !important;
+    width:auto !important;
+    min-width:0 !important;
+    max-width:none !important;
+    height:auto !important;
+    min-height:0 !important;
+    max-height:none !important;
+    margin:0 !important;
+    padding:48px 20px 18px 20px !important;
+    box-sizing:border-box !important;
+    display:flex !important;
+    flex-direction:column !important;
+    gap:12px !important;
+    overflow:hidden !important;
+    background:rgba(0,0,0,.96) !important;
+    border:2px solid rgba(255,255,255,.86) !important;
+    border-radius:18px !important;
+    transform:none !important;
+    z-index:2147483001 !important;
+    touch-action:none !important;
+  }
+  .arca-panel.open .arca-content.control-carousel-wrap::before{
+    content:"ARCA" !important;
+    position:absolute !important;
+    top:16px !important;
+    left:20px !important;
+    z-index:2147483003 !important;
+    font-family:"Inter",sans-serif !important;
+    font-size:12px !important;
+    line-height:1 !important;
+    letter-spacing:.22em !important;
+    color:rgba(255,255,255,.75) !important;
+    pointer-events:none !important;
+  }
+  .chronicon-panel.open .chronicon-title{
+    position:absolute !important;
+    top:16px !important;
+    left:20px !important;
+    right:auto !important;
+    z-index:2147483003 !important;
+    font-family:"Inter",sans-serif !important;
+    font-size:12px !important;
+    line-height:1 !important;
+    letter-spacing:.22em !important;
+    color:rgba(255,255,255,.75) !important;
+    pointer-events:none !important;
+    margin:0 !important;
+    padding:0 !important;
+  }
+  .arca-panel.open .arca-content.control-carousel-wrap .lab-overlay-close,
+  .chronicon-panel.open .chronicon-content .lab-overlay-close{
+    position:absolute !important;
+    top:0 !important;
+    right:0 !important;
+    width:42px !important;
+    height:42px !important;
+    min-width:42px !important;
+    min-height:42px !important;
+    display:flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    z-index:2147483004 !important;
+    background:#000 !important;
+    color:#fff !important;
+    border:0 !important;
+    outline:0 !important;
+    box-shadow:none !important;
+    border-radius:0 !important;
+    font-family:"Inter",sans-serif !important;
+    font-size:28px !important;
+    line-height:1 !important;
+    padding:0 !important;
+    margin:0 !important;
+    transform:none !important;
+    pointer-events:auto !important;
+    touch-action:manipulation !important;
+  }
+  .arca-panel.open .arca-content.control-carousel-wrap .control-carousel{
+    flex:0 0 42% !important;
+    width:100% !important;
+    max-width:none !important;
+    height:auto !important;
+    min-height:0 !important;
+    max-height:42% !important;
+    margin:0 !important;
+    padding:12px 10px !important;
+    box-sizing:border-box !important;
+    border:2px solid rgba(255,255,255,.84) !important;
+    border-radius:16px !important;
+    display:grid !important;
+    grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+    grid-auto-rows:minmax(94px, 1fr) !important;
+    gap:10px !important;
+    overflow-x:hidden !important;
+    overflow-y:auto !important;
+    -webkit-overflow-scrolling:touch !important;
+    scrollbar-width:none !important;
+    touch-action:pan-y !important;
+  }
+  .arca-panel.open .control-card{
+    min-height:94px !important;
+    height:auto !important;
+    max-height:none !important;
+    padding:8px !important;
+    border-radius:14px !important;
+  }
+  .arca-panel.open .control-card .asset-preview-wrap{
+    transform:scale(.76) !important;
+    transform-origin:center !important;
+  }
+  .arca-panel.open .arca-choose-row{
+    flex:0 0 auto !important;
+    width:100% !important;
+    max-width:none !important;
+    margin:0 !important;
+    display:block !important;
+  }
+  .arca-panel.open .arca-explain{
+    position:relative !important;
+    left:auto !important;
+    right:auto !important;
+    top:auto !important;
+    bottom:auto !important;
+    transform:none !important;
+    flex:1 1 auto !important;
+    width:100% !important;
+    max-width:none !important;
+    min-height:0 !important;
+    height:auto !important;
+    max-height:none !important;
+    margin:0 !important;
+    padding:14px !important;
+    box-sizing:border-box !important;
+    overflow:auto !important;
+    display:flex !important;
+    flex-direction:column !important;
+    border:1px solid rgba(255,255,255,.35) !important;
+    border-radius:14px !important;
+    background:rgba(0,0,0,.92) !important;
+    color:#fff !important;
+    -webkit-overflow-scrolling:touch !important;
+    touch-action:pan-y !important;
+  }
+  .chronicon-panel.open .chronicon-list{
+    flex:1 1 auto !important;
+    width:100% !important;
+    max-width:none !important;
+    height:auto !important;
+    min-height:0 !important;
+    max-height:none !important;
+    margin:0 !important;
+    padding:12px 10px !important;
+    box-sizing:border-box !important;
+    overflow-x:hidden !important;
+    overflow-y:auto !important;
+    border:0 !important;
+    border-radius:16px !important;
+    background:transparent !important;
+    -webkit-overflow-scrolling:touch !important;
+    touch-action:pan-y !important;
+  }
+}
+@media(max-width:390px){
+  .arca-panel.open .arca-content.control-carousel-wrap,
+  .chronicon-panel.open .chronicon-content{
+    left:14px !important;
+    right:14px !important;
+    top:calc(env(safe-area-inset-top, 0px) + 68px) !important;
+    bottom:calc(env(safe-area-inset-bottom, 0px) + 14px) !important;
+    padding:46px 14px 14px 14px !important;
+    gap:10px !important;
+  }
+  .arca-panel.open .arca-content.control-carousel-wrap::before,
+  .chronicon-panel.open .chronicon-title{
+    top:14px !important;
+    left:14px !important;
+    font-size:11px !important;
+  }
+  .arca-panel.open .arca-content.control-carousel-wrap .control-carousel{
+    flex-basis:41% !important;
+    max-height:41% !important;
+    grid-auto-rows:minmax(86px, 1fr) !important;
+    gap:8px !important;
+    padding:10px 8px !important;
+  }
+  .arca-panel.open .control-card{ min-height:86px !important; padding:6px !important; }
+  .arca-panel.open .control-card .asset-preview-wrap{ transform:scale(.68) !important; }
+}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
 </head>
@@ -8909,10 +9117,17 @@ function switchUser(id){
   render();
 }
 
+function updateLabMobileWindowClass(){
+  const chroniconPanel = document.querySelector('.chronicon-panel');
+  const hasOpenWindow = !!(arcaPanel?.classList.contains('open') || chroniconPanel?.classList.contains('open'));
+  document.body.classList.toggle('lab-mobile-window-open', hasOpenWindow);
+}
+
 function closeLabyrinthusOverlays(except = null){
   if(except !== 'arca' && arcaPanel){ document.querySelectorAll('.arca-inline-choose').forEach(button => button.remove()); arcaPanel.classList.remove('open', 'held'); }
   const chroniconPanel = document.querySelector('.chronicon-panel');
   if(except !== 'chronicon' && chroniconPanel) chroniconPanel.classList.remove('open');
+  updateLabMobileWindowClass();
 }
 
 function positionArcaPopover(){
@@ -8948,6 +9163,7 @@ function toggleArcaOverlay(event){
     if(willOpen) positionArcaPopover();
     arcaPanel.classList.toggle('open', !!willOpen);
   }
+  updateLabMobileWindowClass();
 }
 
 function toggleChroniconOverlay(event){
@@ -8956,6 +9172,7 @@ function toggleChroniconOverlay(event){
   const willOpen = panel && !panel.classList.contains('open');
   closeLabyrinthusOverlays(willOpen ? 'chronicon' : null);
   if(panel) panel.classList.toggle('open', !!willOpen);
+  updateLabMobileWindowClass();
 }
 
 
@@ -8994,6 +9211,7 @@ function confirmArcaChoice(event){
   arcaPurchaseConfirming = true;
   selectedArcaCard.dispatchEvent(new MouseEvent('click', {bubbles:true, cancelable:true, view:window}));
   if(arcaPanel) arcaPanel.classList.remove('open', 'held');
+  updateLabMobileWindowClass();
   selectedArcaCard = null;
   document.querySelectorAll('.arca-panel .control-card').forEach(el => el.classList.remove('active'));
   document.getElementById('arcaChooseBtn')?.classList.remove('visible');
@@ -9005,8 +9223,12 @@ function closeArcaOverlay(){
   document.querySelectorAll('.arca-panel .control-card').forEach(el => el.classList.remove('active'));
   document.getElementById('arcaChooseBtn')?.classList.remove('visible');
   if(arcaPanel) arcaPanel.classList.remove('open','held');
+  updateLabMobileWindowClass();
 }
-function closeChroniconOverlay(){ document.querySelector('.chronicon-panel')?.classList.remove('open'); }
+function closeChroniconOverlay(){
+  document.querySelector('.chronicon-panel')?.classList.remove('open');
+  updateLabMobileWindowClass();
+}
 
 if(arcaTab){
   arcaTab.addEventListener('click', toggleArcaOverlay);
