@@ -228,9 +228,15 @@
     will-change:transform,left,top,opacity;
   }
   .folium-video .lottie-anim{width:100%;height:100%;mix-blend-mode:screen;}
-  .silva-object{pointer-events:none;filter:drop-shadow(0 0 5px rgba(0,0,0,.45));}
-  .silva-arbor{opacity:.94;}
-  .silva-petra{opacity:.88;}
+  .silva-object{pointer-events:none;}
+  .silva-arbor{
+    opacity:.95;
+    filter:grayscale(.18) saturate(.72) brightness(.64) drop-shadow(0 0 7px rgba(0,0,0,.52));
+  }
+  .silva-petra{
+    opacity:.92;
+    filter:grayscale(.28) saturate(.46) brightness(.56) drop-shadow(0 0 7px rgba(0,0,0,.58));
+  }
 
 .solidus-video-layer{
   position:absolute;inset:0;z-index:2;pointer-events:none;overflow:hidden;
@@ -4358,14 +4364,14 @@ const foliumLottieConfig = Object.freeze({
   className:"folium-lottie",
   speed: mobileLowPowerMode ? 0.55 : 0.7
 });
-const folia = [
-  { id:"folium-1", row:8, direction:1, period:26000, phase:0.08, size:32 },
-  { id:"folium-2", row:18, direction:-1, period:31000, phase:0.43, size:28 },
-  { id:"folium-3", row:31, direction:1, period:34000, phase:0.67, size:30 },
-  { id:"folium-4", row:45, direction:-1, period:29000, phase:0.26, size:27 },
-  { id:"folium-5", row:63, direction:1, period:37000, phase:0.77, size:31 },
-  { id:"folium-6", row:82, direction:-1, period:33000, phase:0.54, size:29 }
-];
+const folia = Array.from({ length:30 }, (_, index) => {
+  const row = 4 + index * 3;
+  const direction = index % 2 === 0 ? 1 : -1;
+  const period = 25000 + (index % 6) * 2200;
+  const phase = ((index * 0.137) % 1);
+  const size = 28 + (index % 5) * 3;
+  return { id:`folium-${index + 1}`, row, direction, period, phase, size };
+});
 let foliumEls = {};
 
 const board = document.getElementById("board");
@@ -5605,18 +5611,12 @@ function isSilvaRow(row){
   return levelForRow(row).key === "silva";
 }
 function silvaCellStyle(row,col,screenDistance){
-  const n1 = cellNoise(row,col,211);
-  const n2 = cellNoise(row,col,223);
-  const n3 = cellNoise(row,col,229);
   const t = clamp(screenDistance / visibleRows, 0, 1);
-  const hue = 118 + n1 * 18 + (n3 - .5) * 4;
-  const sat = 32 + n2 * 24;
-  const light = lerp(currentTheme === "light" ? 36 : 24, currentTheme === "light" ? 46 : 12, t) + (n1 - .5) * 6;
   return {
-    fill:`hsl(${hue.toFixed(1)} ${sat.toFixed(1)}% ${light.toFixed(1)}%)`,
-    pattern:"url(#silvaMoss)",
-    textureOpacity:clamp(.24 + (1 - t) * .12 + n3 * .08, .22, .48),
-    shadeOpacity:clamp(.18 + (1 - t) * .12, .14, .34)
+    fill:"#A9B763",
+    pattern:"none",
+    textureOpacity:0,
+    shadeOpacity:clamp(.14 + (1 - t) * .06, .12, .22)
   };
 }
 
@@ -6967,6 +6967,7 @@ function selectCatenaUser(userId){
 function isValidCellForUser(user,row,col){
   if(!isAllowed(user, row, col)) return false;
   if(isMirrorMoveBlocked(user, row, col)) return false;
+  if(isSilvaObstacleCell(row, col)) return false;
   const k = key(row, col);
   const sameLineVisited = user.filled.has(k) && row === Math.round(user.current.row);
   if(user.filled.has(k) && !sameLineVisited) return false;
@@ -6995,6 +6996,7 @@ function canSelectTarget(user,row,col){
     if(!isForwardOne || row < 0 || col < 0 || col >= cols) return false;
     if(moveBlocked(currentRow, currentCol, row, col)) return false;
     if(isMirrorMoveBlocked(user, row, col)) return false;
+    if(isSilvaObstacleCell(row, col)) return false;
     if(user.filled.has(key(row,col))) return false;
   }
   const catena = catenaForUser(user.id);
@@ -7629,6 +7631,11 @@ function selectRestartCell(worldRow, col){
   const user = currentUser();
   if(user.id !== restartState.userId) return;
   if(worldRow !== restartState.targetRow) return;
+  if(isSilvaObstacleCell(worldRow, col)){
+    noticeText = "action refusée : cellule occupée par un arbor ou une petra";
+    render();
+    return;
+  }
 
   pushUndo();
   user.current.row = worldRow;
@@ -7939,7 +7946,7 @@ function makeCell(worldRow, col, screenDistance){
   if(activeTool === "fossaZone" && pending && pending.owner === user.id && isValidZoneCenter(pending, worldRow, col)){
     poly.classList.add("zone-center-target");
   }
-  if(activeTool === "restartSelect" && restartState && restartState.userId === user.id && worldRow === restartState.targetRow){
+  if(activeTool === "restartSelect" && restartState && restartState.userId === user.id && worldRow === restartState.targetRow && !isSilvaObstacleCell(worldRow, col)){
     poly.classList.add("restart-target");
   }
 
@@ -8616,13 +8623,15 @@ function arborAnchorsForVisibleRows(){
   }
   return anchors;
 }
-function petraPairsForVisibleRows(){
+let silvaPetraPairsCache = null;
+let silvaPetraCellsCache = null;
+let silvaArborCellsCache = null;
+
+function silvaPetraPairsAll(){
+  if(silvaPetraPairsCache) return silvaPetraPairsCache;
   const pairs = [];
-  const firstRow = Math.max(0, Math.floor(scroll) - 8);
-  const lastRow = Math.min(levelEndRow(0), Math.floor(scroll + visibleRows) + 8);
   for(let local = 9; local < LEVEL_LENGTH - 4; local += 13){
     const row = local;
-    if(row < firstRow || row > lastRow) continue;
     const vertical = cellNoise(row, 0, 421) > .52;
     const col = vertical ? Math.floor(cellNoise(row, 0, 422) * cols) : Math.floor(cellNoise(row, 0, 423) * (cols - 1));
     const first = { row, col };
@@ -8631,7 +8640,46 @@ function petraPairsForVisibleRows(){
       pairs.push({ id:`petra-${row}-${col}`, first, second, vertical });
     }
   }
+  silvaPetraPairsCache = pairs;
   return pairs;
+}
+function silvaPetraCellKeys(){
+  if(silvaPetraCellsCache) return silvaPetraCellsCache;
+  const cells = new Set();
+  for(const pair of silvaPetraPairsAll()){
+    cells.add(key(pair.first.row, pair.first.col));
+    cells.add(key(pair.second.row, pair.second.col));
+  }
+  silvaPetraCellsCache = cells;
+  return cells;
+}
+function silvaArborCellKeys(){
+  if(silvaArborCellsCache) return silvaArborCellsCache;
+  const cells = new Set();
+  const petraCells = silvaPetraCellKeys();
+  for(let local = 5; local < LEVEL_LENGTH - 3; local += 8){
+    const row = local;
+    const col = Math.max(1, Math.min(cols - 2, Math.floor(cellNoise(row, 0, 317) * cols)));
+    for(const cell of arborClusterCells(row, col)){
+      const cellId = key(cell.row, cell.col);
+      if(petraCells.has(cellId)) continue;
+      cells.add(cellId);
+    }
+  }
+  silvaArborCellsCache = cells;
+  return cells;
+}
+function isSilvaObstacleCell(row, col){
+  if(!isSilvaRow(row)) return false;
+  const cellId = key(row, col);
+  return silvaPetraCellKeys().has(cellId) || silvaArborCellKeys().has(cellId);
+}
+function petraPairsForVisibleRows(){
+  return silvaPetraPairsAll().filter(pair => {
+    const minRow = Math.min(pair.first.row, pair.second.row);
+    const maxRow = Math.max(pair.first.row, pair.second.row);
+    return maxRow >= Math.floor(scroll) - 8 && minRow <= Math.floor(scroll + visibleRows) + 8;
+  });
 }
 function appendSilvaImage(href, center, width, height, className, rotation=0){
   const image = document.createElementNS("http://www.w3.org/2000/svg", "image");
@@ -8649,23 +8697,20 @@ function appendSilvaImage(href, center, width, height, className, rotation=0){
 }
 function renderSilvaObjects(){
   if(!silvaObjectsGroup) return;
-  const seen = new Set();
-  for(const anchor of arborAnchorsForVisibleRows()){
-    for(const cell of arborClusterCells(anchor.row, anchor.col)){
-      const id = `${cell.row}-${cell.col}`;
-      if(seen.has(id)) continue;
-      seen.add(id);
-      if(!isWorldRowVisible(cell.row)) continue;
-      const screenDistance = cell.row - scroll;
-      if(screenDistance < -1.4 || screenDistance > visibleRows + .8) continue;
-      const poly = cellPolygonWorld(cell.row, cell.col, screenDistance);
-      const c = centroid(poly);
-      const width = Math.abs(poly[2].x - poly[3].x);
-      const depth = Math.abs(poly[3].y - poly[0].y);
-      const size = clamp(Math.max(width * 1.06, depth * 1.52), 20, 58);
-      const lift = depth * 0.24;
-      appendSilvaImage(arborImageSrc, {x:c.x, y:c.y - lift}, size, size, "silva-arbor");
-    }
+  for(const cellId of silvaArborCellKeys()){
+    const [rowStr, colStr] = cellId.split("-");
+    const row = Number(rowStr);
+    const col = Number(colStr);
+    if(!isWorldRowVisible(row)) continue;
+    const screenDistance = row - scroll;
+    if(screenDistance < -1.4 || screenDistance > visibleRows + .8) continue;
+    const poly = cellPolygonWorld(row, col, screenDistance);
+    const c = centroid(poly);
+    const width = Math.abs(poly[2].x - poly[3].x);
+    const depth = Math.abs(poly[3].y - poly[0].y);
+    const size = clamp(Math.max(width * 1.06, depth * 1.52), 20, 58);
+    const lift = depth * 0.24;
+    appendSilvaImage(arborImageSrc, {x:c.x, y:c.y - lift}, size, size, "silva-arbor");
   }
   for(const pair of petraPairsForVisibleRows()){
     const p1 = cellPolygonWorld(pair.first.row, pair.first.col, pair.first.row - scroll);
@@ -8706,7 +8751,7 @@ function updateFoliumLayer(){
     const pSvg = cellCenterAt(rowFloat, colFloat);
     const p = svgPointToLayerPoint(pSvg.x, pSvg.y);
     const el = ensureFoliumElement(folium.id);
-    const size = folium.size * 0.5;
+    const size = folium.size * 1.5;
     const rotation = (folium.direction === 1 ? 1 : -1) * loop * 360 + Math.sin(loop * Math.PI * 2) * 12;
     el.style.display = "block";
     el.style.left = `${p.x}px`;
