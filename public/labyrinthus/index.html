@@ -3079,6 +3079,27 @@
 }
 .murus-rotate-floating.visible{ display:flex !important; }
 
+
+/* V73: Murus split into horizontal/vertical Arca items; rotation controls removed; icon frames removed */
+.control-card .asset-preview-wrap,
+.control-card.active .asset-preview-wrap,
+body.theme-light .asset-preview-wrap{
+  border:0 !important;
+  background:transparent !important;
+  box-shadow:none !important;
+}
+.rotate-btn,
+.murus-rotate-floating,
+.murus-rotate-floating.visible{
+  display:none !important;
+  visibility:hidden !important;
+  pointer-events:none !important;
+}
+.active-arca-indicator.murus-active{
+  pointer-events:none !important;
+  cursor:default !important;
+}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
 </head>
@@ -3171,8 +3192,7 @@
         <button class="panel-tab" id="arcaTab" type="button" aria-label="Arca"><img src="/labyrinthus/assets/ui/arca.png" alt=""></button>
         <div class="control-carousel-wrap arca-content"><button class="lab-overlay-close" id="arcaOverlayClose" type="button" aria-label="Fermer">×</button>
         <div class="control-carousel" id="controlCarousel">
-          <div class="control-card" id="murusCard" title="Acheter un Murus">
-            <div class="rotate-btn" id="rotateBtn" title="Rotation">↻</div>
+          <div class="control-card" id="murusCard" title="Acheter un Murus horizontal">
             <div class="asset-preview-wrap">
               <div class="murus-preview" id="murusPreview">
                 <svg class="preview-svg" viewBox="0 0 60 24">
@@ -3183,11 +3203,30 @@
               </div>
             </div>
             <div class="control-meta">
-              <div class="control-title">Murus</div>
+              <div class="control-title">Murus - h.</div>
               <div class="control-cost">20 Ft*</div>
             </div>
             <div class="control-extra">
               <button class="info-btn" data-info-key="murus" aria-label="Informations Murus" title="Informations Murus"><svg viewBox="0 0 20 20" aria-hidden="true"><circle class="glyph" cx="10" cy="10" r="7.2"/><path class="glyph" d="M10 8.1v4.6"/><path class="glyph" d="M10 5.6h.01"/></svg></button>
+            </div>
+          </div>
+
+          <div class="control-card" id="murusVCard" title="Acheter un Murus vertical">
+            <div class="asset-preview-wrap">
+              <div class="murus-preview vertical" id="murusVPreview">
+                <svg class="preview-svg" viewBox="0 0 60 24">
+                  <polygon points="6,14 44,14 53,8 15,8" fill="rgba(255,255,255,.20)" stroke="rgba(255,255,255,.95)" stroke-width="1"/>
+                  <polygon points="6,14 44,14 44,20 6,20" fill="rgba(255,255,255,.10)" stroke="rgba(255,255,255,.78)" stroke-width="1"/>
+                  <polygon points="44,14 53,8 53,14 44,20" fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.68)" stroke-width="1"/>
+                </svg>
+              </div>
+            </div>
+            <div class="control-meta">
+              <div class="control-title">Murus - v.</div>
+              <div class="control-cost">20 Ft*</div>
+            </div>
+            <div class="control-extra">
+              <button class="info-btn" data-info-key="murus" aria-label="Informations Murus vertical" title="Informations Murus"><svg viewBox="0 0 20 20" aria-hidden="true"><circle class="glyph" cx="10" cy="10" r="7.2"/><path class="glyph" d="M10 8.1v4.6"/><path class="glyph" d="M10 5.6h.01"/></svg></button>
             </div>
           </div>
 
@@ -3570,6 +3609,7 @@ const soundToggleBtn = document.getElementById("soundToggleBtn");
 const musicToggleBtn = document.getElementById("musicToggleBtn");
 const arcaPanel = document.querySelector(".arca-panel");
 const murusCard = document.getElementById("murusCard");
+const murusVCard = document.getElementById("murusVCard");
 const fossaCard = document.getElementById("fossaCard");
 const catenaCard = document.getElementById("catenaCard");
 const marculusCard = document.getElementById("marculusCard");
@@ -3579,6 +3619,7 @@ const exVotoCard = document.getElementById("exVotoCard");
 const negroniCard = document.getElementById("negroniCard");
 const rotateBtn = document.getElementById("rotateBtn");
 const murusPreview = document.getElementById("murusPreview");
+const murusVPreview = document.getElementById("murusVPreview");
 const infoModal = document.getElementById("infoModal");
 const infoModalBackdrop = document.getElementById("infoModalBackdrop");
 const infoModalPanel = document.getElementById("infoModalPanel");
@@ -8197,7 +8238,9 @@ function updateActiveArcaIndicator(){
     (activeTool === 'negroni' && user.negroniStock > 0) ||
     activeTool === 'catenaSelect1' || activeTool === 'catenaSelect2'
   );
-  const cardId = stocked ? toolToCard[activeTool] : null;
+  const cardId = stocked
+    ? (activeTool === 'murus' && murusOrientation === 'vertical' ? 'murusVCard' : toolToCard[activeTool])
+    : null;
   if(!cardId){
     holder.classList.remove('visible');
     holder.innerHTML = '';
@@ -8242,8 +8285,10 @@ function updatePanels(){
   );
   if(arcaPanel) arcaPanel.classList.toggle("held", arcaHeld);
 
-  murusPreview.classList.toggle("vertical", murusOrientation === "vertical");
-  murusCard.classList.toggle("active", activeTool === "murus" && user.murusStock > 0);
+  murusPreview.classList.remove("vertical");
+  if(murusVPreview) murusVPreview.classList.add("vertical");
+  murusCard.classList.toggle("active", activeTool === "murus" && user.murusStock > 0 && murusOrientation !== "vertical");
+  if(murusVCard) murusVCard.classList.toggle("active", activeTool === "murus" && user.murusStock > 0 && murusOrientation === "vertical");
   fossaCard.classList.toggle("active", (activeTool === "fossa" && user.fossaStock > 0) || activeTool === "fossaZone");
   catenaCard.classList.toggle("active", activeTool === "catenaSelect1" || activeTool === "catenaSelect2" || activeCatenas.some(c => c.owner === activeUserId && c.remainingTurns > 0));
   marculusCard.classList.toggle("active", activeTool === "marculus" && user.marculusStock > 0);
@@ -8934,27 +8979,52 @@ murusCard.addEventListener("click", (event) => {
     return;
   }
 
-  if(!debitArcaPurchase(currentUser(), "murus", "murus")) return;
+  murusOrientation = "horizontal";
+  if(!debitArcaPurchase(currentUser(), "murus", "murus - h.")) return;
   pushUndo();
   currentUser().murusStock += 1;
   activeTool = "murus";
-  noticeText = `achat : 1 murus pour ${currentUser().name.toLowerCase()}`;
-  addChroniconEvent(`${currentUser().name} achète 1 Murus.`);
+  noticeText = `achat : 1 murus - h. pour ${currentUser().name.toLowerCase()}`;
+  addChroniconEvent(`${currentUser().name} achète 1 Murus horizontal.`);
   render();
 });
 
-rotateBtn.addEventListener("click", (event) => {
-  event.preventDefault();
-  event.stopPropagation();
-  if(animState) return;
+if(murusVCard){
+  murusVCard.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if(animState) return;
 
-  pushUndo();
-  murusOrientation = murusOrientation === "horizontal" ? "vertical" : "horizontal";
-  if(currentUser().murusStock > 0) activeTool = "murus";
-  noticeText = `murus : ${murusOrientation === "horizontal" ? "latitudinal" : "longitudinal"}`;
-  addChroniconEvent(`Murus orienté ${murusOrientation === "horizontal" ? "latitudinalement" : "longitudinalement"}.`);
-  render();
-});
+    if(activeTool === "fossaZone"){
+      noticeText = "définir d'abord la zone 3×3 de la fossa";
+      render();
+      return;
+    }
+    if(activeTool === "restartSelect"){
+      noticeText = "choisir d'abord le nouveau départ";
+      render();
+      return;
+    }
+    if(activeTool === "catenaSelect1" || activeTool === "catenaSelect2"){
+      noticeText = "terminer ou annuler d'abord la sélection catena";
+      render();
+      return;
+    }
+
+    murusOrientation = "vertical";
+    if(!debitArcaPurchase(currentUser(), "murus", "murus - v.")) return;
+    pushUndo();
+    currentUser().murusStock += 1;
+    activeTool = "murus";
+    noticeText = `achat : 1 murus - v. pour ${currentUser().name.toLowerCase()}`;
+    addChroniconEvent(`${currentUser().name} achète 1 Murus vertical.`);
+    render();
+  });
+}
+
+if(rotateBtn){
+  rotateBtn.remove();
+}
 
 fossaCard.addEventListener("click", (event) => {
   event.preventDefault();
@@ -9862,6 +9932,71 @@ requestAnimationFrame(draw);
   document.addEventListener('scroll', () => requestAnimationFrame(positionMurusRotateFloating), true);
 
   refreshMurusRotationControl();
+})();
+
+
+
+/* V73: final Murus model lock — no game-screen rotation, Arca has distinct h/v purchases */
+(function(){
+  function lockMurusOrientation(){
+    if(activeTool === 'murus' && currentUser?.()?.murusStock > 0){
+      murusOrientation = murusOrientation === 'vertical' ? 'vertical' : 'horizontal';
+    }
+    const floating = document.getElementById('murusRotateFloating');
+    if(floating) floating.remove();
+    const holder = document.getElementById('activeArcaIndicator');
+    if(holder && activeTool === 'murus'){
+      holder.classList.toggle('murus-vertical', murusOrientation === 'vertical');
+      holder.classList.toggle('murus-active', currentUser?.()?.murusStock > 0);
+      holder.style.pointerEvents = 'none';
+    }
+  }
+
+  const previousUpdatePanelsV73 = typeof updatePanels === 'function' ? updatePanels : null;
+  if(previousUpdatePanelsV73){
+    updatePanels = function(){
+      previousUpdatePanelsV73.apply(this, arguments);
+      try{
+        if(murusPreview) murusPreview.classList.remove('vertical');
+        if(murusVPreview) murusVPreview.classList.add('vertical');
+        const activeHorizontal = activeTool === 'murus' && currentUser?.()?.murusStock > 0 && murusOrientation !== 'vertical';
+        const activeVertical = activeTool === 'murus' && currentUser?.()?.murusStock > 0 && murusOrientation === 'vertical';
+        if(murusCard) murusCard.classList.toggle('active', activeHorizontal);
+        if(murusVCard) murusVCard.classList.toggle('active', activeVertical);
+      }catch(_err){}
+      lockMurusOrientation();
+    };
+  }
+
+  const previousUpdateActiveArcaIndicatorV73 = typeof updateActiveArcaIndicator === 'function' ? updateActiveArcaIndicator : null;
+  if(previousUpdateActiveArcaIndicatorV73){
+    updateActiveArcaIndicator = function(){
+      previousUpdateActiveArcaIndicatorV73.apply(this, arguments);
+      try{
+        if(activeTool === 'murus' && currentUser?.()?.murusStock > 0){
+          const holder = document.getElementById('activeArcaIndicator');
+          const source = document.getElementById(murusOrientation === 'vertical' ? 'murusVCard' : 'murusCard')?.querySelector('.asset-preview-wrap');
+          if(holder && source){
+            holder.innerHTML = source.innerHTML;
+            holder.classList.add('visible', 'murus-active');
+            holder.classList.toggle('murus-vertical', murusOrientation === 'vertical');
+            holder.style.pointerEvents = 'none';
+          }
+        }
+      }catch(_err){}
+      lockMurusOrientation();
+    };
+  }
+
+  const previousPlaceWallV73 = typeof placeWall === 'function' ? placeWall : null;
+  if(previousPlaceWallV73){
+    placeWall = function(worldRow, col){
+      murusOrientation = murusOrientation === 'vertical' ? 'vertical' : 'horizontal';
+      return previousPlaceWallV73.apply(this, arguments);
+    };
+  }
+
+  lockMurusOrientation();
 })();
 
 </script>
