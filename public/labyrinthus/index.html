@@ -3869,6 +3869,39 @@ body.theme-light .asset-preview-wrap{
   }
 }
 
+
+/* V90: put mobile overlay windows above the right-side HUD and trim fixed height. */
+@media(max-width:700px){
+  body.lab-mobile-window-open .left-stack,
+  .left-stack:has(.arca-panel.open),
+  .left-stack:has(.chronicon-panel.open){
+    position:absolute !important;
+    z-index:30000 !important;
+  }
+  .arca-panel.open,
+  .chronicon-panel.open{
+    position:static !important;
+    z-index:30000 !important;
+  }
+  .arca-panel.open .arca-content.control-carousel-wrap,
+  .chronicon-panel.open .chronicon-content{
+    z-index:30020 !important;
+    height:470px !important;
+    max-height:470px !important;
+  }
+  .arca-panel.open .arca-content.control-carousel-wrap .lab-overlay-close,
+  .chronicon-panel.open .chronicon-content .lab-overlay-close{
+    z-index:30040 !important;
+  }
+}
+@media(max-width:350px){
+  .arca-panel.open .arca-content.control-carousel-wrap,
+  .chronicon-panel.open .chronicon-content{
+    height:450px !important;
+    max-height:450px !important;
+  }
+}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
 </head>
