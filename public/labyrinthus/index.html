@@ -3065,6 +3065,20 @@
 .murus-rotate-floating:active{ background:#fff; color:#000; }
 .active-arca-indicator.murus-active{ pointer-events:auto !important; }
 
+
+
+/* V72: Murus displayed orientation is authoritative; arrow aligned right of active Murus */
+.murus-rotate-floating{
+  top:calc(env(safe-area-inset-top, 0px) + 49px) !important;
+  left:calc(50% + 40px) !important;
+  transform:none !important;
+  width:32px !important;
+  height:32px !important;
+  min-width:32px !important;
+  min-height:32px !important;
+}
+.murus-rotate-floating.visible{ display:flex !important; }
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
 </head>
@@ -9708,6 +9722,148 @@ requestAnimationFrame(draw);
 
   refreshMurusRotateFloating();
 })();
+
+/* V72: place the Murus using the last displayed orientation; keep rotation arrow to the right */
+(function(){
+  const oldFloating = document.getElementById('murusRotateFloating');
+  let rotateFloating = oldFloating;
+  if(oldFloating){
+    rotateFloating = oldFloating.cloneNode(false);
+    rotateFloating.id = 'murusRotateFloating';
+    rotateFloating.className = 'murus-rotate-floating';
+    rotateFloating.type = 'button';
+    rotateFloating.setAttribute('aria-label', 'Tourner le Murus');
+    rotateFloating.textContent = '↻';
+    oldFloating.replaceWith(rotateFloating);
+  }else{
+    rotateFloating = document.createElement('button');
+    rotateFloating.id = 'murusRotateFloating';
+    rotateFloating.className = 'murus-rotate-floating';
+    rotateFloating.type = 'button';
+    rotateFloating.setAttribute('aria-label', 'Tourner le Murus');
+    rotateFloating.textContent = '↻';
+    document.body.appendChild(rotateFloating);
+  }
+
+  function hasActiveMurusToPlace(){
+    try{ return activeTool === 'murus' && !!currentUser() && Number(currentUser().murusStock || 0) > 0; }catch(_err){ return false; }
+  }
+
+  function normalizeMurusOrientation(value){
+    return value === 'vertical' ? 'vertical' : 'horizontal';
+  }
+
+  function orientationLabel(value){
+    return normalizeMurusOrientation(value) === 'vertical' ? 'longitudinal' : 'latitudinal';
+  }
+
+  function currentDisplayedMurusOrientation(){
+    const holder = document.getElementById('activeArcaIndicator');
+    return normalizeMurusOrientation(
+      holder?.dataset?.murusOrientation ||
+      rotateFloating.dataset.murusOrientation ||
+      murusOrientation
+    );
+  }
+
+  function applyDisplayedMurusOrientation(nextOrientation){
+    const orientation = normalizeMurusOrientation(nextOrientation);
+    murusOrientation = orientation;
+    rotateFloating.dataset.murusOrientation = orientation;
+    const holder = document.getElementById('activeArcaIndicator');
+    if(holder){
+      holder.dataset.murusOrientation = orientation;
+      holder.classList.toggle('murus-vertical', orientation === 'vertical');
+      holder.classList.toggle('murus-active', hasActiveMurusToPlace());
+      holder.setAttribute('title', hasActiveMurusToPlace() ? 'Murus à poser' : '');
+      holder.setAttribute('aria-label', hasActiveMurusToPlace() ? `Murus ${orientationLabel(orientation)} à poser` : 'Élément Arca actif');
+    }
+    return orientation;
+  }
+
+  function positionMurusRotateFloating(){
+    if(!hasActiveMurusToPlace()) return;
+    const holder = document.getElementById('activeArcaIndicator');
+    if(!holder || !holder.classList.contains('visible')) return;
+    const rect = holder.getBoundingClientRect();
+    if(!rect.width || !rect.height) return;
+    const buttonSize = rotateFloating.getBoundingClientRect().height || 32;
+    rotateFloating.style.left = `${Math.round(rect.right + 6)}px`;
+    rotateFloating.style.top = `${Math.round(rect.top + (rect.height - buttonSize) / 2)}px`;
+    rotateFloating.style.transform = 'none';
+  }
+
+  function refreshMurusRotationControl(){
+    const active = hasActiveMurusToPlace();
+    rotateFloating.classList.toggle('visible', active);
+    if(active){
+      applyDisplayedMurusOrientation(murusOrientation);
+      requestAnimationFrame(positionMurusRotateFloating);
+    }else{
+      const holder = document.getElementById('activeArcaIndicator');
+      if(holder){
+        holder.classList.remove('murus-active');
+        holder.removeAttribute('data-murus-orientation');
+      }
+    }
+  }
+
+  const previousUpdateActiveArcaIndicatorV72 = typeof updateActiveArcaIndicator === 'function' ? updateActiveArcaIndicator : null;
+  if(previousUpdateActiveArcaIndicatorV72){
+    updateActiveArcaIndicator = function(){
+      previousUpdateActiveArcaIndicatorV72.apply(this, arguments);
+      refreshMurusRotationControl();
+    };
+  }
+
+  const previousPlaceWallV72 = typeof placeWall === 'function' ? placeWall : null;
+  if(previousPlaceWallV72){
+    placeWall = function(worldRow, col){
+      if(hasActiveMurusToPlace()){
+        applyDisplayedMurusOrientation(currentDisplayedMurusOrientation());
+      }
+      return previousPlaceWallV72.apply(this, arguments);
+    };
+  }
+
+  let lastRotationAt = 0;
+  function rotateDisplayedMurus(event){
+    if(!hasActiveMurusToPlace()) return;
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    event?.stopImmediatePropagation?.();
+    const now = performance.now();
+    if(now - lastRotationAt < 220) return;
+    lastRotationAt = now;
+    const next = currentDisplayedMurusOrientation() === 'horizontal' ? 'vertical' : 'horizontal';
+    applyDisplayedMurusOrientation(next);
+    noticeText = `murus : ${orientationLabel(next)}`;
+    try{
+      addChroniconEvent(
+        `Murus orienté ${next === 'vertical' ? 'longitudinalement' : 'latitudinalement'}.`,
+        makeChroniconMeta(`Murus orienté ${next}.`, {type:'murus-orientation', asset:'murus', orientation:next})
+      );
+    }catch(_err){}
+    updateActiveArcaIndicator?.();
+    render?.();
+    requestAnimationFrame(positionMurusRotateFloating);
+  }
+
+  ['pointerup','click'].forEach(type => {
+    rotateFloating.addEventListener(type, rotateDisplayedMurus, {capture:true, passive:false});
+  });
+  rotateFloating.addEventListener('keydown', (event) => {
+    if(event.key === 'Enter' || event.key === ' '){
+      rotateDisplayedMurus(event);
+    }
+  }, {capture:true, passive:false});
+
+  window.addEventListener('resize', () => requestAnimationFrame(positionMurusRotateFloating), {passive:true});
+  document.addEventListener('scroll', () => requestAnimationFrame(positionMurusRotateFloating), true);
+
+  refreshMurusRotationControl();
+})();
+
 </script>
 </body>
 </html>
