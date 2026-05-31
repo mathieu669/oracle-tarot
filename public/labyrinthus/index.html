@@ -3902,6 +3902,23 @@ body.theme-light .asset-preview-wrap{
   }
 }
 
+
+/* V91: broad blurred shadow around Arca and Chronicon overlay windows. */
+.arca-panel.open .arca-content.control-carousel-wrap,
+.chronicon-panel.open .chronicon-content{
+  box-shadow:
+    0 0 42px 16px rgba(0,0,0,.82),
+    0 0 82px 10px rgba(255,255,255,.10) !important;
+}
+@media(max-width:700px){
+  .arca-panel.open .arca-content.control-carousel-wrap,
+  .chronicon-panel.open .chronicon-content{
+    box-shadow:
+      0 0 34px 14px rgba(0,0,0,.88),
+      0 0 64px 8px rgba(255,255,255,.12) !important;
+  }
+}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
 </head>
