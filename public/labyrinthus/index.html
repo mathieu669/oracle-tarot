@@ -221,21 +221,24 @@
     position:absolute;display:none;pointer-events:none;
     width:26px;height:26px;overflow:visible;
     transform:translate(-50%,-50%) scale(.5);
-    filter:drop-shadow(0 0 8px rgba(178,225,85,.32)) drop-shadow(0 0 10px rgba(0,0,0,.38));
-    opacity:.82;
+    filter:drop-shadow(-8px 4px 10px rgba(0,0,0,.20));
+    opacity:.9;
     background:transparent;
-    mix-blend-mode:screen;
     will-change:transform,left,top,opacity;
   }
-  .folium-video .lottie-anim{width:100%;height:100%;mix-blend-mode:screen;}
+  .folium-video img{width:100%;height:100%;display:block;object-fit:contain;}
   .silva-object{pointer-events:none;}
   .silva-arbor{
     opacity:.95;
-    filter:grayscale(.18) saturate(.72) brightness(.64) drop-shadow(0 0 7px rgba(0,0,0,.52));
+    filter:grayscale(.16) saturate(.76) brightness(.70) drop-shadow(-8px 4px 10px rgba(0,0,0,.20));
   }
   .silva-petra{
     opacity:.92;
-    filter:grayscale(.28) saturate(.46) brightness(.56) drop-shadow(0 0 7px rgba(0,0,0,.58));
+    filter:grayscale(.22) saturate(.62) brightness(.64) drop-shadow(-8px 4px 10px rgba(0,0,0,.20));
+  }
+  .silva-frutex{
+    opacity:.94;
+    filter:grayscale(.14) saturate(.82) brightness(.74) drop-shadow(-8px 4px 10px rgba(0,0,0,.20));
   }
 
 .solidus-video-layer{
@@ -4359,11 +4362,8 @@ const herbae = [
 
 const arborImageSrc = "/labyrinthus/assets/arbor.png";
 const petraImageSrc = "/labyrinthus/assets/petra.png";
-const foliumLottieConfig = Object.freeze({
-  path:"/labyrinthus/assets/lottie/folium.json",
-  className:"folium-lottie",
-  speed: mobileLowPowerMode ? 0.55 : 0.7
-});
+const frutexImageSrc = "/labyrinthus/assets/frutex.png";
+const foliumImageSrc = "/labyrinthus/assets/folium.png";
 const folia = Array.from({ length:30 }, (_, index) => {
   const row = 4 + index * 3;
   const direction = index % 2 === 0 ? 1 : -1;
@@ -8626,6 +8626,7 @@ function arborAnchorsForVisibleRows(){
 let silvaPetraPairsCache = null;
 let silvaPetraCellsCache = null;
 let silvaArborCellsCache = null;
+let silvaFrutexCellsCache = null;
 
 function silvaPetraPairsAll(){
   if(silvaPetraPairsCache) return silvaPetraPairsCache;
@@ -8667,6 +8668,20 @@ function silvaArborCellKeys(){
     }
   }
   silvaArborCellsCache = cells;
+  return cells;
+}
+function silvaFrutexCellKeys(){
+  if(silvaFrutexCellsCache) return silvaFrutexCellsCache;
+  const cells = new Set();
+  const blocked = new Set([...silvaPetraCellKeys(), ...silvaArborCellKeys()]);
+  for(let local = 7; local < LEVEL_LENGTH - 2; local += 6){
+    const row = local;
+    const col = Math.max(0, Math.min(cols - 1, Math.floor(cellNoise(row, 0, 511) * cols)));
+    const cellId = key(row, col);
+    if(blocked.has(cellId)) continue;
+    cells.add(cellId);
+  }
+  silvaFrutexCellsCache = cells;
   return cells;
 }
 function isSilvaObstacleCell(row, col){
@@ -8712,6 +8727,22 @@ function renderSilvaObjects(){
     const lift = depth * 0.24;
     appendSilvaImage(arborImageSrc, {x:c.x, y:c.y - lift}, size, size, "silva-arbor");
   }
+  for(const cellId of silvaFrutexCellKeys()){
+    const [rowStr, colStr] = cellId.split("-");
+    const row = Number(rowStr);
+    const col = Number(colStr);
+    if(!isWorldRowVisible(row)) continue;
+    const screenDistance = row - scroll;
+    if(screenDistance < -1.4 || screenDistance > visibleRows + .8) continue;
+    const poly = cellPolygonWorld(row, col, screenDistance);
+    const c = centroid(poly);
+    const width = Math.abs(poly[2].x - poly[3].x);
+    const depth = Math.abs(poly[3].y - poly[0].y);
+    const imgW = clamp(Math.max(width * 1.35, depth * 2.1), 22, 74);
+    const imgH = clamp(Math.max(width * 1.15, depth * 1.95), 20, 68);
+    const lift = depth * 0.18;
+    appendSilvaImage(frutexImageSrc, {x:c.x, y:c.y - lift}, imgW, imgH, "silva-frutex");
+  }
   for(const pair of petraPairsForVisibleRows()){
     const p1 = cellPolygonWorld(pair.first.row, pair.first.col, pair.first.row - scroll);
     const p2 = cellPolygonWorld(pair.second.row, pair.second.col, pair.second.row - scroll);
@@ -8730,7 +8761,10 @@ function ensureFoliumElement(id){
   const wrap = document.createElement("div");
   wrap.className = "folium-video";
   wrap.dataset.foliumId = id;
-  wrap.appendChild(createLottieElement(foliumLottieConfig, {src:"", frames:1, duration:1, className:"folium-sprite"}));
+  const img = document.createElement("img");
+  img.src = foliumImageSrc;
+  img.alt = "";
+  wrap.appendChild(img);
   foliumLayer.appendChild(wrap);
   foliumEls[id] = wrap;
   return wrap;
