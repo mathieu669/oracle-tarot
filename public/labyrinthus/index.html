@@ -3100,6 +3100,53 @@ body.theme-light .asset-preview-wrap{
   cursor:default !important;
 }
 
+
+/* V74: Arca spacing refinements + final icon-frame removal */
+.arca-panel.open .arca-content.control-carousel-wrap{
+  padding:calc(env(safe-area-inset-top, 0px) + 48px) 20px calc(env(safe-area-inset-bottom, 0px) + 16px) 20px !important;
+  gap:14px !important;
+}
+.arca-panel.open .arca-content.control-carousel-wrap::before{
+  top:calc(env(safe-area-inset-top, 0px) + 12px) !important;
+  left:20px !important;
+}
+.arca-panel.open .arca-content.control-carousel-wrap .lab-overlay-close{
+  top:calc(env(safe-area-inset-top, 0px) + 8px) !important;
+  right:12px !important;
+  width:38px !important;
+  height:38px !important;
+  min-width:38px !important;
+  min-height:38px !important;
+}
+.arca-panel.open .arca-content.control-carousel-wrap .control-carousel{
+  padding:18px 10px 12px 10px !important;
+  scroll-padding-top:18px !important;
+}
+.arca-panel.open .control-card .asset-preview-wrap,
+.arca-panel.open .control-card.active .asset-preview-wrap,
+.active-arca-indicator .asset-preview-wrap{
+  border:0 !important;
+  background:transparent !important;
+  box-shadow:none !important;
+}
+@media(max-width:390px){
+  .arca-panel.open .arca-content.control-carousel-wrap{
+    padding:calc(env(safe-area-inset-top, 0px) + 44px) 14px calc(env(safe-area-inset-bottom, 0px) + 14px) 14px !important;
+  }
+  .arca-panel.open .arca-content.control-carousel-wrap::before{
+    top:calc(env(safe-area-inset-top, 0px) + 10px) !important;
+    left:14px !important;
+  }
+  .arca-panel.open .arca-content.control-carousel-wrap .lab-overlay-close{
+    top:calc(env(safe-area-inset-top, 0px) + 6px) !important;
+    right:10px !important;
+  }
+  .arca-panel.open .arca-content.control-carousel-wrap .control-carousel{
+    padding:16px 8px 10px 8px !important;
+    scroll-padding-top:16px !important;
+  }
+}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
 </head>
@@ -4225,6 +4272,7 @@ const users = {
     current:{ row:20, col:0 },
     filled:new Set(["20-0"]),
     murusStock:0,
+    murusOrientation:"horizontal",
     fossaStock:0,
     marculusStock:0,
     scalaStock:0,
@@ -4241,6 +4289,7 @@ const users = {
     current:{ row:20, col:1 },
     filled:new Set(["20-1"]),
     murusStock:0,
+    murusOrientation:"horizontal",
     fossaStock:0,
     marculusStock:0,
     scalaStock:0,
@@ -4257,6 +4306,7 @@ const users = {
     current:{ row:20, col:3 },
     filled:new Set(["20-3"]),
     murusStock:0,
+    murusOrientation:"horizontal",
     fossaStock:0,
     marculusStock:0,
     scalaStock:0,
@@ -4273,6 +4323,7 @@ const users = {
     current:{ row:20, col:4 },
     filled:new Set(["20-4"]),
     murusStock:0,
+    murusOrientation:"horizontal",
     fossaStock:0,
     marculusStock:0,
     scalaStock:0,
@@ -5016,6 +5067,7 @@ function snapshot(actorId = currentUser()?.id){
         current:{...users.A.current},
         filled:[...users.A.filled],
         murusStock:users.A.murusStock,
+        murusOrientation:users.A.murusOrientation || "horizontal",
         fossaStock:users.A.fossaStock,
         marculusStock:users.A.marculusStock,
         scalaStock:users.A.scalaStock,
@@ -5029,6 +5081,7 @@ function snapshot(actorId = currentUser()?.id){
         current:{...users.B.current},
         filled:[...users.B.filled],
         murusStock:users.B.murusStock,
+        murusOrientation:users.B.murusOrientation || "horizontal",
         fossaStock:users.B.fossaStock,
         marculusStock:users.B.marculusStock,
         scalaStock:users.B.scalaStock,
@@ -5042,6 +5095,7 @@ function snapshot(actorId = currentUser()?.id){
         current:{...users.C.current},
         filled:[...users.C.filled],
         murusStock:users.C.murusStock,
+        murusOrientation:users.C.murusOrientation || "horizontal",
         fossaStock:users.C.fossaStock,
         marculusStock:users.C.marculusStock,
         scalaStock:users.C.scalaStock,
@@ -5055,6 +5109,7 @@ function snapshot(actorId = currentUser()?.id){
         current:{...users.D.current},
         filled:[...users.D.filled],
         murusStock:users.D.murusStock,
+        murusOrientation:users.D.murusOrientation || "horizontal",
         fossaStock:users.D.fossaStock,
         marculusStock:users.D.marculusStock,
         scalaStock:users.D.scalaStock,
@@ -5117,6 +5172,7 @@ function restore(state){
   users.A.current = {...state.users.A.current};
   users.A.filled = new Set(state.users.A.filled);
   users.A.murusStock = state.users.A.murusStock;
+  users.A.murusOrientation = state.users.A.murusOrientation || state.murusOrientation || "horizontal";
   users.A.fossaStock = state.users.A.fossaStock;
   users.A.marculusStock = state.users.A.marculusStock || 0;
   users.A.scalaStock = state.users.A.scalaStock || 0;
@@ -5129,6 +5185,7 @@ function restore(state){
   users.B.current = {...state.users.B.current};
   users.B.filled = new Set(state.users.B.filled);
   users.B.murusStock = state.users.B.murusStock;
+  users.B.murusOrientation = state.users.B.murusOrientation || state.murusOrientation || "horizontal";
   users.B.fossaStock = state.users.B.fossaStock;
   users.B.marculusStock = state.users.B.marculusStock || 0;
   users.B.scalaStock = state.users.B.scalaStock || 0;
@@ -5141,6 +5198,7 @@ function restore(state){
   users.C.current = {...state.users.C.current};
   users.C.filled = new Set(state.users.C.filled);
   users.C.murusStock = state.users.C.murusStock;
+  users.C.murusOrientation = state.users.C.murusOrientation || state.murusOrientation || "horizontal";
   users.C.fossaStock = state.users.C.fossaStock;
   users.C.marculusStock = state.users.C.marculusStock || 0;
   users.C.scalaStock = state.users.C.scalaStock || 0;
@@ -5162,6 +5220,7 @@ function restore(state){
     users.D.current = { row:0, col:2 };
     users.D.filled = new Set(["0-2"]);
     users.D.murusStock = 0;
+    users.D.murusOrientation = "horizontal";
     users.D.fossaStock = 0;
     users.D.marculusStock = 0;
     users.D.scalaStock = 0;
@@ -5437,6 +5496,7 @@ function restoreOwnAction(state, actorId){
   user.current = {...savedUser.current};
   user.filled = new Set(savedUser.filled || []);
   user.murusStock = savedUser.murusStock || 0;
+  user.murusOrientation = savedUser.murusOrientation || state.murusOrientation || user.murusOrientation || "horizontal";
   user.fossaStock = savedUser.fossaStock || 0;
   user.marculusStock = savedUser.marculusStock || 0;
   user.scalaStock = savedUser.scalaStock || 0;
@@ -6686,7 +6746,10 @@ function placeWall(worldRow, col){
   const user = currentUser();
   if(user.murusStock <= 0) return;
 
-  const side = murusOrientation === "horizontal" ? "bottom" : "right";
+  const wallOrientation = (user.murusOrientation === "vertical" || murusOrientation === "vertical") ? "vertical" : "horizontal";
+  murusOrientation = wallOrientation;
+  user.murusOrientation = wallOrientation;
+  const side = wallOrientation === "horizontal" ? "bottom" : "right";
   const id = wallKey(worldRow, col, side);
   if(placedWalls.some(w => w.id === id)) return;
 
@@ -8442,6 +8505,7 @@ function switchUser(id){
   }
   activeUserId = id;
   const user = currentUser();
+  if(activeTool === "murus" && user.murusStock > 0) murusOrientation = user.murusOrientation === "vertical" ? "vertical" : "horizontal";
   if(activeTool === "murus" && user.murusStock <= 0) activeTool = "move";
   if(activeTool === "fossa" && user.fossaStock <= 0) activeTool = "move";
   if(activeTool === "marculus" && user.marculusStock <= 0) activeTool = "move";
@@ -8983,6 +9047,8 @@ murusCard.addEventListener("click", (event) => {
   if(!debitArcaPurchase(currentUser(), "murus", "murus - h.")) return;
   pushUndo();
   currentUser().murusStock += 1;
+  currentUser().murusOrientation = "horizontal";
+  murusOrientation = "horizontal";
   activeTool = "murus";
   noticeText = `achat : 1 murus - h. pour ${currentUser().name.toLowerCase()}`;
   addChroniconEvent(`${currentUser().name} achète 1 Murus horizontal.`);
@@ -9015,6 +9081,8 @@ if(murusVCard){
     if(!debitArcaPurchase(currentUser(), "murus", "murus - v.")) return;
     pushUndo();
     currentUser().murusStock += 1;
+    currentUser().murusOrientation = "vertical";
+    murusOrientation = "vertical";
     activeTool = "murus";
     noticeText = `achat : 1 murus - v. pour ${currentUser().name.toLowerCase()}`;
     addChroniconEvent(`${currentUser().name} achète 1 Murus vertical.`);
@@ -9997,6 +10065,113 @@ requestAnimationFrame(draw);
   }
 
   lockMurusOrientation();
+})();
+
+
+/* V74: Murus h/v info and per-player orientation display lock */
+(function(){
+  const normalizeMurusHV = (value) => value === 'vertical' ? 'vertical' : 'horizontal';
+
+  try{
+    if(typeof INFO_CONTENT === 'object' && INFO_CONTENT){
+      const murusBody = INFO_CONTENT.murus?.body || 'Coût : 20 Ft.\n\nPermet d’acheter un seul mur.';
+      if(INFO_CONTENT.murus) INFO_CONTENT.murus.title = 'Murus - h.';
+      INFO_CONTENT.murusv = { title:'Murus - v.', body:murusBody };
+    }
+    if(typeof ARCA_INFO_KEYS === 'object' && ARCA_INFO_KEYS){
+      ARCA_INFO_KEYS.murus = 'murus';
+      ARCA_INFO_KEYS.murusv = 'murusv';
+    }
+  }catch(_err){}
+
+  function syncMurusOrientationFromUser(){
+    const user = typeof currentUser === 'function' ? currentUser() : null;
+    if(user && activeTool === 'murus' && Number(user.murusStock || 0) > 0){
+      user.murusOrientation = normalizeMurusHV(user.murusOrientation || murusOrientation);
+      murusOrientation = user.murusOrientation;
+      return murusOrientation;
+    }
+    return normalizeMurusHV(murusOrientation);
+  }
+
+  function forceActiveMurusIcon(){
+    const user = typeof currentUser === 'function' ? currentUser() : null;
+    if(!user || activeTool !== 'murus' || Number(user.murusStock || 0) <= 0) return;
+    const orientation = syncMurusOrientationFromUser();
+    const holder = document.getElementById('activeArcaIndicator');
+    const sourceCard = document.getElementById(orientation === 'vertical' ? 'murusVCard' : 'murusCard');
+    const source = sourceCard?.querySelector('.asset-preview-wrap');
+    if(holder && source){
+      holder.innerHTML = source.innerHTML;
+      holder.classList.add('visible', 'murus-active');
+      holder.classList.toggle('murus-vertical', orientation === 'vertical');
+      holder.dataset.murusOrientation = orientation;
+      holder.style.pointerEvents = 'none';
+      holder.setAttribute('aria-label', orientation === 'vertical' ? 'Murus longitudinal à poser' : 'Murus latitudinal à poser');
+    }
+  }
+
+  const previousUpdateActiveArcaIndicatorV74 = typeof updateActiveArcaIndicator === 'function' ? updateActiveArcaIndicator : null;
+  if(previousUpdateActiveArcaIndicatorV74){
+    updateActiveArcaIndicator = function(){
+      syncMurusOrientationFromUser();
+      previousUpdateActiveArcaIndicatorV74.apply(this, arguments);
+      forceActiveMurusIcon();
+    };
+  }
+
+  const previousUpdatePanelsV74 = typeof updatePanels === 'function' ? updatePanels : null;
+  if(previousUpdatePanelsV74){
+    updatePanels = function(){
+      syncMurusOrientationFromUser();
+      previousUpdatePanelsV74.apply(this, arguments);
+      try{
+        const user = typeof currentUser === 'function' ? currentUser() : null;
+        const active = activeTool === 'murus' && Number(user?.murusStock || 0) > 0;
+        const orientation = syncMurusOrientationFromUser();
+        document.getElementById('murusCard')?.classList.toggle('active', active && orientation === 'horizontal');
+        document.getElementById('murusVCard')?.classList.toggle('active', active && orientation === 'vertical');
+        forceActiveMurusIcon();
+      }catch(_err){}
+    };
+  }
+
+  const previousPlaceWallV74 = typeof placeWall === 'function' ? placeWall : null;
+  if(previousPlaceWallV74){
+    placeWall = function(worldRow, col){
+      syncMurusOrientationFromUser();
+      return previousPlaceWallV74.apply(this, arguments);
+    };
+  }
+
+  const previousSwitchUserV74 = typeof switchUser === 'function' ? switchUser : null;
+  if(previousSwitchUserV74){
+    switchUser = function(id){
+      previousSwitchUserV74.apply(this, arguments);
+      syncMurusOrientationFromUser();
+      forceActiveMurusIcon();
+    };
+  }
+
+  document.getElementById('murusCard')?.addEventListener('click', () => {
+    const user = typeof currentUser === 'function' ? currentUser() : null;
+    if(user && activeTool === 'murus' && Number(user.murusStock || 0) > 0){
+      user.murusOrientation = 'horizontal';
+      murusOrientation = 'horizontal';
+      requestAnimationFrame(forceActiveMurusIcon);
+    }
+  });
+
+  document.getElementById('murusVCard')?.addEventListener('click', () => {
+    const user = typeof currentUser === 'function' ? currentUser() : null;
+    if(user && activeTool === 'murus' && Number(user.murusStock || 0) > 0){
+      user.murusOrientation = 'vertical';
+      murusOrientation = 'vertical';
+      requestAnimationFrame(forceActiveMurusIcon);
+    }
+  });
+
+  forceActiveMurusIcon();
 })();
 
 </script>
