@@ -4815,7 +4815,7 @@ let labyrinthusStateRestoring = false;
 let labyrinthusStatePollTimer = null;
 let labyrinthusStatePollInFlight = false;
 let labyrinthusStateLastRemoteUpdatedAt = null;
-const LABYRINTHUS_STATE_POLL_MS = 2400;
+const LABYRINTHUS_STATE_POLL_MS = 650;
 const labyrinthusClientId = (() => {
   try{
     const keyName = "nox_labyrinthus_client_id";
@@ -4864,7 +4864,7 @@ async function loadLabyrinthusStateFromServer(){
 function scheduleLabyrinthusStateSave(reason = 'update'){
   if(!labyrinthusStateRemoteReady || labyrinthusStateRestoring) return;
   if(labyrinthusStateSyncTimer) clearTimeout(labyrinthusStateSyncTimer);
-  labyrinthusStateSyncTimer = setTimeout(() => persistLabyrinthusState(reason), 450);
+  labyrinthusStateSyncTimer = setTimeout(() => persistLabyrinthusState(reason), 120);
 }
 
 function persistLabyrinthusState(reason = 'update'){
@@ -4960,7 +4960,21 @@ function mergeRemotePlayersFromState(remoteState){
     const remoteNoxId = remoteUser?.noxFatumUserId || null;
     const localSlotIsActive = slotId === activeUserId;
     const sameAsLocal = !!(localNoxId && remoteNoxId && remoteNoxId === localNoxId);
-    if(localSlotIsActive || sameAsLocal) continue;
+    if(sameAsLocal){
+      // Le joueur local reste maître de sa position et de ses actions,
+      // mais un effet déclenché par un autre joueur (ex. Flamma → Cinis)
+      // doit pouvoir s'appliquer en direct sur sa session.
+      const remoteCinis = normalizeCinisState(remoteUser?.cinis);
+      const localCinis = normalizeCinisState(slot.cinis);
+      if(JSON.stringify(remoteCinis) !== JSON.stringify(localCinis)){
+        if(remoteCinis.active || localCinis.active){
+          slot.cinis = remoteCinis;
+          changed = true;
+        }
+      }
+      continue;
+    }
+    if(localSlotIsActive) continue;
     const before = JSON.stringify({
       name:slot.name || "", id:slot.noxFatumUserId || null, current:slot.current || null,
       filled:Array.from(slot.filled || []), ft:slot.ft || 0, cinis:slot.cinis || null
@@ -4974,14 +4988,78 @@ function mergeRemotePlayersFromState(remoteState){
   }
   return changed;
 }
+
+function clonePlainArray(value){
+  return Array.isArray(value) ? value.map(item => ({...item})) : [];
+}
+function cloneFlammaFires(value){
+  return Array.isArray(value)
+    ? value.map(fire => ({...fire, cells:(fire.cells || []).map(cell => ({...cell}))}))
+    : [];
+}
+function stateSignatureForRemoteWorld(){
+  return JSON.stringify({
+    placedWalls,
+    placedFossae,
+    placedScalas,
+    placedExVotos,
+    activeCatenas,
+    activeAquilas,
+    chroniconEntries,
+    triggeredVapors:[...triggeredVapors],
+    flammaPickups,
+    flammaFires,
+    burntCells:[...burntCells]
+  });
+}
+function mergeRemoteWorldState(remoteState){
+  if(!remoteState || typeof remoteState !== "object") return false;
+  const before = stateSignatureForRemoteWorld();
+
+  if(Array.isArray(remoteState.placedWalls)) placedWalls = clonePlainArray(remoteState.placedWalls);
+  if(Array.isArray(remoteState.placedFossae)){
+    placedFossae = remoteState.placedFossae.map(fossa => ({
+      ...fossa,
+      zoneCenter:fossa.zoneCenter ? {...fossa.zoneCenter} : null
+    }));
+  }
+  if(Array.isArray(remoteState.placedScalas)) placedScalas = clonePlainArray(remoteState.placedScalas);
+  if(Array.isArray(remoteState.placedExVotos)) placedExVotos = clonePlainArray(remoteState.placedExVotos);
+  if(Array.isArray(remoteState.activeCatenas)){
+    activeCatenas = remoteState.activeCatenas.map(catena => ({
+      ...catena,
+      pair:Array.isArray(catena.pair) ? [...catena.pair] : []
+    }));
+  }
+  if(Array.isArray(remoteState.activeAquilas)) activeAquilas = clonePlainArray(remoteState.activeAquilas);
+  if(Array.isArray(remoteState.chroniconEntries)) chroniconEntries = normalizeChroniconEntries(remoteState.chroniconEntries);
+  if(Array.isArray(remoteState.triggeredVapors)) triggeredVapors = new Set(remoteState.triggeredVapors);
+  if(Array.isArray(remoteState.vaporBursts)) vaporBursts = clonePlainArray(remoteState.vaporBursts);
+
+  if(Array.isArray(remoteState.flammaPickups)) flammaPickups = clonePlainArray(remoteState.flammaPickups);
+  if(Array.isArray(remoteState.flammaFires)) flammaFires = cloneFlammaFires(remoteState.flammaFires);
+  if(Array.isArray(remoteState.burntCells)) burntCells = new Set(remoteState.burntCells);
+
+  if(flammaFires.some(fire => fire && !fire.finalized)) ensureFlammaFireAnimation();
+  if(vaporBursts.length && !vaporBurstAnimating){
+    vaporBurstAnimating = true;
+    requestAnimationFrame(stepVaporBursts);
+  }
+
+  return before !== stateSignatureForRemoteWorld();
+}
+
 function mergeLabyrinthusStateFromRemote(remoteState, updatedAt = null){
   if(!remoteState || remoteState.clientId === labyrinthusClientId) return;
-  if(labyrinthusStateRestoring || animState) return;
+  if(labyrinthusStateRestoring) return;
+
   labyrinthusStateRestoring = true;
-  const changed = mergeRemotePlayersFromState(remoteState);
+  const worldChanged = mergeRemoteWorldState(remoteState);
+  const playersChanged = mergeRemotePlayersFromState(remoteState);
   labyrinthusStateRestoring = false;
+
   if(updatedAt) labyrinthusStateLastRemoteUpdatedAt = updatedAt;
-  if(changed){
+  if(worldChanged || playersChanged){
     if(typeof updateUserTabs === "function") updateUserTabs();
     if(typeof updateHud === "function") updateHud();
     render({ immediate:true });
@@ -5007,7 +5085,7 @@ async function pollLabyrinthusStateFromServer(){
 function ensureLabyrinthusStatePolling(){
   if(labyrinthusStatePollTimer) return;
   labyrinthusStatePollTimer = setInterval(pollLabyrinthusStateFromServer, LABYRINTHUS_STATE_POLL_MS);
-  setTimeout(pollLabyrinthusStateFromServer, 800);
+  setTimeout(pollLabyrinthusStateFromServer, 250);
 }
 
 function normalizeExVotoEntries(entries){
@@ -8382,6 +8460,7 @@ function placeFlamma(row, col){
   addChroniconEvent(`${user.name} déclenche Flamma en ${locusRef(row, col)}.`);
   ensureFlammaFireAnimation();
   scheduleLabyrinthusStateSave("flamma-start");
+  persistLabyrinthusState("flamma-start-live");
   render();
   return true;
 }
@@ -8398,6 +8477,7 @@ function finalizeFlammaFire(fire){
   noticeText = "flamma : la zone devient cendre";
   addChroniconEvent(`Flamma consume ${fire.cells.length} carrés de Silva Oscura.`);
   scheduleLabyrinthusStateSave("flamma-finalize");
+  persistLabyrinthusState("flamma-finalize-live");
 }
 function stepFlammaFires(_now){
   const now = Date.now();
