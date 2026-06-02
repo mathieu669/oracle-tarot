@@ -6047,17 +6047,18 @@ function coinParticlePreset(seed){
   return { spread, lift, delay, size };
 }
 
-function startMoneyBurst(row,col,delta){
-  const id = `money-${row}-${col}-${performance.now()}`;
-  const particles = Array.from({length:7}, (_,i) => ({ ...coinParticlePreset(i) }));
+function startMoneyBurst(row,col,delta, options={}){
+  const id = options.id || `money-${row}-${col}-${performance.now()}`;
+  const particles = options.particles || Array.from({length:7}, (_,i) => ({ ...coinParticlePreset(i) }));
   moneyBursts.push({
     id,
     row,
     col,
     delta,
-    text: `${delta > 0 ? '+' : '-'}${Math.abs(delta)}Ft`,
+    text: options.text || `${delta > 0 ? '+' : '-'}${Math.abs(delta)}Ft`,
+    subtext: options.subtext || "",
     startTime: performance.now(),
-    duration: 980,
+    duration: options.duration || 980,
     particles
   });
   if(!moneyBurstAnimating){
@@ -6123,6 +6124,45 @@ function stepFrontierCollapseFx(now){
 
 function triggerVaporIfNeeded(user,row,col){
   return false;
+}
+
+function flammaFireForBurntCell(row, col){
+  const target = cellId(row, col);
+  for(let i = flammaFires.length - 1; i >= 0; i -= 1){
+    const fire = flammaFires[i];
+    if(!fire || !fire.finalized || !fire.owner || !Array.isArray(fire.cells)) continue;
+    if(fire.cells.some(cell => cellId(cell.row, cell.col) === target)) return fire;
+  }
+  return null;
+}
+function triggerBurntCellTributeIfNeeded(user, row, col){
+  if(!user) return false;
+  const fire = flammaFireForBurntCell(row, col);
+  if(!fire || fire.owner === user.id) return false;
+  const owner = users[fire.owner];
+  if(!owner) return false;
+  const amount = 5;
+  user.ft = Math.max(0, Math.round(Number(user.ft) || 0) - amount);
+  owner.ft = Math.max(0, Math.round(Number(owner.ft) || 0) + amount);
+  startMoneyBurst(row, col, -amount, {
+    id:`flamma-loss-${user.id}-${row}-${col}-${performance.now()}`,
+    text:`-${amount}Ft`,
+    subtext:`pour ${owner.name}`,
+    particles:[],
+    duration:1100
+  });
+  startMoneyBurst(owner.current.row, owner.current.col, amount, {
+    id:`flamma-gain-${owner.id}-${row}-${col}-${performance.now()}`,
+    text:`+${amount}Ft`,
+    subtext:`Flamma`,
+    particles:[],
+    duration:1100
+  });
+  playSound("gain");
+  noticeText = `flamma : ${user.name.toLowerCase()} verse ${amount} Ft à ${owner.name.toLowerCase()}`;
+  addChroniconEvent(`${user.name} traverse une zone incendiée par ${owner.name} en ${locusRef(row, col)} et lui verse ${amount} Ft.`);
+  scheduleLabyrinthusStateSave("flamma-tribute");
+  return true;
 }
 
 function snapshot(actorId = currentUser()?.id){
@@ -7419,6 +7459,7 @@ function finishNegroniLanding(user, row, col){
   else {
     triggerSolidusIfNeeded(user,row,col);
     maybeCollectFlammaAt(user,row,col);
+    triggerBurntCellTributeIfNeeded(user,row,col);
     triggerVaporIfNeeded(user,row,col);
   }
 }
@@ -7619,6 +7660,7 @@ function stepMoveAnimation(now){
 
   triggerSolidusIfNeeded(user, landedRow, landedCol);
   maybeCollectFlammaAt(user, landedRow, landedCol);
+  triggerBurntCellTributeIfNeeded(user, landedRow, landedCol);
   triggerVaporIfNeeded(user, landedRow, landedCol);
   maybeSpawnAquila(user);
   scheduleLabyrinthusStateSave('move');
@@ -7671,6 +7713,7 @@ function stepScalaAnimation(now){
   animState = null;
   noticeText = `scala : arrivée de ${user.name.toLowerCase()} · scala consumée`;
   addChroniconEvent(`${user.name} utilise une Scala en ${locusRef(scalaStartRow, scalaStartCol)}.`);
+  triggerBurntCellTributeIfNeeded(user, user.current.row, user.current.col);
   maybeSpawnAquila(user);
   scheduleLabyrinthusStateSave('scala');
   render();
@@ -7898,10 +7941,13 @@ function stepCatenaMoveAnimation(now){
     return;
   }
 
+  const tributeA = triggerBurntCellTributeIfNeeded(userA, userA.current.row, userA.current.col);
+  const tributeB = triggerBurntCellTributeIfNeeded(userB, userB.current.row, userB.current.col);
   const vaporA = triggerVaporIfNeeded(userA, userA.current.row, userA.current.col);
   const vaporB = triggerVaporIfNeeded(userB, userB.current.row, userB.current.col);
   maybeSpawnAquila(userA);
   maybeSpawnAquila(userB);
+  if(tributeA || tributeB) scheduleLabyrinthusStateSave('catena-flamma-tribute');
   if(!vaporA && !vaporB){
     if(remaining > 0) noticeText = `catena : ${userA.name.toLowerCase()} et ${userB.name.toLowerCase()} liés encore ${remaining} tour${remaining > 1 ? 's' : ''}`;
     else noticeText = `catena dissipée : ${userA.name.toLowerCase()} et ${userB.name.toLowerCase()} sont libres`;
@@ -7967,6 +8013,7 @@ function stepCatenaFossaAnimation(now){
     const movedUsers = animState.users.map(m => users[m.id]);
     noticeText = remaining > 0 ? `catena maintenue : ${remaining} tour${remaining > 1 ? 's' : ''} restant${remaining > 1 ? 's' : ''}` : `catena dissipée après la chute`;
     animState = null;
+    movedUsers.forEach(u => triggerBurntCellTributeIfNeeded(u, u.current.row, u.current.col));
     movedUsers.forEach(u => maybeSpawnAquila(u));
     scheduleLabyrinthusStateSave('catena');
     render();
@@ -7994,6 +8041,7 @@ function selectRestartCell(worldRow, col){
   addChroniconEvent(`${user.name} choisit un nouveau départ en ${locusRef(worldRow, col)}.`);
   triggerSolidusIfNeeded(user, worldRow, col);
   maybeCollectFlammaAt(user, worldRow, col);
+  triggerBurntCellTributeIfNeeded(user, worldRow, col);
   triggerVaporIfNeeded(user, worldRow, col);
   scheduleLabyrinthusStateSave('restart');
   render();
@@ -10083,6 +10131,24 @@ function renderMoneyEffects(){
     text.setAttribute("opacity", textOpacity.toFixed(3));
     text.textContent = burst.text;
     moneyFxGroup.appendChild(text);
+
+    if(burst.subtext){
+      const sub = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      sub.setAttribute("x", baseX);
+      sub.setAttribute("y", baseY - depth * (1.75 * totalT + 0.08));
+      sub.setAttribute("text-anchor", "middle");
+      sub.setAttribute("font-size", Math.max(9, width * 0.122));
+      sub.setAttribute("font-family", "Inter, sans-serif");
+      sub.setAttribute("font-weight", "700");
+      sub.setAttribute("letter-spacing", ".035em");
+      sub.setAttribute("fill", "rgba(255,255,255,.96)");
+      sub.setAttribute("stroke", "rgba(0,0,0,.92)");
+      sub.setAttribute("stroke-width", "1.35");
+      sub.setAttribute("paint-order", "stroke");
+      sub.setAttribute("opacity", textOpacity.toFixed(3));
+      sub.textContent = burst.subtext;
+      moneyFxGroup.appendChild(sub);
+    }
   }
 }
 
