@@ -6742,6 +6742,27 @@ function restoreOwnAction(state, actorId){
     activeTool = "move";
   }
 
+  // Annulation Flamma avant usage : si le joueur avait ramassé une Flamma
+  // mais ne l'a pas encore placée, on restaure la Flamma sur sa case source.
+  if(previewDelta.flamma > 0 && Array.isArray(state.flammaPickups)){
+    const currentById = new Map(flammaPickups.map(item => [item.id, item]));
+    for(const savedPickup of state.flammaPickups){
+      if(!savedPickup || savedPickup.consumed) continue;
+      const currentPickup = currentById.get(savedPickup.id);
+      if(currentPickup){
+        const consumedByActor = currentPickup.consumed && (!currentPickup.consumedBy || currentPickup.consumedBy === actorId);
+        if(consumedByActor){
+          Object.assign(currentPickup, {...savedPickup, consumed:false});
+          delete currentPickup.consumedBy;
+          delete currentPickup.consumedAt;
+        }
+      }else{
+        flammaPickups.push({...savedPickup, consumed:false});
+      }
+    }
+    if(savedStock.flamma <= 0 && activeTool === "flamma") activeTool = "move";
+  }
+
   placedWalls = keepNonOwned(placedWalls, state.placedWalls || []);
   placedFossae = [
     ...placedFossae.filter(item => item.owner !== actorId),
@@ -8259,7 +8280,12 @@ function maybeCollectFlammaAt(user, row, col){
   if(!pickup || !user) return false;
   const approved = window.confirm("Utiliser Flamma ?");
   if(!approved){ noticeText = "flamma laissée sur la case"; render(); return false; }
+  // Snapshot avant consommation : une annulation avant placement doit remettre Flamma
+  // exactement sur sa case d'origine, sans affecter les autres mécaniques.
+  pushUndo();
   pickup.consumed = true;
+  pickup.consumedBy = user.id;
+  pickup.consumedAt = Date.now();
   user.flammaStock = Math.max(0, Number(user.flammaStock) || 0) + 1;
   addChroniconEvent(`${user.name} ramasse Flamma en ${locusRef(row, col)}.`);
   scheduleLabyrinthusStateSave("flamma-pickup");
@@ -8283,11 +8309,23 @@ function flammaSpreadCells(row, col, limit = 15){
   }
   return cells;
 }
+function clearPendingFlammaUndo(actorId){
+  const user = actorId ? users[actorId] : null;
+  if(!user) return;
+  const currentFlammaStock = Number(user.flammaStock || 0);
+  undoStack = undoStack.filter(state => {
+    if(!state || state.actorId !== actorId || !state.users?.[actorId]) return true;
+    const savedFlammaStock = Number(state.users[actorId].flammaStock || 0);
+    // Ces snapshots correspondent au ramassage annulable de Flamma.
+    // Une fois Flamma placée et l'incendie lancé, ils ne doivent plus pouvoir être rejoués.
+    return savedFlammaStock >= currentFlammaStock;
+  });
+}
 function placeFlamma(row, col){
   const user = currentUser();
   if(!user || (Number(user.flammaStock) || 0) <= 0) return false;
   if(!isSilvaRow(row) || abyssusExistsAt(row, col)){ noticeText = "flamma : choisir une case de Silva Oscura"; render(); return false; }
-  pushUndo();
+  clearPendingFlammaUndo(user.id);
   user.flammaStock = Math.max(0, (Number(user.flammaStock) || 0) - 1);
   if(user.flammaStock <= 0) activeTool = "move";
   const fire = {id:`fire-${Date.now()}-${Math.random().toString(36).slice(2,7)}`, owner:user.id, row:Math.round(row), col:Math.round(col), cells:flammaSpreadCells(row,col,15), startedAt:Date.now(), duration:5000, finalized:false};
