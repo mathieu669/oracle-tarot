@@ -4812,6 +4812,23 @@ let labyrinthusStateRemoteReady = false;
 let labyrinthusStateSyncTimer = null;
 let labyrinthusStateSyncQueue = Promise.resolve();
 let labyrinthusStateRestoring = false;
+let labyrinthusStatePollTimer = null;
+let labyrinthusStatePollInFlight = false;
+let labyrinthusStateLastRemoteUpdatedAt = null;
+const LABYRINTHUS_STATE_POLL_MS = 2400;
+const labyrinthusClientId = (() => {
+  try{
+    const keyName = "nox_labyrinthus_client_id";
+    let value = sessionStorage.getItem(keyName);
+    if(!value){
+      value = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : `client-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      sessionStorage.setItem(keyName, value);
+    }
+    return value;
+  }catch(_error){
+    return `client-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
+})();
 
 function safeLabyrinthusStateSnapshot(){
   try{
@@ -4830,6 +4847,7 @@ async function loadLabyrinthusStateFromServer(){
     if(!response.ok) throw new Error('state unavailable');
     const data = await response.json();
     if(data && data.state && typeof data.state === 'object'){
+      labyrinthusStateLastRemoteUpdatedAt = data.updatedAt || data.state.persistedAt || null;
       labyrinthusStateRestoring = true;
       restore(data.state);
       labyrinthusStateRestoring = false;
@@ -4861,10 +4879,135 @@ function persistLabyrinthusState(reason = 'update'){
         body:JSON.stringify({ state, reason })
       });
       if(!response.ok) throw new Error('state write failed');
+      const data = await response.json().catch(() => null);
+      labyrinthusStateLastRemoteUpdatedAt = data?.updatedAt || state.persistedAt || labyrinthusStateLastRemoteUpdatedAt;
     }catch(error){
       console.warn('Labyrinthus state remote write skipped:', error);
     }
   });
+}
+
+function localNoxFatumUserId(){
+  return noxActiveFatumUser?.id || currentUser()?.noxFatumUserId || null;
+}
+function normalizeRemoteFilled(remoteUser){
+  const current = remoteUser?.current || { row:0, col:3 };
+  const filled = Array.isArray(remoteUser?.filled) ? remoteUser.filled : [];
+  if(filled.length) return new Set(filled);
+  if(remoteUser?.name || remoteUser?.noxFatumUserId) return new Set([key(Math.round(Number(current.row) || 0), Math.round(Number(current.col) || 3))]);
+  return new Set();
+}
+function clearRemoteGridSlot(slot){
+  if(!slot) return;
+  slot.name = "";
+  slot.noxFatumUserId = null;
+  slot.noxActive = false;
+  slot.current = { row:0, col:3 };
+  slot.filled = new Set();
+  slot.murusStock = 0;
+  slot.murusOrientation = "horizontal";
+  slot.fossaStock = 0;
+  slot.marculusStock = 0;
+  slot.scalaStock = 0;
+  slot.costulaStock = 0;
+  slot.exVotoStock = 0;
+  slot.flammaStock = 0;
+  slot.cinis = {active:false, fee:50, fireId:null, since:null};
+  slot.negroniStock = 0;
+  slot.negroniEffect = 0;
+  slot.ft = 0;
+}
+function applyRemoteUserState(slotId, remoteUser){
+  const slot = users[slotId];
+  if(!slot) return;
+  if(!remoteUser || (!remoteUser.name && !remoteUser.noxFatumUserId)){
+    clearRemoteGridSlot(slot);
+    return;
+  }
+  const remoteCurrent = remoteUser.current || { row:0, col:3 };
+  slot.name = remoteUser.name || slot.name || "Socius";
+  slot.noxFatumUserId = remoteUser.noxFatumUserId || null;
+  slot.noxActive = !!(remoteUser.name || remoteUser.noxFatumUserId);
+  slot.current = {
+    row:Number.isFinite(Number(remoteCurrent.row)) ? Number(remoteCurrent.row) : 0,
+    col:Number.isFinite(Number(remoteCurrent.col)) ? Number(remoteCurrent.col) : 3
+  };
+  slot.filled = normalizeRemoteFilled(remoteUser);
+  slot.murusStock = Math.max(0, Math.round(Number(remoteUser.murusStock) || 0));
+  slot.murusOrientation = remoteUser.murusOrientation || "horizontal";
+  slot.fossaStock = Math.max(0, Math.round(Number(remoteUser.fossaStock) || 0));
+  slot.marculusStock = Math.max(0, Math.round(Number(remoteUser.marculusStock) || 0));
+  slot.scalaStock = Math.max(0, Math.round(Number(remoteUser.scalaStock) || 0));
+  slot.costulaStock = Math.max(0, Math.round(Number(remoteUser.costulaStock) || 0));
+  slot.exVotoStock = Math.max(0, Math.round(Number(remoteUser.exVotoStock) || 0));
+  slot.flammaStock = Math.max(0, Math.round(Number(remoteUser.flammaStock) || 0));
+  slot.cinis = normalizeCinisState(remoteUser.cinis);
+  slot.negroniStock = Math.max(0, Math.round(Number(remoteUser.negroniStock) || 0));
+  slot.negroniEffect = Math.max(0, Math.round(Number(remoteUser.negroniEffect) || 0));
+  slot.ft = Math.max(0, Math.round(Number(remoteUser.ft) || 0));
+  const slotIndex = NOX_SLOT_IDS.indexOf(slotId);
+  if(slotIndex >= 0) slot.sphereClass = NOX_SLOT_CLASSES[slotIndex] || slot.sphereClass || "sphere-white";
+}
+function mergeRemotePlayersFromState(remoteState){
+  const remoteUsers = remoteState?.users && typeof remoteState.users === "object" ? remoteState.users : null;
+  if(!remoteUsers) return false;
+  const localNoxId = localNoxFatumUserId();
+  let changed = false;
+  for(const slotId of NOX_SLOT_IDS){
+    const remoteUser = remoteUsers[slotId];
+    const slot = users[slotId];
+    if(!slot) continue;
+    const remoteNoxId = remoteUser?.noxFatumUserId || null;
+    const localSlotIsActive = slotId === activeUserId;
+    const sameAsLocal = !!(localNoxId && remoteNoxId && remoteNoxId === localNoxId);
+    if(localSlotIsActive || sameAsLocal) continue;
+    const before = JSON.stringify({
+      name:slot.name || "", id:slot.noxFatumUserId || null, current:slot.current || null,
+      filled:Array.from(slot.filled || []), ft:slot.ft || 0, cinis:slot.cinis || null
+    });
+    applyRemoteUserState(slotId, remoteUser);
+    const after = JSON.stringify({
+      name:slot.name || "", id:slot.noxFatumUserId || null, current:slot.current || null,
+      filled:Array.from(slot.filled || []), ft:slot.ft || 0, cinis:slot.cinis || null
+    });
+    if(before !== after) changed = true;
+  }
+  return changed;
+}
+function mergeLabyrinthusStateFromRemote(remoteState, updatedAt = null){
+  if(!remoteState || remoteState.clientId === labyrinthusClientId) return;
+  if(labyrinthusStateRestoring || animState) return;
+  labyrinthusStateRestoring = true;
+  const changed = mergeRemotePlayersFromState(remoteState);
+  labyrinthusStateRestoring = false;
+  if(updatedAt) labyrinthusStateLastRemoteUpdatedAt = updatedAt;
+  if(changed){
+    if(typeof updateUserTabs === "function") updateUserTabs();
+    if(typeof updateHud === "function") updateHud();
+    render({ immediate:true });
+  }
+}
+async function pollLabyrinthusStateFromServer(){
+  if(!labyrinthusStateRemoteReady || labyrinthusStatePollInFlight) return;
+  if(document.hidden) return;
+  labyrinthusStatePollInFlight = true;
+  try{
+    const response = await fetch('/api/labyrinthus-state', { cache:'no-store' });
+    if(!response.ok) throw new Error('state poll failed');
+    const data = await response.json();
+    const updatedAt = data?.updatedAt || data?.state?.persistedAt || null;
+    if(updatedAt && updatedAt === labyrinthusStateLastRemoteUpdatedAt) return;
+    if(data?.state && typeof data.state === 'object') mergeLabyrinthusStateFromRemote(data.state, updatedAt);
+  }catch(error){
+    console.warn('Labyrinthus state remote poll skipped:', error);
+  }finally{
+    labyrinthusStatePollInFlight = false;
+  }
+}
+function ensureLabyrinthusStatePolling(){
+  if(labyrinthusStatePollTimer) return;
+  labyrinthusStatePollTimer = setInterval(pollLabyrinthusStateFromServer, LABYRINTHUS_STATE_POLL_MS);
+  setTimeout(pollLabyrinthusStateFromServer, 800);
 }
 
 function normalizeExVotoEntries(entries){
@@ -5985,6 +6128,9 @@ function triggerVaporIfNeeded(user,row,col){
 function snapshot(actorId = currentUser()?.id){
   return {
     actorId,
+    clientId: labyrinthusClientId,
+    savedBySlotId: activeUserId,
+    savedByNoxFatumUserId: currentUser()?.noxFatumUserId || noxActiveFatumUser?.id || null,
     scroll,
     activeUserId,
     activeTool,
@@ -6015,6 +6161,10 @@ function snapshot(actorId = currentUser()?.id){
     wallBreakFx: wallBreakFx.map(v => ({...v, wall:{...v.wall}})),
     users: {
       A: {
+        name:users.A.name || "",
+        noxFatumUserId:users.A.noxFatumUserId || null,
+        noxActive:!!users.A.noxActive,
+        sphereClass:users.A.sphereClass || "",
         current:{...users.A.current},
         filled:[...users.A.filled],
         murusStock:users.A.murusStock,
@@ -6031,6 +6181,10 @@ function snapshot(actorId = currentUser()?.id){
         ft:users.A.ft
       },
       B: {
+        name:users.B.name || "",
+        noxFatumUserId:users.B.noxFatumUserId || null,
+        noxActive:!!users.B.noxActive,
+        sphereClass:users.B.sphereClass || "",
         current:{...users.B.current},
         filled:[...users.B.filled],
         murusStock:users.B.murusStock,
@@ -6047,6 +6201,10 @@ function snapshot(actorId = currentUser()?.id){
         ft:users.B.ft
       },
       C: {
+        name:users.C.name || "",
+        noxFatumUserId:users.C.noxFatumUserId || null,
+        noxActive:!!users.C.noxActive,
+        sphereClass:users.C.sphereClass || "",
         current:{...users.C.current},
         filled:[...users.C.filled],
         murusStock:users.C.murusStock,
@@ -6063,6 +6221,10 @@ function snapshot(actorId = currentUser()?.id){
         ft:users.C.ft
       },
       D: {
+        name:users.D.name || "",
+        noxFatumUserId:users.D.noxFatumUserId || null,
+        noxActive:!!users.D.noxActive,
+        sphereClass:users.D.sphereClass || "",
         current:{...users.D.current},
         filled:[...users.D.filled],
         murusStock:users.D.murusStock,
@@ -6133,6 +6295,10 @@ function restore(state){
     requestAnimationFrame(stepWallBreakFx);
   }
 
+  users.A.name = state.users.A.name || users.A.name || "";
+  users.A.noxFatumUserId = state.users.A.noxFatumUserId || users.A.noxFatumUserId || null;
+  users.A.noxActive = !!(users.A.name || users.A.noxFatumUserId);
+  if(state.users.A.sphereClass) users.A.sphereClass = state.users.A.sphereClass;
   users.A.current = {...state.users.A.current};
   users.A.filled = new Set(state.users.A.filled);
   users.A.murusStock = state.users.A.murusStock;
@@ -6148,6 +6314,10 @@ function restore(state){
   users.A.negroniEffect = state.users.A.negroniEffect || 0;
   users.A.ft = state.users.A.ft || 0;
 
+  users.B.name = state.users.B.name || users.B.name || "";
+  users.B.noxFatumUserId = state.users.B.noxFatumUserId || users.B.noxFatumUserId || null;
+  users.B.noxActive = !!(users.B.name || users.B.noxFatumUserId);
+  if(state.users.B.sphereClass) users.B.sphereClass = state.users.B.sphereClass;
   users.B.current = {...state.users.B.current};
   users.B.filled = new Set(state.users.B.filled);
   users.B.murusStock = state.users.B.murusStock;
@@ -6163,6 +6333,10 @@ function restore(state){
   users.B.negroniEffect = state.users.B.negroniEffect || 0;
   users.B.ft = state.users.B.ft || 0;
 
+  users.C.name = state.users.C.name || users.C.name || "";
+  users.C.noxFatumUserId = state.users.C.noxFatumUserId || users.C.noxFatumUserId || null;
+  users.C.noxActive = !!(users.C.name || users.C.noxFatumUserId);
+  if(state.users.C.sphereClass) users.C.sphereClass = state.users.C.sphereClass;
   users.C.current = {...state.users.C.current};
   users.C.filled = new Set(state.users.C.filled);
   users.C.murusStock = state.users.C.murusStock;
@@ -6179,6 +6353,10 @@ function restore(state){
   users.C.ft = state.users.C.ft || 0;
 
   if(state.users.D){
+    users.D.name = state.users.D.name || users.D.name || "";
+    users.D.noxFatumUserId = state.users.D.noxFatumUserId || users.D.noxFatumUserId || null;
+    users.D.noxActive = !!(users.D.name || users.D.noxFatumUserId);
+    if(state.users.D.sphereClass) users.D.sphereClass = state.users.D.sphereClass;
     users.D.current = {...state.users.D.current};
     users.D.filled = new Set(state.users.D.filled);
     users.D.murusStock = state.users.D.murusStock;
@@ -6193,6 +6371,9 @@ function restore(state){
     users.D.negroniEffect = state.users.D.negroniEffect || 0;
     users.D.ft = state.users.D.ft || 0;
   }else{
+    users.D.name = "";
+    users.D.noxFatumUserId = null;
+    users.D.noxActive = false;
     users.D.current = { row:0, col:2 };
     users.D.filled = new Set(["0-2"]);
     users.D.murusStock = 0;
@@ -7419,6 +7600,7 @@ function stepMoveAnimation(now){
   maybeCollectFlammaAt(user, landedRow, landedCol);
   triggerVaporIfNeeded(user, landedRow, landedCol);
   maybeSpawnAquila(user);
+  scheduleLabyrinthusStateSave('move');
   render();
 }
 
@@ -7469,6 +7651,7 @@ function stepScalaAnimation(now){
   noticeText = `scala : arrivée de ${user.name.toLowerCase()} · scala consumée`;
   addChroniconEvent(`${user.name} utilise une Scala en ${locusRef(scalaStartRow, scalaStartCol)}.`);
   maybeSpawnAquila(user);
+  scheduleLabyrinthusStateSave('scala');
   render();
 }
 
@@ -7523,6 +7706,7 @@ function stepFossaAnimation(now){
     activeTool = "restartSelect";
     noticeText = `choisir un nouveau départ sur la ligne ${animState.targetRow}`;
     animState = null;
+    scheduleLabyrinthusStateSave('fossa');
     render();
   }
 }
@@ -7590,6 +7774,7 @@ function stepAbyssusAnimation(now){
     noticeText = `abyssus : replacer ${user.name.toLowerCase()} à la ${animState.destinationLabel}`;
     addChroniconEvent(`${user.name} est déplacé par Abyssus vers la ${animState.destinationLabel}.`);
     animState = null;
+    scheduleLabyrinthusStateSave('abyssus');
     render();
   }
 }
@@ -7762,6 +7947,7 @@ function stepCatenaFossaAnimation(now){
     noticeText = remaining > 0 ? `catena maintenue : ${remaining} tour${remaining > 1 ? 's' : ''} restant${remaining > 1 ? 's' : ''}` : `catena dissipée après la chute`;
     animState = null;
     movedUsers.forEach(u => maybeSpawnAquila(u));
+    scheduleLabyrinthusStateSave('catena');
     render();
   }
 }
@@ -7788,6 +7974,7 @@ function selectRestartCell(worldRow, col){
   triggerSolidusIfNeeded(user, worldRow, col);
   maybeCollectFlammaAt(user, worldRow, col);
   triggerVaporIfNeeded(user, worldRow, col);
+  scheduleLabyrinthusStateSave('restart');
   render();
 }
 
@@ -11261,6 +11448,7 @@ function noxApplyPlayers(payload = {}){
   if(typeof updateHud === "function") updateHud();
   if(typeof render === "function") render();
   scheduleLabyrinthusStateSave('players');
+  ensureLabyrinthusStatePolling();
 }
 
 window.addEventListener("message", (event) => {
@@ -11298,6 +11486,7 @@ document.addEventListener("pointerdown", () => { if(soundEnabled) ensureAudioCon
   await loadExVotosFromServer();
   render();
   ensureFoliumAnimation();
+  ensureLabyrinthusStatePolling();
 })();
 
 // Deep space
