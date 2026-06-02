@@ -4808,6 +4808,7 @@ function addChroniconEvent(text, meta = null){
   scheduleLabyrinthusStateSave('chronicon');
 }
 
+const LABYRINTHUS_BURNT_RESET_VERSION = "burnt-reset-2026-06-02-v1";
 let labyrinthusStateRemoteReady = false;
 let labyrinthusStateSyncTimer = null;
 let labyrinthusStateSyncQueue = Promise.resolve();
@@ -4830,6 +4831,20 @@ const labyrinthusClientId = (() => {
   }
 })();
 
+function applyBurntResetMigrationToState(state){
+  if(!state || typeof state !== "object") return { state, migrated:false };
+  if(state.burntResetVersion === LABYRINTHUS_BURNT_RESET_VERSION) return { state, migrated:false };
+  return {
+    state:{
+      ...state,
+      burntResetVersion:LABYRINTHUS_BURNT_RESET_VERSION,
+      flammaFires:[],
+      burntCells:[]
+    },
+    migrated:true
+  };
+}
+
 function safeLabyrinthusStateSnapshot(){
   try{
     const state = snapshot(currentUser()?.id);
@@ -4846,14 +4861,19 @@ async function loadLabyrinthusStateFromServer(){
     const response = await fetch('/api/labyrinthus-state', { cache:'no-store' });
     if(!response.ok) throw new Error('state unavailable');
     const data = await response.json();
+    let migratedBurntState = false;
     if(data && data.state && typeof data.state === 'object'){
-      labyrinthusStateLastRemoteUpdatedAt = data.updatedAt || data.state.persistedAt || null;
+      const migration = applyBurntResetMigrationToState(data.state);
+      const stateToRestore = migration.state;
+      migratedBurntState = !!migration.migrated;
+      labyrinthusStateLastRemoteUpdatedAt = data.updatedAt || stateToRestore.persistedAt || null;
       labyrinthusStateRestoring = true;
-      restore(data.state);
+      restore(stateToRestore);
       labyrinthusStateRestoring = false;
-      noticeText = 'dimension current synchronisée';
+      noticeText = migratedBurntState ? 'zones calcinées rétablies' : 'dimension current synchronisée';
     }
     labyrinthusStateRemoteReady = true;
+    if(migratedBurntState) persistLabyrinthusState('burnt-reset-test');
   }catch(error){
     labyrinthusStateRestoring = false;
     labyrinthusStateRemoteReady = true;
@@ -5037,8 +5057,9 @@ function mergeRemoteWorldState(remoteState){
   if(Array.isArray(remoteState.vaporBursts)) vaporBursts = clonePlainArray(remoteState.vaporBursts);
 
   if(Array.isArray(remoteState.flammaPickups)) flammaPickups = clonePlainArray(remoteState.flammaPickups);
-  if(Array.isArray(remoteState.flammaFires)) flammaFires = cloneFlammaFires(remoteState.flammaFires);
-  if(Array.isArray(remoteState.burntCells)) burntCells = new Set(remoteState.burntCells);
+  const acceptRemoteBurntState = remoteState.burntResetVersion === LABYRINTHUS_BURNT_RESET_VERSION;
+  if(acceptRemoteBurntState && Array.isArray(remoteState.flammaFires)) flammaFires = cloneFlammaFires(remoteState.flammaFires);
+  if(acceptRemoteBurntState && Array.isArray(remoteState.burntCells)) burntCells = new Set(remoteState.burntCells);
 
   if(flammaFires.some(fire => fire && !fire.finalized)) ensureFlammaFireAnimation();
   if(vaporBursts.length && !vaporBurstAnimating){
@@ -6247,6 +6268,7 @@ function snapshot(actorId = currentUser()?.id){
   return {
     actorId,
     clientId: labyrinthusClientId,
+    burntResetVersion: LABYRINTHUS_BURNT_RESET_VERSION,
     savedBySlotId: activeUserId,
     savedByNoxFatumUserId: currentUser()?.noxFatumUserId || noxActiveFatumUser?.id || null,
     scroll,
@@ -6386,8 +6408,9 @@ function restore(state){
   triggeredVapors = new Set(state.triggeredVapors || []);
   vaporBursts = (state.vaporBursts || []).map(v => ({...v}));
   flammaPickups = Array.isArray(state.flammaPickups) ? state.flammaPickups.map(v => ({...v})) : [];
-  flammaFires = Array.isArray(state.flammaFires) ? state.flammaFires.map(f => ({...f, cells:(f.cells || []).map(c => ({...c}))})) : [];
-  burntCells = new Set(Array.isArray(state.burntCells) ? state.burntCells : []);
+  const acceptBurntState = state.burntResetVersion === LABYRINTHUS_BURNT_RESET_VERSION;
+  flammaFires = acceptBurntState && Array.isArray(state.flammaFires) ? state.flammaFires.map(f => ({...f, cells:(f.cells || []).map(c => ({...c}))})) : [];
+  burntCells = new Set(acceptBurntState && Array.isArray(state.burntCells) ? state.burntCells : []);
   if(flammaFires.some(f => !f.finalized)) ensureFlammaFireAnimation();
   if(vaporBursts.length && !vaporBurstAnimating){
     vaporBurstAnimating = true;
@@ -10897,69 +10920,33 @@ boardWrap.addEventListener("click", (event) => {
 resetBtn.addEventListener("click", (event) => {
   event.preventDefault();
   event.stopPropagation();
-  if(animState) return;
+
+  const user = currentUser();
+  if(!user) return;
 
   pushUndo();
-  scroll = 0;
-  activeTool = "move";
-  murusOrientation = "horizontal";
-  placedWalls = [];
-  placedFossae = [];
-  placedScalas = [];
-  placedExVotos = [];
-  activeCatenas = [];
-  activeAquilas = [];
-  pendingCatenaSelection = null;
-  pendingCatenaPurchase = null;
-  pendingFossaId = null;
-  restartState = null;
-  animState = null;
-  triggeredVapors = new Set();
-  vaporBursts = [];
-  vaporBurstAnimating = false;
-  moneyBursts = [];
-  moneyBurstAnimating = false;
-  wallBreakFx = [];
-  wallBreakAnimating = false;
 
-  const active = currentUser();
-  const activeName = active?.name || noxActiveFatumUser?.name || "Socius";
-  const activeNoxId = active?.noxFatumUserId || noxActiveFatumUser?.id || null;
-  const activeFt = Math.max(500, Number(active?.ft ?? noxActiveFatumUser?.score ?? 0) || 0);
-
-  ["A","B","C","D"].forEach(id => {
-    const user = users[id];
-    user.name = "";
-    user.current = { row:0, col:3 };
-    user.filled = new Set();
-    user.murusStock = 0;
-    user.fossaStock = 0;
-    user.marculusStock = 0;
-    user.scalaStock = 0;
-    user.costulaStock = 0;
-    user.exVotoStock = 0;
-    user.negroniStock = 0;
-    user.negroniEffect = 0;
-    user.ft = 0;
-    user.noxFatumUserId = null;
-    user.noxActive = false;
-  });
-
-  const user = users[activeUserId] || users.A;
-  if(!users[activeUserId]) activeUserId = "A";
-  user.name = activeName;
-  user.noxFatumUserId = activeNoxId;
+  // Reset localisé : seul le joueur qui clique revient au départ.
+  // Aucun élément global n'est effacé : zones, Flamma, Cinis, Arca, Chronicon,
+  // autres joueurs, pièges, pièces et états de locus restent inchangés.
   user.current = { row:0, col:3 };
   user.filled = new Set(["0-3"]);
-  user.ft = activeFt;
-  user.noxActive = true;
 
-  noticeText = `${user.name} reprend Labyrinthus en 0-3.`;
-  addChroniconEvent(`${user.name} remet Labyrinthus à zéro et revient en 0-3.`);
+  // Le scroll est uniquement une préférence de vue locale ; il n'est pas appliqué
+  // aux autres sessions par la fusion live.
+  scroll = 0;
+
+  if(activeTool === "flamma" && (Number(user.flammaStock) || 0) <= 0) activeTool = "move";
+  if(activeTool === "restartSelect" && !restartState) activeTool = "move";
+  if(isUserCinisLocked(user)) resetCinisState(user);
+
+  noticeText = `${user.name || "Socius"} revient en 0-3.`;
+  addChroniconEvent(`${user.name || "Socius"} revient en 0-3.`);
   revealPossibleMoves = false;
+
   if(typeof updateUserTabs === "function") updateUserTabs();
   if(typeof updateHud === "function") updateHud();
-  scheduleLabyrinthusStateSave('reset');
+  scheduleLabyrinthusStateSave('player-reset');
   render({ immediate:true });
 });
 
