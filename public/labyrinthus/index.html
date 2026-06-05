@@ -659,16 +659,6 @@
     color:#000 !important;
     box-shadow:0 0 0 1px rgba(255,255,255,.10), 0 0 16px rgba(255,255,255,.12) !important;
   }
-  .arca-panel.open .control-card.arca-selected{
-    border-color:#fff !important;
-    background:#fff !important;
-    color:#000 !important;
-    box-shadow:0 0 0 1px rgba(255,255,255,.12), 0 0 18px rgba(255,255,255,.14) !important;
-  }
-  .arca-panel.open .control-card.arca-selected .control-title,
-  .arca-panel.open .control-card.arca-selected .control-cost{
-    color:#000 !important;
-  }
   .asset-preview-wrap{
     height:34px;border:1px solid rgba(255,255,255,.18);border-radius:8px;
     display:flex;align-items:center;justify-content:center;margin-bottom:6px;
@@ -7410,26 +7400,31 @@ function wouldCloseFullLine(candidateWall){
   return true;
 }
 
-function wallBlocksMovement(row, col, side){
-  return placedWalls.some(item => item.row === row && item.col === col && item.side === side);
+function wallBlocksMovement(row, col, side, user=null){
+  const wall = placedWalls.find(item => item.row === row && item.col === col && item.side === side);
+  if(!wall) return false;
+
+  // Un Murus posé par le joueur ne doit pas bloquer sa propre progression.
+  // Il reste en revanche bloquant pour les autres joueurs.
+  if(user && wall.owner === user.id) return false;
+
+  return true;
 }
-function moveBlocked(fromRow, fromCol, toRow, toCol){
+function moveBlocked(fromRow, fromCol, toRow, toCol, user=null){
   const dRow = toRow - fromRow;
   const dCol = toCol - fromCol;
 
-  // Un Murus n'a qu'un seul effet : empêcher le franchissement de l'arête
-  // précise sur laquelle il est placé. Il bloque tous les joueurs, propriétaire inclus.
-  if(dRow === 0 && dCol === 1) return wallBlocksMovement(fromRow, fromCol, "right");
-  if(dRow === 0 && dCol === -1) return wallBlocksMovement(fromRow, toCol, "right");
-  if(dRow === 1 && dCol === 0) return wallBlocksMovement(fromRow, fromCol, "bottom");
-
-  // Les autres déplacements autorisés ne sont pas affectés par un Murus voisin.
+  if(dRow === 0 && dCol === 1) return wallBlocksMovement(fromRow, fromCol, "right", user);
+  if(dRow === 0 && dCol === -1) return wallBlocksMovement(fromRow, toCol, "right", user);
+  if(dRow === 1 && dCol === 0) return wallBlocksMovement(fromRow, fromCol, "bottom", user);
+  if(dRow === 1 && dCol === 1) return wallBlocksMovement(fromRow, fromCol, "right", user) || wallBlocksMovement(fromRow, fromCol, "bottom", user);
+  if(dRow === 1 && dCol === -1) return wallBlocksMovement(fromRow, toCol, "right", user) || wallBlocksMovement(fromRow, fromCol, "bottom", user);
   return false;
 }
 
 function isAllowed(user,row,col){
   return allowedCells(user).some(n => n.row === row && n.col === col)
-    && !moveBlocked(Math.round(user.current.row), user.current.col, row, col);
+    && !moveBlocked(Math.round(user.current.row), user.current.col, row, col, user);
 }
 
 function fossaAt(row,col){
@@ -7712,7 +7707,7 @@ function canSelectTarget(user,row,col){
   if(!valid){
     // Safety net: the straight +1 move must remain available unless a real rule blocks it.
     if(!isForwardOne || row < 0 || col < 0 || col >= cols) return false;
-    if(moveBlocked(currentRow, currentCol, row, col)) return false;
+    if(moveBlocked(currentRow, currentCol, row, col, user)) return false;
     if(isMirrorMoveBlocked(user, row, col)) return false;
     if(isSilvaObstacleCell(row, col)) return false;
     if(user.filled.has(key(row,col))) return false;
@@ -10784,11 +10779,13 @@ function updatePanels(){
   balanceC.textContent = `${users.C.ft} Ft`;
   balanceD.textContent = `${users.D.ft} Ft`;
 
-  // En mode sélection Arca ouverte, l'élément cliqué conserve son fond blanc
-  // indépendamment des états d'outil recalculés à chaque rendu.
-  document.querySelectorAll(".arca-panel .control-card").forEach(card => {
-    card.classList.toggle("arca-selected", !!(arcaPanel?.classList.contains("open") && selectedArcaCard === card));
-  });
+  // En mode sélection Arca ouverte, l'élément cliqué doit rester visuellement actif
+  // (fond blanc), indépendamment de l'outil actuellement armé sur la grille.
+  if(arcaPanel?.classList.contains("open") && selectedArcaCard){
+    document.querySelectorAll(".arca-panel .control-card").forEach(card => {
+      card.classList.toggle("active", card === selectedArcaCard);
+    });
+  }
 
   balanceA.classList.toggle("active", activeUserId === "A");
   balanceB.classList.toggle("active", activeUserId === "B");
@@ -11039,9 +11036,7 @@ function placeArcaInlineChoose(card){
 function selectArcaCard(card){
   if(!card) return;
   selectedArcaCard = card;
-  document.querySelectorAll('.arca-panel .control-card').forEach(el => {
-    el.classList.toggle('arca-selected', el === card);
-  });
+  document.querySelectorAll('.arca-panel .control-card').forEach(el => el.classList.toggle('active', el === card));
   const key = arcaKeyFromCard(card);
   const info = INFO_CONTENT[ARCA_INFO_KEYS[key]] || {title:key || 'Arca', body:''};
   const explain = document.getElementById('arcaExplain');
@@ -11063,14 +11058,14 @@ function confirmArcaChoice(event){
   if(arcaPanel) arcaPanel.classList.remove('open', 'held');
   updateLabMobileWindowClass();
   selectedArcaCard = null;
-  document.querySelectorAll('.arca-panel .control-card').forEach(el => el.classList.remove('active', 'arca-selected'));
+  document.querySelectorAll('.arca-panel .control-card').forEach(el => el.classList.remove('active'));
   document.getElementById('arcaChooseBtn')?.classList.remove('visible');
   setTimeout(() => { arcaPurchaseConfirming = false; }, 120);
 }
 function closeArcaOverlay(){
   document.querySelectorAll('.arca-inline-choose').forEach(button => button.remove());
   selectedArcaCard = null;
-  document.querySelectorAll('.arca-panel .control-card').forEach(el => el.classList.remove('active', 'arca-selected'));
+  document.querySelectorAll('.arca-panel .control-card').forEach(el => el.classList.remove('active'));
   document.getElementById('arcaChooseBtn')?.classList.remove('visible');
   if(arcaPanel) arcaPanel.classList.remove('open','held');
   updateLabMobileWindowClass();
