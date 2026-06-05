@@ -240,6 +240,10 @@
     opacity:.94;
     filter:grayscale(.14) saturate(.82) brightness(.74) drop-shadow(-8px 4px 10px rgba(0,0,0,.20));
   }
+  .silva-palus{
+    opacity:.92;
+    filter:grayscale(.08) saturate(.72) brightness(.70) drop-shadow(-8px 5px 12px rgba(0,0,0,.24));
+  }
   .silva-burned{
     opacity:.98 !important;
     filter:brightness(0) saturate(0) drop-shadow(-8px 4px 10px rgba(0,0,0,.20)) !important;
@@ -654,6 +658,16 @@
     background:#fff !important;
     color:#000 !important;
     box-shadow:0 0 0 1px rgba(255,255,255,.10), 0 0 16px rgba(255,255,255,.12) !important;
+  }
+  .arca-panel.open .control-card.arca-selected{
+    border-color:#fff !important;
+    background:#fff !important;
+    color:#000 !important;
+    box-shadow:0 0 0 1px rgba(255,255,255,.12), 0 0 18px rgba(255,255,255,.14) !important;
+  }
+  .arca-panel.open .control-card.arca-selected .control-title,
+  .arca-panel.open .control-card.arca-selected .control-cost{
+    color:#000 !important;
   }
   .asset-preview-wrap{
     height:34px;border:1px solid rgba(255,255,255,.18);border-radius:8px;
@@ -4550,6 +4564,7 @@ const frutexImageSrc = "/labyrinthus/assets/frutex.png";
 const arborCombustusImageSrc = "/labyrinthus/assets/arbor-combustus.png";
 const petraCombustusImageSrc = "/labyrinthus/assets/petra-combustus.png";
 const frutexCombustusImageSrc = "/labyrinthus/assets/frutex-combustus.png";
+const palusImageSrc = "/labyrinthus/assets/palus.png";
 const foliumImageSrc = "/labyrinthus/assets/folium.png";
 const folia = Array.from({ length:30 }, (_, index) => {
   const row = 4 + index * 3;
@@ -4950,7 +4965,7 @@ function addChroniconEvent(text, meta = null){
   scheduleLabyrinthusStateSave('chronicon');
 }
 
-const LABYRINTHUS_BURNT_RESET_VERSION = "burnt-reset-2026-06-02-v3";
+const LABYRINTHUS_BURNT_RESET_VERSION = "burnt-reset-2026-06-02-v4";
 let labyrinthusStateRemoteReady = false;
 let labyrinthusStateSyncTimer = null;
 let labyrinthusStateSyncQueue = Promise.resolve();
@@ -4981,8 +4996,7 @@ function applyBurntResetMigrationToState(state){
       ...state,
       burntResetVersion:LABYRINTHUS_BURNT_RESET_VERSION,
       flammaFires:[],
-      burntCells:[],
-      flammaPickups:[]
+      burntCells:[]
     },
     migrated:true
   };
@@ -7396,31 +7410,26 @@ function wouldCloseFullLine(candidateWall){
   return true;
 }
 
-function wallBlocksMovement(row, col, side, user=null){
-  const wall = placedWalls.find(item => item.row === row && item.col === col && item.side === side);
-  if(!wall) return false;
-
-  // Un Murus posé par le joueur ne doit pas bloquer sa propre progression.
-  // Il reste en revanche bloquant pour les autres joueurs.
-  if(user && wall.owner === user.id) return false;
-
-  return true;
+function wallBlocksMovement(row, col, side){
+  return placedWalls.some(item => item.row === row && item.col === col && item.side === side);
 }
-function moveBlocked(fromRow, fromCol, toRow, toCol, user=null){
+function moveBlocked(fromRow, fromCol, toRow, toCol){
   const dRow = toRow - fromRow;
   const dCol = toCol - fromCol;
 
-  if(dRow === 0 && dCol === 1) return wallBlocksMovement(fromRow, fromCol, "right", user);
-  if(dRow === 0 && dCol === -1) return wallBlocksMovement(fromRow, toCol, "right", user);
-  if(dRow === 1 && dCol === 0) return wallBlocksMovement(fromRow, fromCol, "bottom", user);
-  if(dRow === 1 && dCol === 1) return wallBlocksMovement(fromRow, fromCol, "right", user) || wallBlocksMovement(fromRow, fromCol, "bottom", user);
-  if(dRow === 1 && dCol === -1) return wallBlocksMovement(fromRow, toCol, "right", user) || wallBlocksMovement(fromRow, fromCol, "bottom", user);
+  // Un Murus n'a qu'un seul effet : empêcher le franchissement de l'arête
+  // précise sur laquelle il est placé. Il bloque tous les joueurs, propriétaire inclus.
+  if(dRow === 0 && dCol === 1) return wallBlocksMovement(fromRow, fromCol, "right");
+  if(dRow === 0 && dCol === -1) return wallBlocksMovement(fromRow, toCol, "right");
+  if(dRow === 1 && dCol === 0) return wallBlocksMovement(fromRow, fromCol, "bottom");
+
+  // Les autres déplacements autorisés ne sont pas affectés par un Murus voisin.
   return false;
 }
 
 function isAllowed(user,row,col){
   return allowedCells(user).some(n => n.row === row && n.col === col)
-    && !moveBlocked(Math.round(user.current.row), user.current.col, row, col, user);
+    && !moveBlocked(Math.round(user.current.row), user.current.col, row, col);
 }
 
 function fossaAt(row,col){
@@ -7703,7 +7712,7 @@ function canSelectTarget(user,row,col){
   if(!valid){
     // Safety net: the straight +1 move must remain available unless a real rule blocks it.
     if(!isForwardOne || row < 0 || col < 0 || col >= cols) return false;
-    if(moveBlocked(currentRow, currentCol, row, col, user)) return false;
+    if(moveBlocked(currentRow, currentCol, row, col)) return false;
     if(isMirrorMoveBlocked(user, row, col)) return false;
     if(isSilvaObstacleCell(row, col)) return false;
     if(user.filled.has(key(row,col))) return false;
@@ -9810,6 +9819,63 @@ function isSilvaShadowCell(row, col){
   const cellId = key(row, col);
   return silvaPetraCellKeys().has(cellId) || silvaArborCellKeys().has(cellId) || silvaFrutexCellKeys().has(cellId);
 }
+let silvaPalusGroupsCache = null;
+function silvaPalusGroups(){
+  if(silvaPalusGroupsCache) return silvaPalusGroupsCache;
+  const groups = [];
+  const occupied = new Set([
+    ...silvaPetraCellKeys(),
+    ...silvaArborCellKeys(),
+    ...silvaFrutexCellKeys()
+  ]);
+  const levelIndex = LEVELS.findIndex(level => level.key === "silva");
+  const startRow = Math.max(0, levelIndex) * LEVEL_LENGTH;
+  const targetCount = 7;
+
+  function candidateCells(row, col, width, height){
+    const cells = [];
+    for(let dr = 0; dr < height; dr++){
+      for(let dc = 0; dc < width; dc++){
+        const r = row + dr;
+        const c = col + dc;
+        const k = key(r, c);
+        if(!isSilvaRow(r) || c < 0 || c >= cols || occupied.has(k)) return null;
+        cells.push({row:r, col:c});
+      }
+    }
+    return cells;
+  }
+
+  for(let attempt = 0; attempt < 280 && groups.length < targetCount; attempt++){
+    const seedRow = startRow + 4 + Math.floor(cellNoise(attempt + 11, attempt + 17, 3301) * (LEVEL_LENGTH - 10));
+    const sizeIsSix = cellNoise(attempt + 19, seedRow, 3302) > .44;
+    const width = 2;
+    const height = sizeIsSix ? 3 : 2;
+    const edgeBias = cellNoise(attempt + 23, seedRow, 3303);
+    let col;
+    if(edgeBias < .72){
+      col = cellNoise(attempt + 29, seedRow, 3304) < .5 ? 0 : cols - width;
+    }else{
+      col = Math.floor(cellNoise(attempt + 31, seedRow, 3305) * (cols - width + 1));
+    }
+    const row = seedRow;
+    const cells = candidateCells(row, col, width, height);
+    if(!cells) continue;
+    const tooClose = groups.some(group => group.cells.some(a => cells.some(b => Math.abs(a.row - b.row) + Math.abs(a.col - b.col) < 3)));
+    if(tooClose) continue;
+    cells.forEach(cell => occupied.add(key(cell.row, cell.col)));
+    groups.push({
+      id:`palus-${row}-${col}`,
+      row, col, width, height, cells,
+      rotation:(cellNoise(row, col, 3306) - .5) * 7
+    });
+  }
+  silvaPalusGroupsCache = groups;
+  return groups;
+}
+function isPalusGroupVisible(group){
+  return group.cells.some(cell => isWorldRowVisible(cell.row) && (cell.row - scroll) >= -1.4 && (cell.row - scroll) <= visibleRows + .8);
+}
 function petraPairsForVisibleRows(){
   return silvaPetraPairsAll().filter(pair => {
     const minRow = Math.min(pair.first.row, pair.second.row);
@@ -9833,6 +9899,27 @@ function appendSilvaImage(href, center, width, height, className, rotation=0){
 }
 function renderSilvaObjects(){
   if(!silvaObjectsGroup) return;
+  for(const group of silvaPalusGroups()){
+    if(!isPalusGroupVisible(group)) continue;
+    const points = [];
+    group.cells.forEach(cell => {
+      cellPolygonWorld(cell.row, cell.col, cell.row - scroll).forEach(point => points.push(point));
+    });
+    if(!points.length) continue;
+    const minX = Math.min(...points.map(point => point.x));
+    const maxX = Math.max(...points.map(point => point.x));
+    const minY = Math.min(...points.map(point => point.y));
+    const maxY = Math.max(...points.map(point => point.y));
+    const center = {x:(minX + maxX) / 2, y:(minY + maxY) / 2};
+    appendSilvaImage(
+      palusImageSrc,
+      {x:center.x, y:center.y - (maxY - minY) * .06},
+      (maxX - minX) * 1.22,
+      (maxY - minY) * 1.44,
+      "silva-palus",
+      group.rotation
+    );
+  }
   for(const cellId of silvaArborCellKeys()){
     const [rowStr, colStr] = cellId.split("-");
     const row = Number(rowStr);
@@ -10697,13 +10784,11 @@ function updatePanels(){
   balanceC.textContent = `${users.C.ft} Ft`;
   balanceD.textContent = `${users.D.ft} Ft`;
 
-  // En mode sélection Arca ouverte, l'élément cliqué doit rester visuellement actif
-  // (fond blanc), indépendamment de l'outil actuellement armé sur la grille.
-  if(arcaPanel?.classList.contains("open") && selectedArcaCard){
-    document.querySelectorAll(".arca-panel .control-card").forEach(card => {
-      card.classList.toggle("active", card === selectedArcaCard);
-    });
-  }
+  // En mode sélection Arca ouverte, l'élément cliqué conserve son fond blanc
+  // indépendamment des états d'outil recalculés à chaque rendu.
+  document.querySelectorAll(".arca-panel .control-card").forEach(card => {
+    card.classList.toggle("arca-selected", !!(arcaPanel?.classList.contains("open") && selectedArcaCard === card));
+  });
 
   balanceA.classList.toggle("active", activeUserId === "A");
   balanceB.classList.toggle("active", activeUserId === "B");
@@ -10954,7 +11039,9 @@ function placeArcaInlineChoose(card){
 function selectArcaCard(card){
   if(!card) return;
   selectedArcaCard = card;
-  document.querySelectorAll('.arca-panel .control-card').forEach(el => el.classList.toggle('active', el === card));
+  document.querySelectorAll('.arca-panel .control-card').forEach(el => {
+    el.classList.toggle('arca-selected', el === card);
+  });
   const key = arcaKeyFromCard(card);
   const info = INFO_CONTENT[ARCA_INFO_KEYS[key]] || {title:key || 'Arca', body:''};
   const explain = document.getElementById('arcaExplain');
@@ -10976,14 +11063,14 @@ function confirmArcaChoice(event){
   if(arcaPanel) arcaPanel.classList.remove('open', 'held');
   updateLabMobileWindowClass();
   selectedArcaCard = null;
-  document.querySelectorAll('.arca-panel .control-card').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.arca-panel .control-card').forEach(el => el.classList.remove('active', 'arca-selected'));
   document.getElementById('arcaChooseBtn')?.classList.remove('visible');
   setTimeout(() => { arcaPurchaseConfirming = false; }, 120);
 }
 function closeArcaOverlay(){
   document.querySelectorAll('.arca-inline-choose').forEach(button => button.remove());
   selectedArcaCard = null;
-  document.querySelectorAll('.arca-panel .control-card').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.arca-panel .control-card').forEach(el => el.classList.remove('active', 'arca-selected'));
   document.getElementById('arcaChooseBtn')?.classList.remove('visible');
   if(arcaPanel) arcaPanel.classList.remove('open','held');
   updateLabMobileWindowClass();
