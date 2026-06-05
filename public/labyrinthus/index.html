@@ -4982,8 +4982,15 @@ function mergeRemotePlayersFromState(remoteState){
     const sameAsLocal = !!(localNoxId && remoteNoxId && remoteNoxId === localNoxId);
     if(sameAsLocal){
       // Le joueur local reste maître de sa position et de ses actions,
-      // mais un effet déclenché par un autre joueur (ex. Flamma → Cinis)
-      // doit pouvoir s'appliquer en direct sur sa session.
+      // mais les effets déclenchés par un autre joueur doivent s'appliquer
+      // en direct sur sa session : Cinis, crédit/débit Flamma, etc.
+      const remoteActorId = remoteState?.actorId || remoteState?.savedBySlotId || null;
+      const remoteActorNoxId = remoteState?.savedByNoxFatumUserId || null;
+      const remoteWasCausedByAnotherPlayer = !!(
+        (remoteActorId && remoteActorId !== slotId) ||
+        (localNoxId && remoteActorNoxId && remoteActorNoxId !== localNoxId)
+      );
+
       const remoteCinis = normalizeCinisState(remoteUser?.cinis);
       const localCinis = normalizeCinisState(slot.cinis);
       if(JSON.stringify(remoteCinis) !== JSON.stringify(localCinis)){
@@ -4992,6 +4999,35 @@ function mergeRemotePlayersFromState(remoteState){
           changed = true;
         }
       }
+
+      if(remoteWasCausedByAnotherPlayer && Number.isFinite(Number(remoteUser?.ft))){
+        const remoteFt = Math.max(0, Math.round(Number(remoteUser.ft) || 0));
+        const localFt = Math.max(0, Math.round(Number(slot.ft) || 0));
+        if(remoteFt !== localFt){
+          const delta = remoteFt - localFt;
+          slot.ft = remoteFt;
+          if(delta > 0){
+            startMoneyBurst(slot.current.row, slot.current.col, delta, {
+              id:`remote-flamma-credit-${slot.id}-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,
+              text:`+${delta}Ft`,
+              subtext:"Flamma",
+              particles:[],
+              duration:1100
+            });
+            playSound("gain");
+          }else if(delta < 0){
+            startMoneyBurst(slot.current.row, slot.current.col, delta, {
+              id:`remote-flamma-loss-${slot.id}-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,
+              text:`${delta}Ft`,
+              subtext:"Flamma",
+              particles:[],
+              duration:1100
+            });
+          }
+          changed = true;
+        }
+      }
+
       continue;
     }
     if(localSlotIsActive) continue;
