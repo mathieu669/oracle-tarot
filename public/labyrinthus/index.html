@@ -8621,40 +8621,102 @@ function renderFireFx(){
     });
   }
 }
-function curvedBurntCellPath(row, col, poly){
-  const center = centroid(poly);
-  const wobble = poly.map((point, index) => {
-    const n = (cellNoise(row, col, 2401 + index) - .5) * .12;
-    const scale = .94 + n;
-    return {
-      x:center.x + (point.x - center.x) * scale,
-      y:center.y + (point.y - center.y) * scale
-    };
-  });
-  const mids = wobble.map((point, index) => {
-    const next = wobble[(index + 1) % wobble.length];
-    return { x:(point.x + next.x) / 2, y:(point.y + next.y) / 2 };
-  });
-  let d = `M ${mids[mids.length - 1].x.toFixed(2)} ${mids[mids.length - 1].y.toFixed(2)}`;
-  for(let index = 0; index < wobble.length; index++){
-    d += ` Q ${wobble[index].x.toFixed(2)} ${wobble[index].y.toFixed(2)} ${mids[index].x.toFixed(2)} ${mids[index].y.toFixed(2)}`;
+function burntVertexKey(row, col){
+  return `${row}:${col}`;
+}
+function burntVertexPoint(vertexKey){
+  const [rowStr, colStr] = String(vertexKey).split(":");
+  return pointOnBand(Number(rowStr) - scroll, Number(colStr));
+}
+function burntEdgeCurve(startKey, endKey){
+  const p0 = burntVertexPoint(startKey);
+  const p1 = burntVertexPoint(endKey);
+  const mx = (p0.x + p1.x) / 2;
+  const my = (p0.y + p1.y) / 2;
+  const dx = p1.x - p0.x;
+  const dy = p1.y - p0.y;
+  const len = Math.max(1, Math.hypot(dx, dy));
+  const n = cellNoise(
+    Math.round((Number(startKey.split(":")[0]) + Number(endKey.split(":")[0])) * 7),
+    Math.round((Number(startKey.split(":")[1]) + Number(endKey.split(":")[1])) * 11),
+    2401
+  ) - .5;
+  const curve = n * len * .22;
+  const nx = -dy / len;
+  const ny = dx / len;
+  return ` Q ${(mx + nx * curve).toFixed(2)} ${(my + ny * curve).toFixed(2)} ${p1.x.toFixed(2)} ${p1.y.toFixed(2)}`;
+}
+function burntBoundaryLoops(cells){
+  const cellSet = new Set(cells.map(cell => key(cell.row, cell.col)));
+  const edges = [];
+  function addEdge(startRow, startCol, endRow, endCol){
+    const start = burntVertexKey(startRow, startCol);
+    const end = burntVertexKey(endRow, endCol);
+    edges.push({ start, end, id:`${start}>${end}` });
   }
-  return d + " Z";
+  for(const cell of cells){
+    const r = cell.row;
+    const c = cell.col;
+    if(!cellSet.has(key(r + 1, c))) addEdge(r + 1, c, r + 1, c + 1);
+    if(!cellSet.has(key(r, c + 1))) addEdge(r + 1, c + 1, r, c + 1);
+    if(!cellSet.has(key(r - 1, c))) addEdge(r, c + 1, r, c);
+    if(!cellSet.has(key(r, c - 1))) addEdge(r, c, r + 1, c);
+  }
+
+  const outgoing = new Map();
+  for(const edge of edges){
+    if(!outgoing.has(edge.start)) outgoing.set(edge.start, []);
+    outgoing.get(edge.start).push(edge);
+  }
+
+  const used = new Set();
+  const loops = [];
+  for(const edge of edges){
+    if(used.has(edge.id)) continue;
+    const loop = [edge.start];
+    let current = edge;
+    let guard = 0;
+    while(current && guard < edges.length + 8){
+      guard += 1;
+      used.add(current.id);
+      loop.push(current.end);
+      if(current.end === loop[0]) break;
+      const nextCandidates = outgoing.get(current.end) || [];
+      current = nextCandidates.find(candidate => !used.has(candidate.id)) || null;
+    }
+    if(loop.length > 3 && loop[loop.length - 1] === loop[0]) loops.push(loop);
+  }
+  return loops;
+}
+function burntLoopsPath(cells){
+  const loops = burntBoundaryLoops(cells);
+  return loops.map(loop => {
+    const start = burntVertexPoint(loop[0]);
+    let d = `M ${start.x.toFixed(2)} ${start.y.toFixed(2)}`;
+    for(let index = 0; index < loop.length - 1; index++){
+      d += burntEdgeCurve(loop[index], loop[index + 1]);
+    }
+    return `${d} Z`;
+  }).join(" ");
 }
 function renderBurntCells(){
   if(!burntFxGroup) return;
   burntFxGroup.innerHTML = "";
+  const visibleCells = [];
   for(const id of burntCells){
     const [rowStr, colStr] = String(id).split("-");
     const row = Number(rowStr), col = Number(colStr);
     if(!isWorldRowVisible(row)) continue;
     const screenDistance = row - scroll;
     if(screenDistance < -1.4 || screenDistance > visibleRows + .8) continue;
-    const overlay = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    overlay.setAttribute("d", curvedBurntCellPath(row, col, cellPolygonWorld(row, col, screenDistance)));
-    overlay.setAttribute("class", "burnt-cell");
-    burntFxGroup.appendChild(overlay);
+    visibleCells.push({ row, col });
   }
+  if(!visibleCells.length) return;
+  const overlay = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  overlay.setAttribute("d", burntLoopsPath(visibleCells));
+  overlay.setAttribute("class", "burnt-cell");
+  overlay.setAttribute("fill-rule", "evenodd");
+  burntFxGroup.appendChild(overlay);
 }
 function ensureCinisVideoElement(userId){
   if(cinisVideoEls[userId]) return cinisVideoEls[userId];
