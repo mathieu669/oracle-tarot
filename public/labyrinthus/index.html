@@ -974,6 +974,14 @@
     display:block;
     object-fit:contain;
   }
+  .flamma-prompt-icon span{
+    display:block;
+    font-size:22px;
+    font-weight:700;
+    letter-spacing:.04em;
+    line-height:1;
+    color:#fff;
+  }
   .flamma-prompt-title{
     margin:0 0 8px;
     font-size:13px;
@@ -4190,6 +4198,21 @@ body.theme-light .asset-preview-wrap{
           </div>
         </div>
       </div>
+      <div class="flamma-prompt-modal" id="cinisPromptModal" aria-hidden="true">
+        <div class="flamma-prompt-backdrop" id="cinisPromptBackdrop"></div>
+        <div class="flamma-prompt-panel" role="dialog" aria-modal="true" aria-labelledby="cinisPromptTitle">
+          <button class="flamma-prompt-close" id="cinisPromptClose" aria-label="Fermer">×</button>
+          <div class="flamma-prompt-icon" aria-hidden="true">
+            <span>50 Ft</span>
+          </div>
+          <h3 class="flamma-prompt-title" id="cinisPromptTitle">Ressusciter ?</h3>
+          <div class="flamma-prompt-body" id="cinisPromptBody">Payer 50 Ft pour ressusciter.</div>
+          <div class="flamma-prompt-actions">
+            <button class="flamma-prompt-action" id="cinisPromptNoBtn" type="button">Non</button>
+            <button class="flamma-prompt-action primary" id="cinisPromptYesBtn" type="button">Oui</button>
+          </div>
+        </div>
+      </div>
       <div class="exvoto-modal" id="exVotoModal" aria-hidden="true">
         <div class="exvoto-backdrop"></div>
         <div class="exvoto-panel">
@@ -4730,6 +4753,12 @@ const flammaPromptClose = document.getElementById("flammaPromptClose");
 const flammaPromptBody = document.getElementById("flammaPromptBody");
 const flammaPromptNoBtn = document.getElementById("flammaPromptNoBtn");
 const flammaPromptYesBtn = document.getElementById("flammaPromptYesBtn");
+const cinisPromptModal = document.getElementById("cinisPromptModal");
+const cinisPromptBackdrop = document.getElementById("cinisPromptBackdrop");
+const cinisPromptClose = document.getElementById("cinisPromptClose");
+const cinisPromptBody = document.getElementById("cinisPromptBody");
+const cinisPromptNoBtn = document.getElementById("cinisPromptNoBtn");
+const cinisPromptYesBtn = document.getElementById("cinisPromptYesBtn");
 const infoButtons = Array.from(document.querySelectorAll(".info-btn"));
 const userAButton = document.getElementById("userAButton");
 const userBButton = document.getElementById("userBButton");
@@ -7408,12 +7437,15 @@ function allowedCells(user){
   const r = Math.round(user.current.row);
   const c = user.current.col;
   return [
+    {row:r-1, col:c-1},
+    {row:r-1, col:c},
+    {row:r-1, col:c+1},
     {row:r, col:c-1},
     {row:r, col:c+1},
     {row:r+1, col:c-1},
     {row:r+1, col:c},
     {row:r+1, col:c+1}
-  ].filter(n => n.col >= 0 && n.col < cols);
+  ].filter(n => n.col >= 0 && n.col < cols && n.row >= 0);
 }
 
 function hasWall(row, col, side, extraWall=null){
@@ -7442,6 +7474,8 @@ function wallBlocksMovement(row, col, side){
 function moveBlocked(fromRow, fromCol, toRow, toCol){
   const dRow = toRow - fromRow;
   const dCol = toCol - fromCol;
+
+  if(dRow < 0) return moveBlocked(toRow, toCol, fromRow, fromCol);
 
   // Murus longitudinal : il est posé sur le bord droit de la case sélectionnée.
   // Tout déplacement qui franchit ce bord, y compris en diagonale, est bloqué.
@@ -8979,13 +9013,30 @@ function renderCinisTokens(){
   }
   for(const [id, el] of Object.entries(cinisVideoEls)) if(!visible.has(id)) el.style.display = "none";
 }
-function promptCinisResurrection(userOrId){
-  const user = typeof userOrId === "string" ? users[userOrId] : userOrId;
-  if(!isUserCinisLocked(user)) return false;
-  const cost = Math.max(0, Math.round(Number(user.cinis?.fee) || 50));
-  if((Number(user.ft) || 0) < cost){ noticeText = `cinis : ${user.name.toLowerCase()} doit payer ${cost} Ft pour ressusciter`; render(); return true; }
-  const approved = window.confirm(`Payer ${cost} Ft pour ressusciter ${user.name} ?`);
-  if(!approved){ noticeText = `cinis : ${user.name.toLowerCase()} demeure bloqué`; render(); return true; }
+function closeCinisPrompt(accepted=false){
+  if(cinisPromptModal){
+    cinisPromptModal.classList.remove("visible");
+    cinisPromptModal.setAttribute("aria-hidden", "true");
+  }
+  const pending = pendingCinisPrompt;
+  pendingCinisPrompt = null;
+  if(!accepted && pending){
+    noticeText = `cinis : ${pending.user.name.toLowerCase()} demeure bloqué`;
+    render();
+  }
+}
+function acceptPendingCinisPrompt(){
+  const pending = pendingCinisPrompt;
+  if(!pending || !pending.user) return closeCinisPrompt(false);
+  const { user, cost } = pending;
+  if(!isUserCinisLocked(user)) return closeCinisPrompt(false);
+  if((Number(user.ft) || 0) < cost){
+    closeCinisPrompt(true);
+    noticeText = `cinis : ${user.name.toLowerCase()} doit payer ${cost} Ft pour ressusciter`;
+    render();
+    return true;
+  }
+  closeCinisPrompt(true);
   pushUndo();
   user.ft = Math.max(0, Math.round((Number(user.ft) || 0) - cost));
   if(user.noxFatumUserId) noxRequestFatumDelta(user.noxFatumUserId, -cost, "cinis_resurrection");
@@ -8994,6 +9045,25 @@ function promptCinisResurrection(userOrId){
   addChroniconEvent(`${user.name} paie ${cost} Ft pour ressusciter.`);
   scheduleLabyrinthusStateSave("cinis-resurrection");
   render();
+  return true;
+}
+function openCinisPrompt(user, cost){
+  pendingCinisPrompt = { user, cost };
+  if(cinisPromptBody){
+    cinisPromptBody.textContent = `${user.name} est immobilisé. Payer ${cost} Ft pour le ressusciter ?`;
+  }
+  if(cinisPromptModal){
+    cinisPromptModal.classList.add("visible");
+    cinisPromptModal.setAttribute("aria-hidden", "false");
+  }
+}
+function promptCinisResurrection(userOrId){
+  const user = typeof userOrId === "string" ? users[userOrId] : userOrId;
+  if(!isUserCinisLocked(user)) return false;
+  const cost = Math.max(0, Math.round(Number(user.cinis?.fee) || 50));
+  if((Number(user.ft) || 0) < cost){ noticeText = `cinis : ${user.name.toLowerCase()} doit payer ${cost} Ft pour ressusciter`; render(); return true; }
+  if(pendingCinisPrompt?.user?.id === user.id && cinisPromptModal?.classList.contains("visible")) return true;
+  openCinisPrompt(user, cost);
   return true;
 }
 
@@ -9872,7 +9942,7 @@ function silvaFrutexCellKeys(){
 function isSilvaObstacleCell(row, col){
   if(!isSilvaRow(row)) return false;
   const cellId = key(row, col);
-  return silvaPetraCellKeys().has(cellId) || silvaArborCellKeys().has(cellId) || silvaPalusCellKeys().has(cellId);
+  return silvaPetraCellKeys().has(cellId) || silvaArborCellKeys().has(cellId) || silvaFrutexCellKeys().has(cellId) || silvaPalusCellKeys().has(cellId);
 }
 function isSilvaBaseShadowCell(row, col){
   if(!isSilvaRow(row)) return false;
@@ -10212,6 +10282,7 @@ const collectedSolidus = new Set();
 let flammaPickups = [];
 let flammaFires = [];
 let pendingFlammaPrompt = null;
+let pendingCinisPrompt = null;
 // Empêche le même geste qui valide « Oui » de poser immédiatement Flamma
 // sur la case située derrière la fenêtre de confirmation.
 let flammaPlacementReadyAt = 0;
@@ -12159,10 +12230,20 @@ bindFlammaPromptAction(flammaPromptNoBtn, () => closeFlammaPrompt(false));
 bindFlammaPromptAction(flammaPromptYesBtn, () => acceptPendingFlammaPrompt());
 flammaPromptModal?.addEventListener("pointerdown", (event) => event.stopPropagation(), {capture:true});
 flammaPromptModal?.addEventListener("click", (event) => event.stopPropagation(), {capture:true});
+bindFlammaPromptAction(cinisPromptBackdrop, () => closeCinisPrompt(false));
+bindFlammaPromptAction(cinisPromptClose, () => closeCinisPrompt(false));
+bindFlammaPromptAction(cinisPromptNoBtn, () => closeCinisPrompt(false));
+bindFlammaPromptAction(cinisPromptYesBtn, () => acceptPendingCinisPrompt());
+cinisPromptModal?.addEventListener("pointerdown", (event) => event.stopPropagation(), {capture:true});
+cinisPromptModal?.addEventListener("click", (event) => event.stopPropagation(), {capture:true});
 infoModalPanel.addEventListener("pointerenter", () => clearTimeout(infoHideTimer));
 infoModalPanel.addEventListener("pointerleave", () => hideInfoModal());
 document.addEventListener("keydown", (event) => {
   if(event.key === "Escape"){
+    if(cinisPromptModal?.classList.contains("visible")){
+      closeCinisPrompt(false);
+      return;
+    }
     if(flammaPromptModal?.classList.contains("visible")){
       closeFlammaPrompt(false);
       return;
