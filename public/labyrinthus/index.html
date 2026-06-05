@@ -287,8 +287,12 @@
   fill:none !important;
   stroke:#fff !important;
 }
+.flamma-prompt-action,
+.flamma-prompt-close{
+  pointer-events:auto !important;
+}
 .flamma-indicator{width:100%;height:100%;display:flex;align-items:center;justify-content:center;}
-.flamma-indicator svg{width:74%;height:74%;display:block;}
+.flamma-indicator img{width:82%;height:82%;display:block;object-fit:contain;}
 .fire-cell{
   pointer-events:none;
   fill:rgba(255,42,42,.30);
@@ -645,6 +649,12 @@
     background:rgba(0,0,0,.04);
     color:#000;
   }
+  .arca-panel.open .control-card.active{
+    border-color:#fff !important;
+    background:#fff !important;
+    color:#000 !important;
+    box-shadow:0 0 0 1px rgba(255,255,255,.10), 0 0 16px rgba(255,255,255,.12) !important;
+  }
   .asset-preview-wrap{
     height:34px;border:1px solid rgba(255,255,255,.18);border-radius:8px;
     display:flex;align-items:center;justify-content:center;margin-bottom:6px;
@@ -944,17 +954,11 @@
     place-items:center;
     background:radial-gradient(circle at 50% 38%, rgba(255,255,255,.12), rgba(255,255,255,.025) 58%, rgba(0,0,0,.18));
   }
-  .flamma-prompt-icon svg{
-    width:30px;
-    height:30px;
+  .flamma-prompt-icon img{
+    width:34px;
+    height:34px;
     display:block;
-  }
-  .flamma-prompt-icon svg *{
-    fill:none !important;
-    stroke:#fff !important;
-    stroke-width:1.7;
-    stroke-linecap:round;
-    stroke-linejoin:round;
+    object-fit:contain;
   }
   .flamma-prompt-title{
     margin:0 0 8px;
@@ -4162,10 +4166,7 @@ body.theme-light .asset-preview-wrap{
         <div class="flamma-prompt-panel" role="dialog" aria-modal="true" aria-labelledby="flammaPromptTitle">
           <button class="flamma-prompt-close" id="flammaPromptClose" aria-label="Fermer">×</button>
           <div class="flamma-prompt-icon" aria-hidden="true">
-            <svg viewBox="0 0 32 32">
-              <path d="M16 4c.7 3.2-1.2 5.1-3.2 7.2-2.1 2.2-4.2 4.4-4.2 8.1 0 4.1 3.1 7.2 7.4 7.2 4.5 0 7.8-3.3 7.8-7.8 0-2.9-1.4-5.1-3.1-7.2-1.3-1.6-2.7-3.3-2.6-6.1-1.2.8-1.9 1.7-2.1 3.2-.9-1.3-1.6-2.8-1.9-4.6Z"/>
-              <path d="M16 13.3c.4 1.8-.6 2.8-1.5 3.8-1 1-1.9 2-1.9 3.7 0 1.9 1.4 3.3 3.5 3.3 2 0 3.6-1.5 3.6-3.6 0-1.4-.7-2.5-1.5-3.5-.6-.7-1.2-1.5-1.2-2.9-.6.4-.9.9-1 1.7Z"/>
-            </svg>
+            <img src="/labyrinthus/assets/flamma.png" alt="">
           </div>
           <h3 class="flamma-prompt-title" id="flammaPromptTitle">Utiliser Flamma ?</h3>
           <div class="flamma-prompt-body" id="flammaPromptBody">Flamma trouvée.</div>
@@ -7395,21 +7396,31 @@ function wouldCloseFullLine(candidateWall){
   return true;
 }
 
-function moveBlocked(fromRow, fromCol, toRow, toCol){
+function wallBlocksMovement(row, col, side, user=null){
+  const wall = placedWalls.find(item => item.row === row && item.col === col && item.side === side);
+  if(!wall) return false;
+
+  // Un Murus posé par le joueur ne doit pas bloquer sa propre progression.
+  // Il reste en revanche bloquant pour les autres joueurs.
+  if(user && wall.owner === user.id) return false;
+
+  return true;
+}
+function moveBlocked(fromRow, fromCol, toRow, toCol, user=null){
   const dRow = toRow - fromRow;
   const dCol = toCol - fromCol;
 
-  if(dRow === 0 && dCol === 1) return hasWall(fromRow, fromCol, "right");
-  if(dRow === 0 && dCol === -1) return hasWall(fromRow, toCol, "right");
-  if(dRow === 1 && dCol === 0) return hasWall(fromRow, fromCol, "bottom");
-  if(dRow === 1 && dCol === 1) return hasWall(fromRow, fromCol, "right") || hasWall(fromRow, fromCol, "bottom");
-  if(dRow === 1 && dCol === -1) return hasWall(fromRow, toCol, "right") || hasWall(fromRow, fromCol, "bottom");
+  if(dRow === 0 && dCol === 1) return wallBlocksMovement(fromRow, fromCol, "right", user);
+  if(dRow === 0 && dCol === -1) return wallBlocksMovement(fromRow, toCol, "right", user);
+  if(dRow === 1 && dCol === 0) return wallBlocksMovement(fromRow, fromCol, "bottom", user);
+  if(dRow === 1 && dCol === 1) return wallBlocksMovement(fromRow, fromCol, "right", user) || wallBlocksMovement(fromRow, fromCol, "bottom", user);
+  if(dRow === 1 && dCol === -1) return wallBlocksMovement(fromRow, toCol, "right", user) || wallBlocksMovement(fromRow, fromCol, "bottom", user);
   return false;
 }
 
 function isAllowed(user,row,col){
   return allowedCells(user).some(n => n.row === row && n.col === col)
-    && !moveBlocked(Math.round(user.current.row), user.current.col, row, col);
+    && !moveBlocked(Math.round(user.current.row), user.current.col, row, col, user);
 }
 
 function fossaAt(row,col){
@@ -7692,7 +7703,7 @@ function canSelectTarget(user,row,col){
   if(!valid){
     // Safety net: the straight +1 move must remain available unless a real rule blocks it.
     if(!isForwardOne || row < 0 || col < 0 || col >= cols) return false;
-    if(moveBlocked(currentRow, currentCol, row, col)) return false;
+    if(moveBlocked(currentRow, currentCol, row, col, user)) return false;
     if(isMirrorMoveBlocked(user, row, col)) return false;
     if(isSilvaObstacleCell(row, col)) return false;
     if(user.filled.has(key(row,col))) return false;
@@ -8678,6 +8689,8 @@ function openFlammaPrompt(user, pickup, row, col){
     flammaPromptBody.textContent = `Flamma trouvée en ${locusRef(row, col)}. Voulez-vous l'utiliser maintenant ?`;
   }
   if(flammaPromptModal){
+    suppressBoardClickUntil = 0;
+    suppressTrustedBoardClickUntil = 0;
     flammaPromptModal.classList.add("visible");
     flammaPromptModal.setAttribute("aria-hidden", "false");
   }
@@ -10610,7 +10623,7 @@ function updateActiveArcaIndicator(){
     activeTool === 'catenaSelect1' || activeTool === 'catenaSelect2'
   );
   if(stocked && activeTool === 'flamma'){
-    holder.innerHTML = `<div class="flamma-indicator"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 4c.7 3.2-1.2 5.1-3.2 7.2-2.1 2.2-4.2 4.4-4.2 8.1 0 4.1 3.1 7.2 7.4 7.2 4.5 0 7.8-3.3 7.8-7.8 0-2.9-1.4-5.1-3.1-7.2-1.3-1.6-2.7-3.3-2.6-6.1-1.2.8-1.9 1.7-2.1 3.2-.9-1.3-1.6-2.8-1.9-4.6Z"/><path d="M16 13.3c.4 1.8-.6 2.8-1.5 3.8-1 1-1.9 2-1.9 3.7 0 1.9 1.4 3.3 3.5 3.3 2 0 3.6-1.5 3.6-3.6 0-1.4-.7-2.5-1.5-3.5-.6-.7-1.2-1.5-1.2-2.9-.6.4-.9.9-1 1.7Z"/></svg></div>`;
+    holder.innerHTML = `<div class="flamma-indicator"><img src="/labyrinthus/assets/flamma.png" alt=""></div>`;
     holder.classList.add('visible');
     return;
   }
@@ -10683,6 +10696,15 @@ function updatePanels(){
   balanceB.textContent = `${users.B.ft} Ft`;
   balanceC.textContent = `${users.C.ft} Ft`;
   balanceD.textContent = `${users.D.ft} Ft`;
+
+  // En mode sélection Arca ouverte, l'élément cliqué doit rester visuellement actif
+  // (fond blanc), indépendamment de l'outil actuellement armé sur la grille.
+  if(arcaPanel?.classList.contains("open") && selectedArcaCard){
+    document.querySelectorAll(".arca-panel .control-card").forEach(card => {
+      card.classList.toggle("active", card === selectedArcaCard);
+    });
+  }
+
   balanceA.classList.toggle("active", activeUserId === "A");
   balanceB.classList.toggle("active", activeUserId === "B");
   balanceC.classList.toggle("active", activeUserId === "C");
@@ -11929,19 +11951,24 @@ infoModalClose.addEventListener("click", (event) => {
   event.preventDefault();
   hideInfoModal(true);
 });
-flammaPromptBackdrop?.addEventListener("click", () => closeFlammaPrompt(false));
-flammaPromptClose?.addEventListener("click", (event) => {
-  event.preventDefault();
-  closeFlammaPrompt(false);
-});
-flammaPromptNoBtn?.addEventListener("click", (event) => {
-  event.preventDefault();
-  closeFlammaPrompt(false);
-});
-flammaPromptYesBtn?.addEventListener("click", (event) => {
-  event.preventDefault();
-  acceptPendingFlammaPrompt();
-});
+function bindFlammaPromptAction(element, action){
+  if(!element) return;
+  const handler = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation?.();
+    action(event);
+  };
+  ["pointerdown","pointerup","touchstart","touchend","click"].forEach(type => {
+    element.addEventListener(type, handler, {capture:true, passive:false});
+  });
+}
+bindFlammaPromptAction(flammaPromptBackdrop, () => closeFlammaPrompt(false));
+bindFlammaPromptAction(flammaPromptClose, () => closeFlammaPrompt(false));
+bindFlammaPromptAction(flammaPromptNoBtn, () => closeFlammaPrompt(false));
+bindFlammaPromptAction(flammaPromptYesBtn, () => acceptPendingFlammaPrompt());
+flammaPromptModal?.addEventListener("pointerdown", (event) => event.stopPropagation(), {capture:true});
+flammaPromptModal?.addEventListener("click", (event) => event.stopPropagation(), {capture:true});
 infoModalPanel.addEventListener("pointerenter", () => clearTimeout(infoHideTimer));
 infoModalPanel.addEventListener("pointerleave", () => hideInfoModal());
 document.addEventListener("keydown", (event) => {
