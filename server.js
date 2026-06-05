@@ -283,6 +283,29 @@ async function readLabyrinthusExVotos() {
   return readJsonArrayFromServer(LABYRINTHUS_EXVOTOS_FILE).slice(0, 500);
 }
 
+async function clearLabyrinthusExVotos() {
+  const resetAt = new Date().toISOString();
+
+  if (isSupabaseEnabled()) {
+    try {
+      await supabaseRequest("nox_labyrinthus_exvotos?opened_at=is.null", {
+        method: "PATCH",
+        body: JSON.stringify({
+          opened_at: resetAt,
+          opened_by: "game-reset"
+        })
+      });
+      writeJsonArrayToServer(LABYRINTHUS_EXVOTOS_FILE, [], 500);
+      return [];
+    } catch (error) {
+      console.error("Labyrinthus ex voto reset error:", error);
+    }
+  }
+
+  writeJsonArrayToServer(LABYRINTHUS_EXVOTOS_FILE, [], 500);
+  return [];
+}
+
 async function insertLabyrinthusExVoto(entry) {
   const row = Number(entry?.row);
   const col = Number(entry?.col);
@@ -1112,6 +1135,16 @@ app.get("/api/labyrinthus-exvotos", async (req, res) => {
   } catch (error) {
     console.error("Labyrinthus ex voto read error:", error);
     res.status(500).json({ error: "Erreur pendant la lecture des Ex voto." });
+  }
+});
+
+app.delete("/api/labyrinthus-exvotos", async (req, res) => {
+  try {
+    await clearLabyrinthusExVotos();
+    res.json({ ok: true, exvotos: [] });
+  } catch (error) {
+    console.error("Labyrinthus ex voto reset error:", error);
+    res.status(500).json({ error: "Erreur pendant la réinitialisation des Ex voto." });
   }
 });
 
