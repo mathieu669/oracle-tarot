@@ -294,7 +294,7 @@
   fill:rgba(255,42,42,.30);
   animation:flamma-pulse .72s ease-in-out infinite alternate;
 }
-.burnt-cell{pointer-events:none;fill:rgba(0,0,0,.72);}
+.burnt-cell{pointer-events:none;fill:rgba(0,0,0,.72);filter:url(#silvaShadowSfumato);}
 @keyframes flamma-pulse{from{opacity:.38;}to{opacity:.72;}}
   .token-label{
     position:absolute;left:50%;top:-8px;
@@ -751,6 +751,10 @@
   }
   .mini-btn:hover{ transform:translateY(-1px); }
   .mini-btn:disabled{ opacity:.35; cursor:not-allowed; transform:none; }
+  .mini-btn.active{
+    border-color:#fff;
+    box-shadow:0 0 0 1px rgba(255,255,255,.22), 0 0 18px rgba(255,255,255,.12);
+  }
   .mini-btn svg{ width:18px; height:18px; display:block; }
   .mini-btn .glyph,
   .mini-btn .crosshair,
@@ -4025,6 +4029,11 @@ body.theme-light .asset-preview-wrap{
             <circle class="dot" cx="10" cy="10" r="1.45"/>
           </svg>
         </button>
+        <button class="mini-btn" id="planViewBtn" title="Vue plan" aria-label="Basculer en vue plan">
+          <svg viewBox="0 0 20 20" aria-hidden="true">
+            <rect class="glyph" x="5" y="5" width="10" height="10" rx="1.2"/>
+          </svg>
+        </button>
         <button class="retro-btn" id="retroBtn" title="Annuler" aria-label="Annuler la dernière action" disabled>
         <svg viewBox="0 0 20 20" aria-hidden="true">
           <path class="glyph" d="M8 5.2 3.8 9.4 8 13.6"/>
@@ -4543,6 +4552,7 @@ const controlCarousel = document.getElementById("controlCarousel");
 const zoomInBtn = document.getElementById("zoomInBtn");
 const zoomOutBtn = document.getElementById("zoomOutBtn");
 const centerViewBtn = document.getElementById("centerViewBtn");
+const planViewBtn = document.getElementById("planViewBtn");
 
 const statusEl = document.getElementById("status");
 const countEl = document.getElementById("count");
@@ -4808,7 +4818,7 @@ function addChroniconEvent(text, meta = null){
   scheduleLabyrinthusStateSave('chronicon');
 }
 
-const LABYRINTHUS_BURNT_RESET_VERSION = "burnt-reset-2026-06-02-v1";
+const LABYRINTHUS_BURNT_RESET_VERSION = "burnt-reset-2026-06-02-v2";
 let labyrinthusStateRemoteReady = false;
 let labyrinthusStateSyncTimer = null;
 let labyrinthusStateSyncQueue = Promise.resolve();
@@ -5592,8 +5602,13 @@ const minZoom = 1;
 const maxZoom = 2;
 const zoomStep = 0.25;
 const defaultZoom = 1;
+let planViewMode = false;
 function applyBoardZoom(){
   const baseW = 400, baseH = 600;
+  if(planViewMode){
+    board.setAttribute("viewBox", `0 0 ${baseW} ${baseH}`);
+    return;
+  }
   const w = baseW / currentZoom;
   const h = baseH / currentZoom;
   const x = (baseW - w) / 2;
@@ -5603,8 +5618,18 @@ function applyBoardZoom(){
   board.setAttribute("viewBox", `${x} ${y} ${w} ${h}`);
 }
 function updateZoomButtons(){
-  if(zoomInBtn) zoomInBtn.disabled = currentZoom >= maxZoom - 0.001;
-  if(zoomOutBtn) zoomOutBtn.disabled = currentZoom <= minZoom + 0.001;
+  if(zoomInBtn) zoomInBtn.disabled = planViewMode || currentZoom >= maxZoom - 0.001;
+  if(zoomOutBtn) zoomOutBtn.disabled = planViewMode || currentZoom <= minZoom + 0.001;
+  if(planViewBtn) planViewBtn.classList.toggle("active", planViewMode);
+}
+function setPlanViewMode(value, options = {}){
+  planViewMode = !!value;
+  document.body.classList.toggle("plan-view-mode", planViewMode);
+  try { localStorage.setItem("labyrinthus-plan-view", planViewMode ? "1" : "0"); } catch(e){}
+  applyBoardZoom();
+  updateZoomButtons();
+  if(planViewMode && options.center !== false) centerViewOnActiveUser(false);
+  else render({ immediate:true });
 }
 function setZoom(zoom){
   const snapped = Math.round((zoom / zoomStep)) * zoomStep;
@@ -5615,13 +5640,18 @@ function setZoom(zoom){
   render();
 }
 function adjustZoom(direction){
+  if(planViewMode) return;
   setZoom(currentZoom + direction * zoomStep);
 }
 function initZoom(){
   let saved = defaultZoom;
   try { saved = Number(localStorage.getItem("labyrinthus-zoom") || defaultZoom); } catch(e){}
   if(!Number.isFinite(saved)) saved = defaultZoom;
-  setZoom(saved);
+  try { planViewMode = localStorage.getItem("labyrinthus-plan-view") === "1"; } catch(e){ planViewMode = false; }
+  currentZoom = clamp(saved, minZoom, maxZoom);
+  applyBoardZoom();
+  updateZoomButtons();
+  if(planViewMode) document.body.classList.add("plan-view-mode");
 }
 function centeredScrollForRow(row){
   return Math.max(0, row - (visibleRows / 2) + 0.5);
@@ -7022,6 +7052,14 @@ function bandWidth(distance){
   return bottomWidth - (bottomWidth - topWidth) * t;
 }
 function pointOnBand(distance, colIndex){
+  if(planViewMode){
+    const cellW = 400 / cols;
+    const cellH = 600 / visibleRows;
+    return {
+      x:cellW * colIndex,
+      y:600 - distance * cellH
+    };
+  }
   const w = bandWidth(distance);
   const left = centerX - w / 2;
   return {
@@ -8582,6 +8620,26 @@ function renderFireFx(){
     });
   }
 }
+function curvedBurntCellPath(row, col, poly){
+  const center = centroid(poly);
+  const wobble = poly.map((point, index) => {
+    const n = (cellNoise(row, col, 2401 + index) - .5) * .12;
+    const scale = .94 + n;
+    return {
+      x:center.x + (point.x - center.x) * scale,
+      y:center.y + (point.y - center.y) * scale
+    };
+  });
+  const mids = wobble.map((point, index) => {
+    const next = wobble[(index + 1) % wobble.length];
+    return { x:(point.x + next.x) / 2, y:(point.y + next.y) / 2 };
+  });
+  let d = `M ${mids[mids.length - 1].x.toFixed(2)} ${mids[mids.length - 1].y.toFixed(2)}`;
+  for(let index = 0; index < wobble.length; index++){
+    d += ` Q ${wobble[index].x.toFixed(2)} ${wobble[index].y.toFixed(2)} ${mids[index].x.toFixed(2)} ${mids[index].y.toFixed(2)}`;
+  }
+  return d + " Z";
+}
 function renderBurntCells(){
   if(!burntFxGroup) return;
   burntFxGroup.innerHTML = "";
@@ -8591,8 +8649,8 @@ function renderBurntCells(){
     if(!isWorldRowVisible(row)) continue;
     const screenDistance = row - scroll;
     if(screenDistance < -1.4 || screenDistance > visibleRows + .8) continue;
-    const overlay = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-    overlay.setAttribute("points", pointsAttr(cellPolygonWorld(row, col, screenDistance)));
+    const overlay = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    overlay.setAttribute("d", curvedBurntCellPath(row, col, cellPolygonWorld(row, col, screenDistance)));
     overlay.setAttribute("class", "burnt-cell");
     burntFxGroup.appendChild(overlay);
   }
@@ -11618,6 +11676,7 @@ function bindHudActionButton(button, action){
 bindHudActionButton(zoomInBtn, () => adjustZoom(1));
 bindHudActionButton(zoomOutBtn, () => adjustZoom(-1));
 bindHudActionButton(centerViewBtn, () => centerViewOnActiveUser(true));
+bindHudActionButton(planViewBtn, () => setPlanViewMode(!planViewMode));
 bindHudActionButton(retroBtn, () => retro());
 
 infoButtons.forEach((btn) => {
