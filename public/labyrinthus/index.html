@@ -10780,6 +10780,44 @@ boardWrap.addEventListener("wheel", (event) => {
   render();
 }, {passive:false});
 
+function isKeyboardTextEntryTarget(target){
+  if(!target || !target.closest) return false;
+  return !!target.closest("input, textarea, select, [contenteditable='true'], [contenteditable='']");
+}
+
+function handleDesktopArrowMove(event){
+  if(!["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(event.key)) return;
+  if(isKeyboardTextEntryTarget(event.target)) return;
+  if(event.altKey || event.ctrlKey || event.metaKey) return;
+  if(animState || activeTool !== "move" || restartState) return;
+
+  const user = currentUser();
+  if(!user) return;
+
+  const currentRow = Math.round(user.current.row);
+  const currentCol = user.current.col;
+  const target = {
+    ArrowUp: { row:currentRow + 1, col:currentCol },
+    ArrowDown: { row:currentRow - 1, col:currentCol },
+    ArrowLeft: { row:currentRow, col:currentCol - 1 },
+    ArrowRight: { row:currentRow, col:currentCol + 1 }
+  }[event.key];
+
+  if(!target) return;
+  event.preventDefault();
+  event.stopPropagation();
+
+  if(target.row < 0 || target.col < 0 || target.col >= cols){
+    noticeText = "déplacement impossible";
+    render();
+    return;
+  }
+
+  selectCell(target.row, target.col);
+}
+
+document.addEventListener("keydown", handleDesktopArrowMove, {capture:true});
+
 let boardTouchScrollState = null;
 let suppressBoardClickUntil = 0;
 let suppressTrustedBoardClickUntil = 0;
