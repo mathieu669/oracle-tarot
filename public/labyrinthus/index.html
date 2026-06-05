@@ -7748,12 +7748,11 @@ function selectCatenaUser(userId){
   }
 }
 function isValidCellForUser(user,row,col){
+  // Le joueur occupe le centre d'une zone de déplacement de 3 × 3 :
+  // les huit cellules adjacentes restent accessibles, y compris si elles ont déjà été visitées.
   if(!isAllowed(user, row, col)) return false;
   if(isMirrorMoveBlocked(user, row, col)) return false;
   if(isSilvaObstacleCell(row, col)) return false;
-  const k = key(row, col);
-  const sameLineVisited = user.filled.has(k) && row === Math.round(user.current.row);
-  if(user.filled.has(k) && !sameLineVisited) return false;
   return true;
 }
 function mirroredCatenaTarget(catena, user, targetRow, targetCol){
@@ -12212,30 +12211,46 @@ infoModalClose.addEventListener("click", (event) => {
 });
 function bindFlammaPromptAction(element, action){
   if(!element) return;
-  const handler = (event) => {
+  let lastTouchActionAt = 0;
+
+  element.addEventListener("pointerdown", (event) => {
+    event.stopPropagation();
+  }, {passive:true});
+
+  element.addEventListener("pointerup", (event) => {
+    if(event.pointerType === "mouse") return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation?.();
+    lastTouchActionAt = performance.now();
+    action(event);
+  }, {passive:false});
+
+  element.addEventListener("click", (event) => {
+    if(performance.now() - lastTouchActionAt < 420){
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation?.();
+      return;
+    }
     event.preventDefault();
     event.stopPropagation();
     event.stopImmediatePropagation?.();
     action(event);
-  };
-
-  // Exécuter l'action uniquement au clic complet. Auparavant, elle était lancée
-  // dès pointerdown : la fenêtre disparaissait alors avant pointerup et le même
-  // tap pouvait être interprété comme un clic sur une case de la grille.
-  element.addEventListener("click", handler, {capture:true, passive:false});
+  }, {passive:false});
 }
 bindFlammaPromptAction(flammaPromptBackdrop, () => closeFlammaPrompt(false));
 bindFlammaPromptAction(flammaPromptClose, () => closeFlammaPrompt(false));
 bindFlammaPromptAction(flammaPromptNoBtn, () => closeFlammaPrompt(false));
 bindFlammaPromptAction(flammaPromptYesBtn, () => acceptPendingFlammaPrompt());
-flammaPromptModal?.addEventListener("pointerdown", (event) => event.stopPropagation(), {capture:true});
-flammaPromptModal?.addEventListener("click", (event) => event.stopPropagation(), {capture:true});
+flammaPromptModal?.addEventListener("pointerdown", (event) => event.stopPropagation());
+flammaPromptModal?.addEventListener("click", (event) => event.stopPropagation());
 bindFlammaPromptAction(cinisPromptBackdrop, () => closeCinisPrompt(false));
 bindFlammaPromptAction(cinisPromptClose, () => closeCinisPrompt(false));
 bindFlammaPromptAction(cinisPromptNoBtn, () => closeCinisPrompt(false));
 bindFlammaPromptAction(cinisPromptYesBtn, () => acceptPendingCinisPrompt());
-cinisPromptModal?.addEventListener("pointerdown", (event) => event.stopPropagation(), {capture:true});
-cinisPromptModal?.addEventListener("click", (event) => event.stopPropagation(), {capture:true});
+cinisPromptModal?.addEventListener("pointerdown", (event) => event.stopPropagation());
+cinisPromptModal?.addEventListener("click", (event) => event.stopPropagation());
 infoModalPanel.addEventListener("pointerenter", () => clearTimeout(infoHideTimer));
 infoModalPanel.addEventListener("pointerleave", () => hideInfoModal());
 document.addEventListener("keydown", (event) => {
