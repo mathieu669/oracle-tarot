@@ -889,6 +889,113 @@
     font:inherit;font-size:16px;cursor:pointer;line-height:1;padding:2px 4px;
   }
 
+  .flamma-prompt-modal{
+    position:absolute;
+    inset:0;
+    z-index:2147483602;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    pointer-events:none;
+  }
+  .flamma-prompt-modal.visible{
+    display:flex;
+    pointer-events:auto;
+  }
+  .flamma-prompt-backdrop{
+    position:absolute;
+    inset:0;
+    background:rgba(0,0,0,.56);
+    backdrop-filter:blur(3px);
+  }
+  .flamma-prompt-panel{
+    position:relative;
+    width:min(286px, calc(100% - 48px));
+    border:2px solid rgba(255,255,255,.92);
+    border-radius:18px;
+    background:rgba(0,0,0,.92);
+    color:#fff;
+    padding:22px 18px 16px;
+    box-shadow:0 20px 56px rgba(0,0,0,.52), 0 0 34px rgba(255,255,255,.10);
+    font-family:"Inter",sans-serif;
+    text-align:center;
+  }
+  .flamma-prompt-close{
+    position:absolute;
+    top:8px;
+    right:9px;
+    appearance:none;
+    border:0;
+    background:transparent;
+    color:rgba(255,255,255,.82);
+    font:inherit;
+    font-size:20px;
+    line-height:1;
+    cursor:pointer;
+    padding:2px 5px;
+  }
+  .flamma-prompt-icon{
+    width:50px;
+    height:50px;
+    margin:0 auto 10px;
+    border:1px solid rgba(255,255,255,.22);
+    border-radius:999px;
+    display:grid;
+    place-items:center;
+    background:radial-gradient(circle at 50% 38%, rgba(255,255,255,.12), rgba(255,255,255,.025) 58%, rgba(0,0,0,.18));
+  }
+  .flamma-prompt-icon svg{
+    width:30px;
+    height:30px;
+    display:block;
+  }
+  .flamma-prompt-icon svg *{
+    fill:none !important;
+    stroke:#fff !important;
+    stroke-width:1.7;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+  }
+  .flamma-prompt-title{
+    margin:0 0 8px;
+    font-size:13px;
+    font-weight:700;
+    letter-spacing:.16em;
+    text-transform:uppercase;
+  }
+  .flamma-prompt-body{
+    color:rgba(255,255,255,.78);
+    font-size:11px;
+    line-height:1.45;
+    margin:0 auto 16px;
+    max-width:220px;
+  }
+  .flamma-prompt-actions{
+    display:flex;
+    gap:10px;
+    justify-content:center;
+  }
+  .flamma-prompt-action{
+    appearance:none;
+    border:1px solid rgba(255,255,255,.26);
+    border-radius:999px;
+    background:rgba(255,255,255,.04);
+    color:#fff;
+    min-width:84px;
+    padding:9px 13px;
+    font-family:"Inter",sans-serif;
+    font-size:10px;
+    font-weight:700;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    cursor:pointer;
+  }
+  .flamma-prompt-action.primary{
+    background:#fff;
+    color:#000;
+    border-color:#fff;
+  }
+
 .aquila-video-layer{
   position:absolute;
   inset:0;
@@ -4050,6 +4157,24 @@ body.theme-light .asset-preview-wrap{
           <div class="info-modal-body" id="infoModalBody"></div>
         </div>
       </div>
+      <div class="flamma-prompt-modal" id="flammaPromptModal" aria-hidden="true">
+        <div class="flamma-prompt-backdrop" id="flammaPromptBackdrop"></div>
+        <div class="flamma-prompt-panel" role="dialog" aria-modal="true" aria-labelledby="flammaPromptTitle">
+          <button class="flamma-prompt-close" id="flammaPromptClose" aria-label="Fermer">×</button>
+          <div class="flamma-prompt-icon" aria-hidden="true">
+            <svg viewBox="0 0 32 32">
+              <path d="M16 4c.7 3.2-1.2 5.1-3.2 7.2-2.1 2.2-4.2 4.4-4.2 8.1 0 4.1 3.1 7.2 7.4 7.2 4.5 0 7.8-3.3 7.8-7.8 0-2.9-1.4-5.1-3.1-7.2-1.3-1.6-2.7-3.3-2.6-6.1-1.2.8-1.9 1.7-2.1 3.2-.9-1.3-1.6-2.8-1.9-4.6Z"/>
+              <path d="M16 13.3c.4 1.8-.6 2.8-1.5 3.8-1 1-1.9 2-1.9 3.7 0 1.9 1.4 3.3 3.5 3.3 2 0 3.6-1.5 3.6-3.6 0-1.4-.7-2.5-1.5-3.5-.6-.7-1.2-1.5-1.2-2.9-.6.4-.9.9-1 1.7Z"/>
+            </svg>
+          </div>
+          <h3 class="flamma-prompt-title" id="flammaPromptTitle">Utiliser Flamma ?</h3>
+          <div class="flamma-prompt-body" id="flammaPromptBody">Flamma trouvée.</div>
+          <div class="flamma-prompt-actions">
+            <button class="flamma-prompt-action" id="flammaPromptNoBtn" type="button">Non</button>
+            <button class="flamma-prompt-action primary" id="flammaPromptYesBtn" type="button">Oui</button>
+          </div>
+        </div>
+      </div>
       <div class="exvoto-modal" id="exVotoModal" aria-hidden="true">
         <div class="exvoto-backdrop"></div>
         <div class="exvoto-panel">
@@ -4582,6 +4707,12 @@ const infoModalPanel = document.getElementById("infoModalPanel");
 const infoModalTitle = document.getElementById("infoModalTitle");
 const infoModalBody = document.getElementById("infoModalBody");
 const infoModalClose = document.getElementById("infoModalClose");
+const flammaPromptModal = document.getElementById("flammaPromptModal");
+const flammaPromptBackdrop = document.getElementById("flammaPromptBackdrop");
+const flammaPromptClose = document.getElementById("flammaPromptClose");
+const flammaPromptBody = document.getElementById("flammaPromptBody");
+const flammaPromptNoBtn = document.getElementById("flammaPromptNoBtn");
+const flammaPromptYesBtn = document.getElementById("flammaPromptYesBtn");
 const infoButtons = Array.from(document.querySelectorAll(".info-btn"));
 const userAButton = document.getElementById("userAButton");
 const userBButton = document.getElementById("userBButton");
@@ -8512,11 +8643,24 @@ function beginFlammaPlacement(user){
   render();
   return true;
 }
-function maybeCollectFlammaAt(user, row, col){
-  const pickup = flammaPickupAt(row, col);
-  if(!pickup || !user) return false;
-  const approved = window.confirm("Utiliser Flamma ?");
-  if(!approved){ noticeText = "flamma laissée sur la case"; render(); return false; }
+function closeFlammaPrompt(accepted=false){
+  if(flammaPromptModal){
+    flammaPromptModal.classList.remove("visible");
+    flammaPromptModal.setAttribute("aria-hidden", "true");
+  }
+  const pending = pendingFlammaPrompt;
+  pendingFlammaPrompt = null;
+  if(!accepted && pending){
+    noticeText = "flamma laissée sur la case";
+    render();
+  }
+}
+function acceptPendingFlammaPrompt(){
+  const pending = pendingFlammaPrompt;
+  if(!pending || !pending.pickup || !pending.user) return closeFlammaPrompt(false);
+  const { pickup, user, row, col } = pending;
+  closeFlammaPrompt(true);
+
   // Snapshot avant consommation : une annulation avant placement doit remettre Flamma
   // exactement sur sa case d'origine, sans affecter les autres mécaniques.
   pushUndo();
@@ -8526,7 +8670,24 @@ function maybeCollectFlammaAt(user, row, col){
   user.flammaStock = Math.max(0, Number(user.flammaStock) || 0) + 1;
   addChroniconEvent(`${user.name} ramasse Flamma en ${locusRef(row, col)}.`);
   scheduleLabyrinthusStateSave("flamma-pickup");
-  return beginFlammaPlacement(user);
+  beginFlammaPlacement(user);
+}
+function openFlammaPrompt(user, pickup, row, col){
+  pendingFlammaPrompt = { user, pickup, row, col };
+  if(flammaPromptBody){
+    flammaPromptBody.textContent = `Flamma trouvée en ${locusRef(row, col)}. Voulez-vous l'utiliser maintenant ?`;
+  }
+  if(flammaPromptModal){
+    flammaPromptModal.classList.add("visible");
+    flammaPromptModal.setAttribute("aria-hidden", "false");
+  }
+}
+function maybeCollectFlammaAt(user, row, col){
+  const pickup = flammaPickupAt(row, col);
+  if(!pickup || !user) return false;
+  if(pendingFlammaPrompt && pendingFlammaPrompt.pickup === pickup) return true;
+  openFlammaPrompt(user, pickup, row, col);
+  return true;
 }
 function flammaSpreadCells(row, col, limit = 15){
   const start = {row:Math.round(row), col:Math.round(col)};
@@ -9853,6 +10014,7 @@ const solidusCache = new Map();
 const collectedSolidus = new Set();
 let flammaPickups = [];
 let flammaFires = [];
+let pendingFlammaPrompt = null;
 let burntCells = new Set();
 let flammaFireAnimationFrame = null;
 const SOLIDUS_PER_LEVEL = 7;
@@ -11767,10 +11929,29 @@ infoModalClose.addEventListener("click", (event) => {
   event.preventDefault();
   hideInfoModal(true);
 });
+flammaPromptBackdrop?.addEventListener("click", () => closeFlammaPrompt(false));
+flammaPromptClose?.addEventListener("click", (event) => {
+  event.preventDefault();
+  closeFlammaPrompt(false);
+});
+flammaPromptNoBtn?.addEventListener("click", (event) => {
+  event.preventDefault();
+  closeFlammaPrompt(false);
+});
+flammaPromptYesBtn?.addEventListener("click", (event) => {
+  event.preventDefault();
+  acceptPendingFlammaPrompt();
+});
 infoModalPanel.addEventListener("pointerenter", () => clearTimeout(infoHideTimer));
 infoModalPanel.addEventListener("pointerleave", () => hideInfoModal());
 document.addEventListener("keydown", (event) => {
-  if(event.key === "Escape") hideInfoModal(true);
+  if(event.key === "Escape"){
+    if(flammaPromptModal?.classList.contains("visible")){
+      closeFlammaPrompt(false);
+      return;
+    }
+    hideInfoModal(true);
+  }
 });
 
 
