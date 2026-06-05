@@ -4565,6 +4565,7 @@ const arborCombustusImageSrc = "/labyrinthus/assets/arbor-combustus.png";
 const petraCombustusImageSrc = "/labyrinthus/assets/petra-combustus.png";
 const frutexCombustusImageSrc = "/labyrinthus/assets/frutex-combustus.png";
 const palusImageSrc = "/labyrinthus/assets/palus.png";
+const palusCombustusImageSrc = "/labyrinthus/assets/palus-burnt.png";
 const foliumImageSrc = "/labyrinthus/assets/folium.png";
 const folia = Array.from({ length:30 }, (_, index) => {
   const row = 4 + index * 3;
@@ -4966,6 +4967,7 @@ function addChroniconEvent(text, meta = null){
 }
 
 const LABYRINTHUS_BURNT_RESET_VERSION = "burnt-reset-2026-06-02-v4";
+const LABYRINTHUS_FLAMMA_RESET_VERSION = "flamma-reset-2026-06-05-v1";
 let labyrinthusStateRemoteReady = false;
 let labyrinthusStateSyncTimer = null;
 let labyrinthusStateSyncQueue = Promise.resolve();
@@ -5002,6 +5004,19 @@ function applyBurntResetMigrationToState(state){
   };
 }
 
+function applyFlammaResetMigrationToState(state){
+  if(!state || typeof state !== "object") return { state, migrated:false };
+  if(state.flammaResetVersion === LABYRINTHUS_FLAMMA_RESET_VERSION) return { state, migrated:false };
+  return {
+    state:{
+      ...state,
+      flammaResetVersion:LABYRINTHUS_FLAMMA_RESET_VERSION,
+      flammaPickups:[]
+    },
+    migrated:true
+  };
+}
+
 function safeLabyrinthusStateSnapshot(){
   try{
     const state = snapshot(currentUser()?.id);
@@ -5019,18 +5034,21 @@ async function loadLabyrinthusStateFromServer(){
     if(!response.ok) throw new Error('state unavailable');
     const data = await response.json();
     let migratedBurntState = false;
+    let migratedFlammaState = false;
     if(data && data.state && typeof data.state === 'object'){
-      const migration = applyBurntResetMigrationToState(data.state);
-      const stateToRestore = migration.state;
-      migratedBurntState = !!migration.migrated;
+      const burntMigration = applyBurntResetMigrationToState(data.state);
+      const flammaMigration = applyFlammaResetMigrationToState(burntMigration.state);
+      const stateToRestore = flammaMigration.state;
+      migratedBurntState = !!burntMigration.migrated;
+      migratedFlammaState = !!flammaMigration.migrated;
       labyrinthusStateLastRemoteUpdatedAt = data.updatedAt || stateToRestore.persistedAt || null;
       labyrinthusStateRestoring = true;
       restore(stateToRestore);
       labyrinthusStateRestoring = false;
-      noticeText = migratedBurntState ? 'zones calcinées rétablies' : 'dimension current synchronisée';
+      noticeText = migratedFlammaState ? 'trois Flamma rétablies' : (migratedBurntState ? 'zones calcinées rétablies' : 'dimension current synchronisée');
     }
     labyrinthusStateRemoteReady = true;
-    if(migratedBurntState) persistLabyrinthusState('burnt-reset-test');
+    if(migratedBurntState || migratedFlammaState) persistLabyrinthusState(migratedFlammaState ? 'flamma-reset-test' : 'burnt-reset-test');
   }catch(error){
     labyrinthusStateRestoring = false;
     labyrinthusStateRemoteReady = true;
@@ -5249,7 +5267,8 @@ function mergeRemoteWorldState(remoteState){
   if(Array.isArray(remoteState.triggeredVapors)) triggeredVapors = new Set(remoteState.triggeredVapors);
   if(Array.isArray(remoteState.vaporBursts)) vaporBursts = clonePlainArray(remoteState.vaporBursts);
 
-  if(Array.isArray(remoteState.flammaPickups)) flammaPickups = clonePlainArray(remoteState.flammaPickups);
+  const acceptRemoteFlammaState = remoteState.flammaResetVersion === LABYRINTHUS_FLAMMA_RESET_VERSION;
+  if(acceptRemoteFlammaState && Array.isArray(remoteState.flammaPickups)) flammaPickups = clonePlainArray(remoteState.flammaPickups);
   const acceptRemoteBurntState = remoteState.burntResetVersion === LABYRINTHUS_BURNT_RESET_VERSION;
   if(acceptRemoteBurntState && Array.isArray(remoteState.flammaFires)) flammaFires = cloneFlammaFires(remoteState.flammaFires);
   if(acceptRemoteBurntState && Array.isArray(remoteState.burntCells)) burntCells = new Set(remoteState.burntCells);
@@ -6493,6 +6512,7 @@ function snapshot(actorId = currentUser()?.id){
     actorId,
     clientId: labyrinthusClientId,
     burntResetVersion: LABYRINTHUS_BURNT_RESET_VERSION,
+    flammaResetVersion: LABYRINTHUS_FLAMMA_RESET_VERSION,
     savedBySlotId: activeUserId,
     savedByNoxFatumUserId: currentUser()?.noxFatumUserId || noxActiveFatumUser?.id || null,
     scroll,
@@ -7401,13 +7421,19 @@ function hasWall(row, col, side, extraWall=null){
   return placedWalls.some(w => w.row === row && w.col === col && w.side === side);
 }
 
-function wouldCloseFullLine(candidateWall){
-  // A row cannot be fully closed by horizontal Murus on all 5 cells.
-  if(candidateWall.side !== "bottom") return false;
-  for(let c = 0; c < cols; c++){
-    if(!hasWall(candidateWall.row, c, "bottom", candidateWall)) return false;
+function passageCountAcrossLine(targetRow, extraWall=null){
+  let passages = 0;
+  for(let col = 0; col < cols; col++){
+    const blockedByWall = hasWall(targetRow, col, "bottom", extraWall);
+    const blockedByDecor = isSilvaObstacleCell(targetRow, col);
+    if(!blockedByWall && !blockedByDecor) passages += 1;
   }
-  return true;
+  return passages;
+}
+function wouldCloseFullLine(candidateWall){
+  // Au moins deux passages doivent toujours subsister sur une ligne.
+  if(candidateWall.side !== "bottom") return false;
+  return passageCountAcrossLine(candidateWall.row, candidateWall) < 2;
 }
 
 function wallBlocksMovement(row, col, side){
@@ -7417,13 +7443,16 @@ function moveBlocked(fromRow, fromCol, toRow, toCol){
   const dRow = toRow - fromRow;
   const dCol = toCol - fromCol;
 
-  // Un Murus n'a qu'un seul effet : empêcher le franchissement de l'arête
-  // précise sur laquelle il est placé. Il bloque tous les joueurs, propriétaire inclus.
+  // Murus longitudinal : posé sur le bord droit de la case sélectionnée.
+  // Il bloque uniquement le déplacement latéral qui franchit exactement ce bord.
   if(dRow === 0 && dCol === 1) return wallBlocksMovement(fromRow, fromCol, "right");
   if(dRow === 0 && dCol === -1) return wallBlocksMovement(fromRow, toCol, "right");
-  if(dRow === 1 && dCol === 0) return wallBlocksMovement(fromRow, fromCol, "bottom");
 
-  // Les autres déplacements autorisés ne sont pas affectés par un Murus voisin.
+  // Murus latitudinal : posé sur le bord bas de la case sélectionnée.
+  // Pour avancer de R vers R+1, le bord franchi est donc le bord bas de la case cible R+1.
+  if(dRow === 1 && dCol === 0) return wallBlocksMovement(toRow, toCol, "bottom");
+
+  // Les diagonales et toutes les autres actions de déplacement ne sont pas affectées.
   return false;
 }
 
@@ -7459,6 +7488,7 @@ function userAtCell(row,col){
 function isCellVirgin(row,col){
   if(row < 0 || col < 0 || col >= cols) return false;
   if(abyssusExistsAt(row,col)) return false;
+  if(isSilvaObstacleCell(row,col)) return false;
   if(userAtCell(row,col)) return false;
   if(fossaAt(row,col)) return false;
   if(scalaAt(row,col)) return false;
@@ -8451,7 +8481,7 @@ function placeWall(worldRow, col){
   }
   const candidate = { id, row:worldRow, col, side, owner:user.id };
   if(wouldCloseFullLine(candidate)){
-    noticeText = "action refusée : impossible de fermer complètement une ligne";
+    noticeText = "action refusée : au moins deux passages doivent rester libres sur la ligne";
     render();
     return;
   }
@@ -8520,8 +8550,8 @@ function placeFossa(worldRow, col){
 function placeScala(worldRow, col){
   const user = currentUser();
   if(user.scalaStock <= 0) return;
-  if(abyssusExistsAt(worldRow,col)){
-    noticeText = "scala impossible : abyssus";
+  if(abyssusExistsAt(worldRow,col) || isSilvaObstacleCell(worldRow,col)){
+    noticeText = "scala impossible : case obstruée";
     render();
     return;
   }
@@ -8603,6 +8633,7 @@ function ensureFlammaPickups(){
   // Silva Oscura contient exactement 3 Flamma pour toute la partie.
   // Une Flamma consommée reste enregistrée comme consommée et n'est jamais remplacée.
   if(flammaPickups.length >= 3) return;
+  const countBefore = flammaPickups.length;
   const levelIndex = LEVELS.findIndex(level => level.key === "silva");
   if(levelIndex < 0) return;
   const startRow = levelIndex * LEVEL_LENGTH;
@@ -8621,6 +8652,7 @@ function ensureFlammaPickups(){
     if(flammaPickups.some(item => Math.abs(item.row - candidate.row) + Math.abs(item.col - candidate.col) < 4)) continue;
     flammaPickups.push({id:`flamma-${candidate.row}-${candidate.col}`, row:candidate.row, col:candidate.col, consumed:false});
   }
+  if(flammaPickups.length !== countBefore) scheduleLabyrinthusStateSave("flamma-spawn");
 }
 function ensureFlammaVideoElement(id){
   if(flammaVideoEls[id]) return flammaVideoEls[id];
@@ -9783,12 +9815,26 @@ function silvaArborCellKeys(){
   if(silvaArborCellsCache) return silvaArborCellsCache;
   const cells = new Set();
   const petraCells = silvaPetraCellKeys();
+  function canAddArborCell(candidate){
+    const blockedOnRow = new Set();
+    for(const id of petraCells){
+      const [rowStr, colStr] = id.split("-");
+      if(Number(rowStr) === candidate.row) blockedOnRow.add(Number(colStr));
+    }
+    for(const id of cells){
+      const [rowStr, colStr] = id.split("-");
+      if(Number(rowStr) === candidate.row) blockedOnRow.add(Number(colStr));
+    }
+    blockedOnRow.add(candidate.col);
+    return cols - blockedOnRow.size >= 2;
+  }
   for(let local = 5; local < LEVEL_LENGTH - 3; local += 8){
     const row = local;
     const col = Math.max(1, Math.min(cols - 2, Math.floor(cellNoise(row, 0, 317) * cols)));
     for(const cell of arborClusterCells(row, col)){
       const cellId = key(cell.row, cell.col);
       if(petraCells.has(cellId)) continue;
+      if(!canAddArborCell(cell)) continue;
       cells.add(cellId);
     }
   }
@@ -9812,14 +9858,15 @@ function silvaFrutexCellKeys(){
 function isSilvaObstacleCell(row, col){
   if(!isSilvaRow(row)) return false;
   const cellId = key(row, col);
-  return silvaPetraCellKeys().has(cellId) || silvaArborCellKeys().has(cellId);
+  return silvaPetraCellKeys().has(cellId) || silvaArborCellKeys().has(cellId) || silvaPalusCellKeys().has(cellId);
 }
 function isSilvaShadowCell(row, col){
   if(!isSilvaRow(row)) return false;
   const cellId = key(row, col);
-  return silvaPetraCellKeys().has(cellId) || silvaArborCellKeys().has(cellId) || silvaFrutexCellKeys().has(cellId);
+  return silvaPetraCellKeys().has(cellId) || silvaArborCellKeys().has(cellId) || silvaFrutexCellKeys().has(cellId) || silvaPalusCellKeys().has(cellId);
 }
 let silvaPalusGroupsCache = null;
+let silvaPalusCellsCache = null;
 function silvaPalusGroups(){
   if(silvaPalusGroupsCache) return silvaPalusGroupsCache;
   const groups = [];
@@ -9828,50 +9875,77 @@ function silvaPalusGroups(){
     ...silvaArborCellKeys(),
     ...silvaFrutexCellKeys()
   ]);
+  const blockingOccupied = new Set([
+    ...silvaPetraCellKeys(),
+    ...silvaArborCellKeys()
+  ]);
   const levelIndex = LEVELS.findIndex(level => level.key === "silva");
   const startRow = Math.max(0, levelIndex) * LEVEL_LENGTH;
   const targetCount = 7;
 
-  function candidateCells(row, col, width, height){
-    const cells = [];
-    for(let dr = 0; dr < height; dr++){
-      for(let dc = 0; dc < width; dc++){
-        const r = row + dr;
-        const c = col + dc;
-        const k = key(r, c);
-        if(!isSilvaRow(r) || c < 0 || c >= cols || occupied.has(k)) return null;
-        cells.push({row:r, col:c});
+  function rowKeepsTwoPassages(cells){
+    const rows = new Set(cells.map(cell => cell.row));
+    for(const row of rows){
+      const blockedCols = new Set();
+      for(const id of blockingOccupied){
+        const [rowStr, colStr] = id.split("-");
+        if(Number(rowStr) === row) blockedCols.add(Number(colStr));
       }
+      cells.filter(cell => cell.row === row).forEach(cell => blockedCols.add(cell.col));
+      if(cols - blockedCols.size < 2) return false;
     }
+    return true;
+  }
+
+  function candidateCells(row, col, missingCorner){
+    const all = [
+      {row, col},
+      {row, col:col + 1},
+      {row:row + 1, col},
+      {row:row + 1, col:col + 1}
+    ];
+    const cells = all.filter((_, index) => index !== missingCorner);
+    for(const cell of cells){
+      const id = key(cell.row, cell.col);
+      if(!isSilvaRow(cell.row) || cell.col < 0 || cell.col >= cols || occupied.has(id)) return null;
+    }
+    if(!rowKeepsTwoPassages(cells)) return null;
     return cells;
   }
 
-  for(let attempt = 0; attempt < 280 && groups.length < targetCount; attempt++){
-    const seedRow = startRow + 4 + Math.floor(cellNoise(attempt + 11, attempt + 17, 3301) * (LEVEL_LENGTH - 10));
-    const sizeIsSix = cellNoise(attempt + 19, seedRow, 3302) > .44;
-    const width = 2;
-    const height = sizeIsSix ? 3 : 2;
-    const edgeBias = cellNoise(attempt + 23, seedRow, 3303);
+  for(let attempt = 0; attempt < 320 && groups.length < targetCount; attempt++){
+    const row = startRow + 4 + Math.floor(cellNoise(attempt + 11, attempt + 17, 3301) * (LEVEL_LENGTH - 10));
+    const edgeBias = cellNoise(attempt + 23, row, 3303);
     let col;
-    if(edgeBias < .72){
-      col = cellNoise(attempt + 29, seedRow, 3304) < .5 ? 0 : cols - width;
+    if(edgeBias < .76){
+      col = cellNoise(attempt + 29, row, 3304) < .5 ? 0 : cols - 2;
     }else{
-      col = Math.floor(cellNoise(attempt + 31, seedRow, 3305) * (cols - width + 1));
+      col = Math.floor(cellNoise(attempt + 31, row, 3305) * (cols - 1));
     }
-    const row = seedRow;
-    const cells = candidateCells(row, col, width, height);
+    const missingCorner = Math.floor(cellNoise(attempt + 37, row, 3307) * 4);
+    const cells = candidateCells(row, col, missingCorner);
     if(!cells) continue;
     const tooClose = groups.some(group => group.cells.some(a => cells.some(b => Math.abs(a.row - b.row) + Math.abs(a.col - b.col) < 3)));
     if(tooClose) continue;
-    cells.forEach(cell => occupied.add(key(cell.row, cell.col)));
+    cells.forEach(cell => {
+      occupied.add(key(cell.row, cell.col));
+      blockingOccupied.add(key(cell.row, cell.col));
+    });
     groups.push({
       id:`palus-${row}-${col}`,
-      row, col, width, height, cells,
+      row, col, width:2, height:2, cells,
       rotation:(cellNoise(row, col, 3306) - .5) * 7
     });
   }
   silvaPalusGroupsCache = groups;
   return groups;
+}
+function silvaPalusCellKeys(){
+  if(silvaPalusCellsCache) return silvaPalusCellsCache;
+  const cells = new Set();
+  silvaPalusGroups().forEach(group => group.cells.forEach(cell => cells.add(key(cell.row, cell.col))));
+  silvaPalusCellsCache = cells;
+  return cells;
 }
 function isPalusGroupVisible(group){
   return group.cells.some(cell => isWorldRowVisible(cell.row) && (cell.row - scroll) >= -1.4 && (cell.row - scroll) <= visibleRows + .8);
@@ -9911,12 +9985,13 @@ function renderSilvaObjects(){
     const minY = Math.min(...points.map(point => point.y));
     const maxY = Math.max(...points.map(point => point.y));
     const center = {x:(minX + maxX) / 2, y:(minY + maxY) / 2};
+    const burned = group.cells.some(cell => isBurntCell(cell.row, cell.col));
     appendSilvaImage(
-      palusImageSrc,
+      burned ? palusCombustusImageSrc : palusImageSrc,
       {x:center.x, y:center.y - (maxY - minY) * .06},
       (maxX - minX) * 1.22,
       (maxY - minY) * 1.44,
-      "silva-palus",
+      burned ? "silva-palus silva-combustus" : "silva-palus",
       group.rotation
     );
   }
