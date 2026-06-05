@@ -4818,7 +4818,7 @@ let exVotoToastTimer = null;
 const INFO_CONTENT = {
   murus: {
     title: "Murus",
-    body: "Coût : 20 Ft.\n\nPermet d’acheter un seul mur. Tant qu’il n’est pas posé sur la grille, la carte reste active.\n\nSi le mur est latitudinal, il se pose automatiquement en bas de la case choisie. S’il est longitudinal, il se pose automatiquement à droite.\n\nUn Murus bloque la progression d’un joueur si son déplacement devrait le traverser. On ne peut ni enfermer complètement un joueur avec 4 murs, ni fermer totalement une ligne avec des Murus."
+    body: "Coût : 20 Ft.\n\nPermet d’acheter un seul mur. Tant qu’il n’est pas posé sur la grille, la carte reste active.\n\nSi le mur est latitudinal, il se pose automatiquement en bas de la case choisie. S’il est longitudinal, il se pose automatiquement à droite.\n\nUn Murus bloque tout déplacement qui traverse son bord, y compris en diagonale. On ne peut ni enfermer complètement un joueur avec 4 murs, ni fermer le dernier passage libre d’une ligne."
   },
   fossa: {
     title: "Fossa",
@@ -4967,7 +4967,7 @@ function addChroniconEvent(text, meta = null){
 }
 
 const LABYRINTHUS_BURNT_RESET_VERSION = "burnt-reset-2026-06-02-v4";
-const LABYRINTHUS_FLAMMA_RESET_VERSION = "flamma-reset-2026-06-05-v1";
+const LABYRINTHUS_FLAMMA_RESET_VERSION = "flamma-reset-2026-06-05-v2";
 let labyrinthusStateRemoteReady = false;
 let labyrinthusStateSyncTimer = null;
 let labyrinthusStateSyncQueue = Promise.resolve();
@@ -7431,9 +7431,9 @@ function passageCountAcrossLine(targetRow, extraWall=null){
   return passages;
 }
 function wouldCloseFullLine(candidateWall){
-  // Au moins deux passages doivent toujours subsister sur une ligne.
+  // Une ligne peut être très contrainte, mais son dernier passage doit toujours rester libre.
   if(candidateWall.side !== "bottom") return false;
-  return passageCountAcrossLine(candidateWall.row, candidateWall) < 2;
+  return passageCountAcrossLine(candidateWall.row, candidateWall) < 1;
 }
 
 function wallBlocksMovement(row, col, side){
@@ -7443,16 +7443,17 @@ function moveBlocked(fromRow, fromCol, toRow, toCol){
   const dRow = toRow - fromRow;
   const dCol = toCol - fromCol;
 
-  // Murus longitudinal : posé sur le bord droit de la case sélectionnée.
-  // Il bloque uniquement le déplacement latéral qui franchit exactement ce bord.
+  // Murus longitudinal : il est posé sur le bord droit de la case sélectionnée.
+  // Tout déplacement qui franchit ce bord, y compris en diagonale, est bloqué.
   if(dRow === 0 && dCol === 1) return wallBlocksMovement(fromRow, fromCol, "right");
   if(dRow === 0 && dCol === -1) return wallBlocksMovement(fromRow, toCol, "right");
+  if(dRow === 1 && dCol === 1 && wallBlocksMovement(fromRow, fromCol, "right")) return true;
+  if(dRow === 1 && dCol === -1 && wallBlocksMovement(fromRow, toCol, "right")) return true;
 
-  // Murus latitudinal : posé sur le bord bas de la case sélectionnée.
-  // Pour avancer de R vers R+1, le bord franchi est donc le bord bas de la case cible R+1.
-  if(dRow === 1 && dCol === 0) return wallBlocksMovement(toRow, toCol, "bottom");
+  // Murus latitudinal : il est posé sur le bord bas de la case sélectionnée.
+  // Une progression vers R+1 franchit le bord bas de la case cible, même en diagonale.
+  if(dRow === 1 && wallBlocksMovement(toRow, toCol, "bottom")) return true;
 
-  // Les diagonales et toutes les autres actions de déplacement ne sont pas affectées.
   return false;
 }
 
@@ -7937,7 +7938,8 @@ function tokenRenderData(user){
 function wouldEncloseAnySphere(candidateWall){
   function fullyEnclosed(row,col){
     const r = Math.round(row);
-    const top = r > 0 ? hasWall(r-1, col, "bottom", candidateWall) : false;
+    // Le bord haut de la case R est le bord bas de la case R+1.
+    const top = hasWall(r+1, col, "bottom", candidateWall);
     const bottom = hasWall(r, col, "bottom", candidateWall);
     const left = col > 0 ? hasWall(r, col-1, "right", candidateWall) : false;
     const right = hasWall(r, col, "right", candidateWall);
@@ -8481,7 +8483,7 @@ function placeWall(worldRow, col){
   }
   const candidate = { id, row:worldRow, col, side, owner:user.id };
   if(wouldCloseFullLine(candidate)){
-    noticeText = "action refusée : au moins deux passages doivent rester libres sur la ligne";
+    noticeText = "action refusée : le dernier passage de la ligne doit rester libre";
     render();
     return;
   }
@@ -9860,30 +9862,38 @@ function isSilvaObstacleCell(row, col){
   const cellId = key(row, col);
   return silvaPetraCellKeys().has(cellId) || silvaArborCellKeys().has(cellId) || silvaPalusCellKeys().has(cellId);
 }
-function isSilvaShadowCell(row, col){
+function isSilvaBaseShadowCell(row, col){
   if(!isSilvaRow(row)) return false;
   const cellId = key(row, col);
-  return silvaPetraCellKeys().has(cellId) || silvaArborCellKeys().has(cellId) || silvaFrutexCellKeys().has(cellId) || silvaPalusCellKeys().has(cellId);
+  return silvaPetraCellKeys().has(cellId) || silvaArborCellKeys().has(cellId) || silvaFrutexCellKeys().has(cellId);
+}
+function isSilvaShadowCell(row, col){
+  if(!isSilvaRow(row)) return false;
+  return isSilvaBaseShadowCell(row, col) || silvaPalusCellKeys().has(key(row, col));
 }
 let silvaPalusGroupsCache = null;
 let silvaPalusCellsCache = null;
 function silvaPalusGroups(){
   if(silvaPalusGroupsCache) return silvaPalusGroupsCache;
   const groups = [];
+  const levelIndex = LEVELS.findIndex(level => level.key === "silva");
+  const reservedSolidusCells = new Set(
+    solidusPositionsForLevel(levelIndex).map(item => key(item.row, item.col))
+  );
   const occupied = new Set([
     ...silvaPetraCellKeys(),
     ...silvaArborCellKeys(),
-    ...silvaFrutexCellKeys()
+    ...silvaFrutexCellKeys(),
+    ...reservedSolidusCells
   ]);
   const blockingOccupied = new Set([
     ...silvaPetraCellKeys(),
     ...silvaArborCellKeys()
   ]);
-  const levelIndex = LEVELS.findIndex(level => level.key === "silva");
   const startRow = Math.max(0, levelIndex) * LEVEL_LENGTH;
   const targetCount = 7;
 
-  function rowKeepsTwoPassages(cells){
+  function rowKeepsPassage(cells){
     const rows = new Set(cells.map(cell => cell.row));
     for(const row of rows){
       const blockedCols = new Set();
@@ -9892,7 +9902,7 @@ function silvaPalusGroups(){
         if(Number(rowStr) === row) blockedCols.add(Number(colStr));
       }
       cells.filter(cell => cell.row === row).forEach(cell => blockedCols.add(cell.col));
-      if(cols - blockedCols.size < 2) return false;
+      if(cols - blockedCols.size < 1) return false;
     }
     return true;
   }
@@ -9909,7 +9919,7 @@ function silvaPalusGroups(){
       const id = key(cell.row, cell.col);
       if(!isSilvaRow(cell.row) || cell.col < 0 || cell.col >= cols || occupied.has(id)) return null;
     }
-    if(!rowKeepsTwoPassages(cells)) return null;
+    if(!rowKeepsPassage(cells)) return null;
     return cells;
   }
 
@@ -10327,7 +10337,8 @@ function solidusPositionsForLevel(levelIndex){
     for(let col = 0; col < cols; col++){
       if(abyssusExistsAt(worldRow, col)) continue;
       if(vaporExistsAt(worldRow, col)) continue;
-      if(levelKey === "silva" && isSilvaShadowCell(worldRow, col)) continue;
+      // Le Palus ne doit jamais faire disparaître les Solidus déjà prévus sur la grille.
+      if(levelKey === "silva" && isSilvaBaseShadowCell(worldRow, col)) continue;
       const score = cellNoise(worldRow, col, 931) + cellNoise(worldRow, col, 937) * 0.35 + (localRow * 0.0001);
       candidates.push({
         row: worldRow,
@@ -12834,6 +12845,7 @@ requestAnimationFrame(draw);
 })();
 
 
+/* V89: restore Flamma/Solidus, correct Murus crossings, Palus and final-passage rules. */
 /* V88: compute the real visible height of the parent phone viewport for iOS Safari. */
 (function syncLabyrinthusRealViewportV88(){
   const root = document.documentElement;
