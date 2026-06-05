@@ -4818,7 +4818,7 @@ function addChroniconEvent(text, meta = null){
   scheduleLabyrinthusStateSave('chronicon');
 }
 
-const LABYRINTHUS_BURNT_RESET_VERSION = "burnt-reset-2026-06-02-v2";
+const LABYRINTHUS_BURNT_RESET_VERSION = "burnt-reset-2026-06-02-v3";
 let labyrinthusStateRemoteReady = false;
 let labyrinthusStateSyncTimer = null;
 let labyrinthusStateSyncQueue = Promise.resolve();
@@ -4849,7 +4849,8 @@ function applyBurntResetMigrationToState(state){
       ...state,
       burntResetVersion:LABYRINTHUS_BURNT_RESET_VERSION,
       flammaFires:[],
-      burntCells:[]
+      burntCells:[],
+      flammaPickups:[]
     },
     migrated:true
   };
@@ -9915,7 +9916,9 @@ function solidusPositionsForLevel(levelIndex){
   if(solidusCache.has(levelIndex)) return solidusCache.get(levelIndex);
   const startRow = levelIndex * LEVEL_LENGTH;
   const levelKey = levelForRow(startRow).key;
-  const targetSolidusCount = Math.max(1, Math.round(SOLIDUS_PER_LEVEL * (levelKey === "silva" ? 1.3 : 1)));
+  const targetSolidusCount = levelKey === "silva"
+    ? Math.max(9, Math.round(SOLIDUS_PER_LEVEL * 1.3))
+    : Math.max(1, Math.round(SOLIDUS_PER_LEVEL));
   const candidates = [];
   for(let localRow = 0; localRow < LEVEL_LENGTH; localRow++){
     const worldRow = startRow + localRow;
