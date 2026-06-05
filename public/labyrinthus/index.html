@@ -5629,8 +5629,11 @@ function setPlanViewMode(value, options = {}){
   try { localStorage.setItem("labyrinthus-plan-view", planViewMode ? "1" : "0"); } catch(e){}
   applyBoardZoom();
   updateZoomButtons();
-  if(planViewMode && options.center !== false) centerViewOnActiveUser(false);
-  else render({ immediate:true });
+
+  // La vue plan doit conserver la position courante de la vue.
+  // Elle ne recentre donc pas automatiquement sur le joueur actif.
+  // Exemple : si la vue est scrollée vers la ligne 10, le plan s'ouvre sur la ligne 10.
+  render({ immediate:true });
 }
 function setZoom(zoom){
   const snapped = Math.round((zoom / zoomStep)) * zoomStep;
