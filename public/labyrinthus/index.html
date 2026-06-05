@@ -8692,9 +8692,16 @@ function renderFlammaPickups(){
 function beginFlammaPlacement(user){
   activeTool = "flamma";
   revealPossibleMoves = false;
+
+  // Laisse se terminer le clic/tap de validation avant d'autoriser une pose.
+  // La prévisualisation Flamma est rendue immédiatement, puis le joueur choisit
+  // explicitement la case de départ de l'incendie.
+  flammaPlacementReadyAt = performance.now() + 360;
+  suppressBoardClickUntil = Math.max(suppressBoardClickUntil, flammaPlacementReadyAt);
+  suppressTrustedBoardClickUntil = Math.max(suppressTrustedBoardClickUntil, flammaPlacementReadyAt);
   noticeText = `flamma : choisir une case de Silva Oscura pour ${user.name.toLowerCase()}`;
   scheduleLabyrinthusStateSave("flamma-ready");
-  render();
+  render({ immediate:true });
   return true;
 }
 function closeFlammaPrompt(accepted=false){
@@ -8732,8 +8739,7 @@ function openFlammaPrompt(user, pickup, row, col){
     flammaPromptBody.textContent = `Flamma trouvée en ${locusRef(row, col)}. Voulez-vous l'utiliser maintenant ?`;
   }
   if(flammaPromptModal){
-    suppressBoardClickUntil = 0;
-    suppressTrustedBoardClickUntil = 0;
+    flammaPlacementReadyAt = 0;
     flammaPromptModal.classList.add("visible");
     flammaPromptModal.setAttribute("aria-hidden", "false");
   }
@@ -8778,7 +8784,13 @@ function clearPendingFlammaUndo(actorId){
 function placeFlamma(row, col){
   const user = currentUser();
   if(!user || (Number(user.flammaStock) || 0) <= 0) return false;
+  if(performance.now() < flammaPlacementReadyAt){
+    noticeText = "flamma : choisir la case de départ";
+    render();
+    return false;
+  }
   if(!isSilvaRow(row) || abyssusExistsAt(row, col)){ noticeText = "flamma : choisir une case de Silva Oscura"; render(); return false; }
+  flammaPlacementReadyAt = 0;
   clearPendingFlammaUndo(user.id);
   user.flammaStock = Math.max(0, (Number(user.flammaStock) || 0) - 1);
   if(user.flammaStock <= 0) activeTool = "move";
@@ -10200,6 +10212,9 @@ const collectedSolidus = new Set();
 let flammaPickups = [];
 let flammaFires = [];
 let pendingFlammaPrompt = null;
+// Empêche le même geste qui valide « Oui » de poser immédiatement Flamma
+// sur la case située derrière la fenêtre de confirmation.
+let flammaPlacementReadyAt = 0;
 let burntCells = new Set();
 let flammaFireAnimationFrame = null;
 const SOLIDUS_PER_LEVEL = 7;
@@ -11342,7 +11357,7 @@ let suppressBoardClickUntil = 0;
 let suppressTrustedBoardClickUntil = 0;
 
 function isBoardUiTarget(target){
-  return !!(target && target.closest && target.closest(".control-panel,.mini-rail,.sound-toggle,.info-modal,.exvoto-modal,.exvoto-panel,.info-modal-panel"));
+  return !!(target && target.closest && target.closest(".control-panel,.mini-rail,.sound-toggle,.info-modal,.exvoto-modal,.exvoto-panel,.info-modal-panel,.flamma-prompt-modal,.flamma-prompt-panel"));
 }
 
 function boardTapTargetFromPoint(x, y){
@@ -11374,7 +11389,7 @@ let globalTouchTapState = null;
 
 document.addEventListener("pointerdown", (event) => {
   if(event.pointerType !== "touch") return;
-  if(event.target?.closest?.(".sound-toggle,.mini-rail,.user-panel,.panel-tab,.left-stack,.info-modal,.exvoto-modal")) return;
+  if(event.target?.closest?.(".sound-toggle,.mini-rail,.user-panel,.panel-tab,.left-stack,.info-modal,.exvoto-modal,.flamma-prompt-modal")) return;
   globalTouchTapState = {
     pointerId:event.pointerId,
     startX:event.clientX,
@@ -11384,7 +11399,7 @@ document.addEventListener("pointerdown", (event) => {
 }, true);
 
 document.addEventListener("pointerup", (event) => {
-  if(event.target?.closest?.(".sound-toggle,.mini-rail,.user-panel,.panel-tab,.left-stack,.info-modal,.exvoto-modal")) { globalTouchTapState = null; return; }
+  if(event.target?.closest?.(".sound-toggle,.mini-rail,.user-panel,.panel-tab,.left-stack,.info-modal,.exvoto-modal,.flamma-prompt-modal")) { globalTouchTapState = null; return; }
   const state = globalTouchTapState;
   if(!state || event.pointerId !== state.pointerId || event.pointerType !== "touch") return;
   globalTouchTapState = null;
@@ -12132,9 +12147,11 @@ function bindFlammaPromptAction(element, action){
     event.stopImmediatePropagation?.();
     action(event);
   };
-  ["pointerdown","pointerup","touchstart","touchend","click"].forEach(type => {
-    element.addEventListener(type, handler, {capture:true, passive:false});
-  });
+
+  // Exécuter l'action uniquement au clic complet. Auparavant, elle était lancée
+  // dès pointerdown : la fenêtre disparaissait alors avant pointerup et le même
+  // tap pouvait être interprété comme un clic sur une case de la grille.
+  element.addEventListener("click", handler, {capture:true, passive:false});
 }
 bindFlammaPromptAction(flammaPromptBackdrop, () => closeFlammaPrompt(false));
 bindFlammaPromptAction(flammaPromptClose, () => closeFlammaPrompt(false));
